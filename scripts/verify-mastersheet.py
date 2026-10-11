@@ -136,6 +136,25 @@ def validate_book(book, old=None):
             milestone_visited.add(key)
         for key in milestones:
             visit_milestone(key)
+        if records(book, '执行约定', r'LAYOUT-001', 6):
+            positions = {value: int(addr[1:]) for addr, value in book['版本规划'].items()
+                         if re.fullmatch(r'A\d+', addr) and
+                         str(value) in set(extended_versions) | set(milestones) | {'WF-012'}}
+            previous_checkpoint = 0
+            for key in sorted(milestones, key=lambda value: int(value[1:])):
+                package_rows = [positions[p.strip()] for p in re.split(r'[,，、]', milestones[key][2])
+                                if p.strip()]
+                checkpoint = positions[key]
+                require(previous_checkpoint < min(package_rows) and
+                        checkpoint == max(package_rows) + 2 and
+                        book['版本规划'].get(f'A{checkpoint-1}') == '里程碑',
+                        f'Milestone placement must follow its stage packages: {key}')
+                previous_checkpoint = checkpoint
+            if 'WF-012' in positions and 'M1' in milestones:
+                first_m1 = min(positions[p.strip()] for p in re.split(r'[,，、]', milestones['M1'][2])
+                               if p.strip())
+                require(positions.get('M0', 0) < positions['WF-012'] < first_m1,
+                        'UI-FIX-001 placement must precede M1 development')
     logs = records(book, 'Changelog', r'ROUND-[\w-]+', 12)
     decisions = records(book, '决策与风险', r'(?:DEC|RISK)-\d+', 9)
     requirements = records(book, '执行约定', r'REQ-\d+', 6)

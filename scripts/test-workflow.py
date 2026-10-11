@@ -25,16 +25,21 @@ class PlanningTests(unittest.TestCase):
     def setUp(self):
         self.book = planning.read_book((planning.ROOT / planning.REL).read_bytes())
 
+    def cell(self, record_id, col, sheet='版本规划'):
+        address = next(addr for addr, value in self.book[sheet].items()
+                       if addr.startswith('A') and addr[1:].isdigit() and value == record_id)
+        return col + address[1:]
+
     def test_current(self):
         planning.validate_book(self.book, copy.deepcopy(self.book))
 
     def test_missing_dependency(self):
-        self.book['版本规划']['F10'] = 'v99.0.0'
+        self.book['版本规划'][self.cell('v1.1.0', 'F')] = 'v99.0.0'
         with self.assertRaisesRegex(ValueError, 'Missing dependency'):
             planning.validate_book(self.book)
 
     def test_cycle(self):
-        self.book['版本规划']['F9'] = 'v1.1.0'
+        self.book['版本规划'][self.cell('WF-001', 'F')] = 'v1.1.0'
         with self.assertRaisesRegex(ValueError, 'Dependency cycle'):
             planning.validate_book(self.book)
 
@@ -82,7 +87,7 @@ class PlanningTests(unittest.TestCase):
 
     def test_scope_requires_archive(self):
         old = copy.deepcopy(self.book)
-        self.book['版本规划']['J10'] = 'Different scope'
+        self.book['版本规划'][self.cell('v1.1.0', 'J')] = 'Different scope'
         with self.assertRaisesRegex(ValueError, 'full historical archive'):
             planning.validate_book(self.book, old)
 
@@ -92,7 +97,7 @@ class PlanningTests(unittest.TestCase):
             planning.validate_book(self.book)
 
     def test_non_increasing_version(self):
-        self.book['版本规划']['N11'] = self.book['版本规划']['N10']
+        self.book['版本规划'][self.cell('v1.1.1', 'N')] = self.book['版本规划'][self.cell('v1.1.0', 'N')]
         with self.assertRaisesRegex(ValueError, 'versionCode'):
             planning.validate_book(self.book)
 
@@ -119,24 +124,40 @@ class PlanningTests(unittest.TestCase):
             planning.validate_book(self.book, old)
 
     def test_milestone_unknown_package(self):
-        self.book['版本规划']['C29'] = 'v99.0.0'
+        self.book['版本规划'][self.cell('M0', 'C')] = 'v99.0.0'
         with self.assertRaisesRegex(ValueError, 'Unknown milestone package'):
             planning.validate_book(self.book)
 
     def test_milestone_premature_acceptance(self):
-        self.book['版本规划']['D31'] = '已验收'
-        self.book['版本规划']['K31'] = 'Reported passed without completing packages'
+        self.book['版本规划'][self.cell('M2', 'D')] = '已验收'
+        self.book['版本规划'][self.cell('M2', 'K')] = 'Reported passed without completing packages'
         with self.assertRaisesRegex(ValueError, 'Accepted milestone has unfinished packages'):
             planning.validate_book(self.book)
 
     def test_product_mapping_mismatch(self):
-        self.book['版本规划']['O18'] = '1.0.99'
+        self.book['版本规划'][self.cell('v1.3.2', 'O')] = '1.0.99'
         with self.assertRaisesRegex(ValueError, 'Product/milestone mapping mismatch'):
             planning.validate_book(self.book)
 
     def test_milestone_dependency_cycle(self):
-        self.book['版本规划']['M29'] = 'M5'
+        self.book['版本规划'][self.cell('M0', 'M')] = 'M5'
         with self.assertRaisesRegex(ValueError, 'Milestone dependency cycle'):
+            planning.validate_book(self.book)
+
+    def swap_rows(self, first, second):
+        cells = self.book['版本规划']
+        a, b = self.cell(first, 'A')[1:], self.cell(second, 'A')[1:]
+        for col in 'ABCDEFGHIJKLMNOPQ':
+            cells[col + a], cells[col + b] = cells.get(col + b), cells.get(col + a)
+
+    def test_milestone_outside_stage_rejected(self):
+        self.swap_rows('M0', 'WF-012')
+        with self.assertRaisesRegex(ValueError, 'Milestone placement'):
+            planning.validate_book(self.book)
+
+    def test_ui_fix_after_m1_rejected(self):
+        self.swap_rows('WF-012', 'WF-005')
+        with self.assertRaisesRegex(ValueError, 'UI-FIX-001 placement'):
             planning.validate_book(self.book)
 
 
