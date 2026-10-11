@@ -1,34 +1,64 @@
 # count_tools
 
-这是 [fmqwd/count_tools](https://github.com/fmqwd/count_tools) 的个人客制化 fork，采用 Apache-2.0。
-开发先读 [指导文档](docs/DEVELOPMENT_GUIDE.md)、[项目约定](AGENTS.md) 和 [设备流程](docs/MOBILE.md)。
-规划唯一来源：`outputs/workflow-20261011/CountTools-MasterSheet.xlsx`。
+基于「统计工具」的个人客制化项目，计划面向中国本土地下偶像爱好者，提供 **Cheki（拍立得合影）记录与特典券管理**。
 
-当前完成流程基线，未发布个人 APK。固定基线 `baseline/upstream`，开发分支 `personal/customization`；不自动同步上游。
-个人身份、签名、Flutter工具链待首个产品版确定。真数据/签名不入Git；CI仅手动规划检查。
-暂定业务需求：[Cheki V0.2 原文](docs/requirements/CHEKI_V0.2.md)；[评估与初步设计](docs/requirements/CHEKI_DESIGN_V0.2.md)。
-WF-002 已纳入四表规划，功能尚未实施；后续按相依决定和版本路线推进。
-WF-003 已区分工作包、产品版本和 M0–M5 里程碑，用户选择核心 MVP 先行；[升版原则与阶段检查](docs/PLANNING_AND_ACCEPTANCE.md)。各业务阶段尚未开始。
-WF-004 已核验 E/NAS 双备份，后续每次提交自动推送个人 fork 并核对远端；首次克隆先按 [提交追溯指导](docs/GIT_TRACEABILITY.md) 启用仓库 hooks。真实备份和签名始终在 Git 外。
+希望解决的日常问题是：拍过多少张、哪些还没完成或领取、手里有哪些券，以及每次拍切实际用了什么券。多人合影的实物张数与成员参与数分开统计，券库存与历史成本可以追溯。
+
+## 当前状态
+
+项目处于**需求设计与开发准备阶段**。目前已整理需求、初步设计、MVP 路线和阶段验收方法，并建立开发与提交追溯流程。
+
+仓库现有业务代码仍是上游的通用统计工具，采用 Flutter / Dart / SQLite。下述 Cheki 与特典券功能**尚未实现**，目前也没有可供安装的个人版 APK。工具链、个人应用身份与签名仍需在工程基础阶段确定。
+
+## 核心 MVP：计划先交付什么
+
+先完成从记录到库存、纠错和恢复的日常使用闭环：
+
+- **团体与成员**：管理成员身份及历史名称，保留跨团和改名后的记录关联。
+- **Cheki 记录**：单人及多人合影，记录尺寸、签名、背签与宿题；分别管理完成和领取状态，支持一批记录部分完成或领取。
+- **特典券库存**：购券、长期券与限时券、期限和成本记录；拍切时明确选择实际使用的券。
+- **可靠登记与纠错**：记录和扣券共同成功或失败，重复提交不重复扣券；支持交换、赠送、编辑、撤销及关联纠错。
+- **基本统计与数据保护**：查看实际张数、参与数和库存；完整备份并恢复 MVP 当时的业务数据与设置。
+
+完整 BI、结构化批量导入导出及原 App 历史数据迁移安排在 MVP 之后。旧数据先保留原始记录，经过映射预览和核对后再迁移。
+
+## 交付路线与检查点
+
+| 阶段 | 计划交付 | 检查重点 |
+| --- | --- | --- |
+| M0 | 工程与数据安全基础 | 可重复构建，隔离备份恢复，失败时原库不变 |
+| M1 | 记切预览 | 单人/多人数量、尺寸与状态口径正确 |
+| M2 | 核心 MVP | 购券、登记扣券、状态、交换/赠送、纠错与恢复的完整闭环 |
+| M3 | 完整 BI | 同一筛选下，统计、明细、图表和导出结果一致 |
+| M4 | 批量数据携带与旧历史迁移 | 导入预检、重复处理、映射预览与往返校验 |
+| M5 | 日用验收 | 实际升级、数据核对、交互、冷启动和恢复 |
+
+以上均为计划阶段，尚未开始业务实施。具体工作包、依赖、估算、决定和实际进度统一维护在 [MasterSheet](outputs/workflow-20261011/CountTools-MasterSheet.xlsx)。大小版本的触发条件、MVP 边界和各阶段检查示例见 [版本规划与阶段验收指导](docs/PLANNING_AND_ACCEPTANCE.md)。
+
+## 需求与开发文档
+
+- [需求原文 V0.2](docs/requirements/CHEKI_V0.2.md)：暂定业务与功能需求。
+- [评估与初步设计](docs/requirements/CHEKI_DESIGN_V0.2.md)：现有差距、页面构思、数据模型和待裁决问题。
+- [开发指导](docs/DEVELOPMENT_GUIDE.md)：环境、实施、验证与交付方法。
+- [项目开发约定](AGENTS.md)：每轮规划、数据保护和验收规则。
+- [Git 提交追溯](docs/GIT_TRACEABILITY.md)：本地提交、自动上传和失败重试。
+- [设备流程](docs/MOBILE.md)：安装身份检查、备份、升级和真机验收。
+
+## 本地开发
+
+个人开发分支为 `personal/customization`，`baseline/upstream` 保留上游基线。默认不自动合入上游变更。
 
 ```powershell
-python scripts/verify-mastersheet.py
-.\scripts\use-dev-env.ps1 -Inspect
+git clone --branch personal/customization https://github.com/Seniorious66/count_tools.git
+cd count_tools
+git config --local core.hooksPath .githooks
+python scripts/verify-mastersheet.py --baseline HEAD
 ```
 
-以下保留上游初始项目说明。
+开始业务开发前，按 [开发指导](docs/DEVELOPMENT_GUIDE.md) 建立并验证工具链。仓库提交 hooks 的配置要求见 [Git 提交追溯](docs/GIT_TRACEABILITY.md)。真实数据库、系统备份和签名保存在仓库之外；开发验证使用合成数据或隔离副本。
 
-A new Flutter project.
+## 来源与许可证
 
-## Getting Started
+本项目 fork 自 [fmqwd/count_tools](https://github.com/fmqwd/count_tools)，感谢原作者的统计工具实现。
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+沿用 [Apache License 2.0](LICENSE)。保留原作者署名与第三方许可，客制化开发独立推进。
