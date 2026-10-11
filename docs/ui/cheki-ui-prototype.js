@@ -39,7 +39,7 @@ function bounds(){let a=stats.anchor,d=dayDate(a),start,end,label;if(stats.perio
  if(stats.period==='year'){start=a.slice(0,4)+'-01-01';end=(d.getUTCFullYear()+1)+'-01-01';label=a.slice(0,4)+' 年'}return{start,end,label};}
 const inRange=(r,b)=>!b.start||(dateOf(r)>=b.start&&dateOf(r)<b.end),statsRows=()=>records.filter(r=>inRange(r,bounds())),memberRows=id=>statsRows().filter(r=>r.members.includes(id));
 function stateText(r){return pending(r)===0?'已领取':received(r)===0?'未领取':`部分领取 · 已领 ${received(r)} / ${r.qty}`}
-function row(r,opt={}){let color=member(r.members[0]).color,qty=opt.pending?pending(r):r.qty,who=r.members.map(id=>member(id).name).join(' + '),ids=r.members.map(id=>group(member(id).group).name+' · '+member(id).name).join(' / '),attrs=[r.sign?'带签':'无签',r.back?'背签':'',r.homework?'宿题':''].filter(Boolean).join(' · ');return `<button class="record" data-record="${r.id}"><span class="avatar" style="background:${color}18;border-left:3px solid ${color}">${r.members.map(id=>member(id).name).join('')}</span><span class="record-main"><b>${esc(who)}</b><small>${esc(ids)}</small><small>${r.size} · ${attrs}</small><span class="tag ${pending(r)?'warning-tag':''}">${stateText(r)}</span></span><span class="record-qty"><strong>${qty} 张</strong>${opt.pending?'<small>未领取</small>':''}</span></button>`}
+function row(r,opt={}){let color=member(r.members[0]).color,qty=opt.pending?pending(r):r.qty,who=r.members.map(id=>member(id).name).join(' + '),ids=r.members.map(id=>group(member(id).group).name+' · '+member(id).name).join(' / '),attributes=attrs(r);return `<button class="record" data-record="${r.id}"><span class="avatar" style="background:${color}18;border-left:3px solid ${color}">${r.members.map(id=>member(id).name).join('')}</span><span class="record-main"><b>${esc(who)}</b><small>${esc(ids)}</small><small>${r.size} · ${attributes}</small><span class="tag ${pending(r)?'warning-tag':''}">${stateText(r)}</span></span><span class="record-qty"><strong>${qty} 张</strong>${opt.pending?'<small>未领取</small>':''}</span></button>`}
 const newest=(a,b)=>dateOf(b).localeCompare(dateOf(a))||b.createdAt.localeCompare(a.createdAt);
 function datedList(rs,opt={}){return [...new Set(rs.map(dateOf))].sort().reverse().map(date=>`<div class="section"><h2>${date}</h2><small>${rs.filter(r=>dateOf(r)===date).length} 笔</small></div>`+rs.filter(r=>dateOf(r)===date).sort(newest).map(r=>row(r,opt)).join('')).join('')||'<div class="card empty-day">没有匹配记录。</div>'}
 function renderRecords(){let rs=records.filter(r=>dateOf(r).startsWith('2026-10'));$('home-physical').textContent=sum(rs);$('home-participation').textContent='成员累计 '+participation(rs)+' 张';$('pending-total').textContent=records.reduce((n,r)=>n+pending(r),0);$('recent-list').innerHTML=[...records].sort(newest).slice(0,2).map(r=>row(r)).join('');filter(recordFilter)}
@@ -58,7 +58,14 @@ function showRecord(id){
  const r=records.find(r=>r.id===id);
  open('记录详情',`<div class="review-row"><span>发生日期</span><span>${r.occurredOn}</span></div><div class="review-row"><span>录入时间</span><span>${stamp(r.createdAt)}</span></div>${r.updatedAt?`<div class="review-row"><span>修改时间</span><span>${stamp(r.updatedAt)}</span></div>`:''}<div class="review-row"><span>成员</span><span>${r.members.map(id=>group(member(id).group).name+' · '+member(id).name).join('<br>')}</span></div><div class="review-row"><span>张数</span><span>${r.qty} 张</span></div><div class="review-row"><span>属性</span><span>${r.size} · ${attrs(r)}</span></div><div class="review-row"><span>领取</span><span>${stateText(r)}</span></div>${receiptRows(r)}<button class="primary" data-edit="${id}" style="width:100%;margin-top:20px">修改记录</button>`);
 }
-const attrs=r=>[r.sign?'带签':'无签',r.back?'背签':'',r.homework?'宿题':''].filter(Boolean).join(' · ');
+const attrs=r=>[r.homework?'宿题':r.sign?'有签':'无签',r.back?'背签':''].filter(Boolean).join(' · ');
+function attributesHtml(){
+ return `<fieldset class="attribute-field"><legend>属性</legend><div class="checks">${[['unsigned','无签',!draft.sign&&!draft.homework],['sign','有签',draft.sign],['homework','宿题',draft.homework]].map(([k,n,checked])=>`<label><input id="${k}-input" data-sign-choice="${k}" type="checkbox" ${checked?'checked':''}>${n}</label>`).join('')}</div><div class="checks"><label><input id="back-input" type="checkbox" ${draft.back?'checked':''} ${draft.sign&&!draft.homework?'':'disabled'}>背签</label></div></fieldset>`;
+}
+function syncAttributes(){
+ $('unsigned-input').checked=!draft.sign&&!draft.homework;$('sign-input').checked=draft.sign;$('homework-input').checked=draft.homework;
+ $('back-input').disabled=!draft.sign||draft.homework;$('back-input').checked=draft.back;
+}
 const receiptRows=r=>r.receipts.filter(b=>b.origin!=='initial').map(b=>`<div class="review-row"><span>领取 ${b.qty} 张</span><span>${stamp(b.at)}</span></div>`).join('');
 const receiptMode=r=>received(r)===0?'none':pending(r)===0?'all':'partial';
 const couponTypes=[{id:'a-base',name:'晨星 · A 基础券',group:'morning',member:'a',limited:4,long:8},{id:'morning-common',name:'晨星 · 通用券',group:'morning',member:null,limited:0,long:2}];
@@ -88,13 +95,13 @@ function receiptsHtml(){
  return `<label class="field"><span>领取状态</span><select id="receipt-status">${[['all','已领取'],['partial','部分领取'],['none','未领取']].map(([value,name])=>`<option value="${value}" ${draft.receiptMode===value?'selected':''}>${name}</option>`).join('')}</select></label>${show?`<div id="receipt-batches">${batches}<button class="text-link" id="add-receipt">＋ 添加领取批次</button></div>`:''}`;
 }
 function allocationHtml(){
- return `<label class="field"><span>用券方式</span><select id="use-input"><option value="deduct" ${draft.use==='deduct'?'selected':''}>记录并扣券</option><option value="none" ${draft.use==='none'?'selected':''}>仅记录，不扣券</option></select></label><div id="allocation-summary" aria-live="polite"></div><details class="allocation-details" ${draft.use==='none'?'hidden':''}><summary>扣券明细</summary>${draft.members.map(id=>`<label class="field"><span>${group(member(id).group).name} · ${member(id).name}</span><select data-coupon-member="${id}"><option value="">选择券种…</option>${availableCoupons(id).map(t=>`<option value="${t.id}" ${draft.couponChoices[id]===t.id?'selected':''}>${t.name}</option>`).join('')}</select></label>`).join('')}${draft.allocations.map(a=>{let t=couponTypes.find(t=>t.id===a.id);return `<div class="section"><h3>${t.name}</h3><small data-needed="${t.id}">所需 ${a.needed} 张</small></div><div class="form-row"><label class="field"><span>限时（可用 ${t.limited}）</span><input data-pool="limited" data-coupon="${t.id}" type="number" min="0" max="${t.limited}" value="${a.limited}"></label><label class="field"><span>长期（可用 ${t.long}）</span><input data-pool="long" data-coupon="${t.id}" type="number" min="0" max="${t.long}" value="${a.long}"></label></div>`}).join('')}<button id="reset-allocation" class="text-link">恢复自动</button></details>`;
+ return `<label class="field"><span>用券方式</span><select id="use-input"><option value="deduct" ${draft.use==='deduct'?'selected':''}>记录并扣券</option><option value="none" ${draft.use==='none'?'selected':''}>仅记录，不扣券</option></select></label><div id="allocation-summary" aria-live="polite"></div><section class="allocation-details" ${draft.use==='none'?'hidden':''}><h3>扣券明细</h3>${draft.members.map(id=>`<label class="field"><span>${group(member(id).group).name} · ${member(id).name}</span><select data-coupon-member="${id}"><option value="">选择券种…</option>${availableCoupons(id).map(t=>`<option value="${t.id}" ${draft.couponChoices[id]===t.id?'selected':''}>${t.name}</option>`).join('')}</select></label>`).join('')}${draft.allocations.map(a=>{let t=couponTypes.find(t=>t.id===a.id);return `<div class="section"><h3>${t.name}</h3><small data-needed="${t.id}">所需 ${a.needed} 张</small></div><div class="form-row"><label class="field"><span>限时（可用 ${t.limited}）</span><input data-pool="limited" data-coupon="${t.id}" type="number" min="0" max="${t.limited}" value="${a.limited}"></label><label class="field"><span>长期（可用 ${t.long}）</span><input data-pool="long" data-coupon="${t.id}" type="number" min="0" max="${t.long}" value="${a.long}"></label></div>`}).join('')}<button id="reset-allocation" class="text-link">恢复自动</button></section>`;
 }
 function couponSummary(){return draft.use==='none'?'不扣券':draft.allocations.map(a=>`${couponTypes.find(t=>t.id===a.id).name} ${a.limited+a.long} 张（限时 ${a.limited} · 长期 ${a.long}）`).join('<br>')}
 function wizard(){
  let body='<div class="steps two-steps">'+['记录','核对'].map((n,i)=>`<span class="step ${i===step?'active':''}">${i+1} ${n}</span>`).join('')+'</div><p class="info">合成演示，刷新重置，不写入 App 或券库存。</p>';
  if(!step){
-  body+=`<label class="field"><span>发生日期</span><input id="event-input" type="date" value="${draft.occurredOn}"></label>${membersHtml()}<div class="form-row"><label class="field"><span>尺寸</span><select id="size-input"><option ${draft.size==='三寸'?'selected':''}>三寸</option><option ${draft.size==='五寸'?'selected':''}>五寸</option></select></label><label class="field"><span>张数</span><input id="qty-input" type="number" min="1" step="1" value="${draft.qty}"></label></div><label class="field"><span>签名</span><select id="sign-input"><option value="signed" ${draft.sign?'selected':''}>带签</option><option value="unsigned" ${draft.sign?'':'selected'}>无签</option></select></label><div class="checks">${[['back','背签'],['homework','宿题']].map(([k,n])=>`<label><input id="${k}-input" type="checkbox" ${draft[k]?'checked':''}>${n}</label>`).join('')}</div>${receiptsHtml()}`;
+  body+=`<label class="field"><span>发生日期</span><input id="event-input" type="date" value="${draft.occurredOn}"></label>${membersHtml()}<div class="form-row"><label class="field"><span>尺寸</span><select id="size-input"><option ${draft.size==='三寸'?'selected':''}>三寸</option><option ${draft.size==='五寸'?'selected':''}>五寸</option></select></label><label class="field"><span>张数</span><input id="qty-input" type="number" min="1" step="1" value="${draft.qty}"></label></div>${attributesHtml()}${receiptsHtml()}`;
   body+=editingId?'<p class="info">保留原用券关联；正式版本须先核对券与成本影响。</p>':allocationHtml();
  }else{
   body+=`<div class="review-row"><span>发生日期</span><span>${draft.occurredOn}</span></div><div class="review-row"><span>成员</span><span>${draft.members.map(id=>group(member(id).group).name+' · '+member(id).name).join('<br>')}</span></div><div class="review-row"><span>张数</span><span>${draft.qty} 张</span></div><div class="review-row"><span>属性</span><span>${draft.size} · ${attrs(draft)}</span></div><div class="review-row"><span>领取</span><span>${stateText(draft)}</span></div>${receiptRows(draft)}<div class="review-row"><span>用券</span><span>${editingId?'保留原关联':couponSummary()}</span></div>`;
@@ -103,6 +110,14 @@ function wizard(){
  body+='<div id="wizard-error" role="alert"></div><div class="footer-actions">'+(step?'<button id="previous-step">返回记录</button>':'')+`<button class="primary" id="next-step">${step?'确认演示':'下一步：核对'}</button></div>`;
  open(editingId?'修改记录':'记一笔',body);$('next-step').onclick=next;
  if(step){$('previous-step').onclick=()=>{step=0;wizard()};return}
+ document.querySelectorAll('[data-sign-choice]').forEach(el=>el.onchange=()=>{
+  const previous={sign:draft.sign,homework:draft.homework},selected=el.checked;
+  saveFields();
+  if(selected){draft.sign=el.dataset.signChoice==='sign';draft.homework=el.dataset.signChoice==='homework'}
+  else Object.assign(draft,previous);
+  if(!draft.sign||draft.homework)draft.back=false;
+  syncAttributes();
+ });
  $('member-picker').onchange=()=>{let id=$('member-picker').value;if(!id)return;saveFields();draft.members.push(id);resetAllocation();wizard()};
  $('qty-input').onchange=()=>{saveFields();if(receiptDraft.length===1&&receiptDraft[0].origin==='initial'&&draft.receiptMode==='all')receiptDraft[0].qty=draft.qty;else if(received(draft)>0&&received(draft)<draft.qty)draft.receiptMode='partial';draft.receipts=structuredClone(receiptDraft);resetAllocation();wizard()};
  $('qty-input').oninput=()=>{
@@ -135,7 +150,7 @@ function wizard(){
 function saveFields(){
  if(step)return;
  const previousQty=draft.qty;
- draft.occurredOn=$('event-input').value;draft.qty=Number($('qty-input').value);draft.size=$('size-input').value;draft.sign=$('sign-input').value==='signed';
+ draft.occurredOn=$('event-input').value;draft.qty=Number($('qty-input').value);draft.size=$('size-input').value;draft.sign=$('sign-input').checked;
  for(const k of ['back','homework'])draft[k]=$(k+'-input').checked;
  receiptDraft=receiptDraft.map((b,i)=>{const q=document.querySelector(`[data-receipt-qty="${i}"]`),t=document.querySelector(`[data-receipt-time="${i}"]`);return q?{qty:Number(q.value),at:t.value?(t.value===localInput(b.at)?b.at:ts(t.value)):null,origin:'actual'}:b});
  if(receiptDraft.length===1&&receiptDraft[0].origin==='initial'&&draft.receiptMode==='all')receiptDraft[0].qty=draft.qty;
@@ -154,6 +169,7 @@ function allocationError(){
 }
 function allocation(){const error=allocationError(),el=$('allocation-summary');el.className=error?'error':'success-note';el.textContent=error|| (draft.use==='none'?'不扣券':`将扣 ${draft.allocations.reduce((n,a)=>n+a.limited+a.long,0)} 张券`);$('next-step').disabled=Boolean(error);return !error}
 function validate(){
+ if((draft.sign&&draft.homework)||(draft.back&&(!draft.sign||draft.homework))||document.querySelectorAll('[data-sign-choice]:checked').length!==1)return'无签、有签、宿题须选一项；背签仅有签可用。';
  if(!/^\d{4}-\d{2}-\d{2}$/.test(draft.occurredOn)||!Number.isFinite(Date.parse(draft.occurredOn))||!Number.isInteger(draft.qty)||draft.qty<1||!draft.members.length)return'请选择发生日期、至少一位成员和正整数张数。';
  if(draft.receipts.some(b=>!Number.isInteger(b.qty)||b.qty<1||(b.origin!=='initial'&&(!b.at||!Number.isFinite(Date.parse(b.at))))))return'领取批次需要正整数张数和领取时间。';
  if(received(draft)>draft.qty)return'已领取张数不能超过总张数。';
