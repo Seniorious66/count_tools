@@ -7,17 +7,13 @@ class ProjectDBHelper {
 
   Future<void> insert(ProjectData data) async {
     final db = await _databaseHelper.database;
-    await db.insert(
-      'project_data',
-      {
-        'id': data.id,
-        'title': data.title,
-        'subTitle': data.subTitle,
-        'count': data.count,
-        'ext': data.ext,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('project_data', {
+      'id': data.id,
+      'title': data.title,
+      'subTitle': data.subTitle,
+      'count': data.count,
+      'ext': data.ext,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<ProjectData>> get() async {
@@ -43,10 +39,6 @@ class ProjectDBHelper {
 
   Future<void> delete(String id) async {
     final db = await _databaseHelper.database;
-    await db.delete(
-      'project_data',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('project_data', where: 'id = ?', whereArgs: [id]);
   }
 }

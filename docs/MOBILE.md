@@ -1,6 +1,8 @@
 # Android 数据与设备验收
 
-原App com.example.count_tools，安装私钥未知；个人包名和永久证书待确认。当前不能承诺覆盖原App。
+原App com.example.count_tools，安装私钥未知。2026-10-11 用户确认个人身份为 `com.seniorious66.counttools` /「Cheki账本」，使用新专属永久签名，保留原 App。
+专属签名及恢复配置已存仓库外 E 和 NAS，两处逐文件一致且密钥均可重新打开；具体私密路径不进入 README，构建入口为 `scripts/build-personal-android.ps1`。
+本轮仅本地构建及隔离验收，不连接手机；个人版不能覆盖原 App，也不会自动获得其数据库。
 采用独立包名时保留旧App，先在副本导入验证；以后个人版固定同证书同包名原位升级。
 
 ## 数据基线

@@ -42,28 +42,33 @@ class HomePageViewModel extends ChangeNotifier {
   }
 
   // 跳转项目详情
-  pushProjectInfoPage(BuildContext context, ProjectData data) =>
+  void pushProjectInfoPage(BuildContext context, ProjectData data) =>
       RouteUtils.pushAnim(context, ProjectInfoPage(parentData: data));
 
   // 跳转设置页
-  pushSetPage(BuildContext context) =>
+  void pushSetPage(BuildContext context) =>
       RouteUtils.pushAnim(context, const SettingPage());
 
   // 跳转添加项目弹窗
-  addProjectDialog(BuildContext context) => showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) =>
-          buildAddProjectDialog(context, dialogContext));
+  Future<dynamic> addProjectDialog(BuildContext context) => showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) =>
+        buildAddProjectDialog(context, dialogContext),
+  );
 
   // 跳转删除项目弹窗
-  delProjectDialog(BuildContext context, String projectId) => showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) =>
-          buildDelProjectDialog(context, dialogContext, projectId));
+  Future<dynamic> delProjectDialog(BuildContext context, String projectId) =>
+      showDialog(
+        context: context,
+        builder: (BuildContext dialogContext) =>
+            buildDelProjectDialog(context, dialogContext, projectId),
+      );
 
   // 跳转编辑项目弹窗
-  editProjectDialog(BuildContext context, ProjectData data) => showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) =>
-          buildEditProjectDialog(context, dialogContext, data));
+  Future<dynamic> editProjectDialog(BuildContext context, ProjectData data) =>
+      showDialog(
+        context: context,
+        builder: (BuildContext dialogContext) =>
+            buildEditProjectDialog(context, dialogContext, data),
+      );
 }

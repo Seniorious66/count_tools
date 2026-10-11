@@ -14,22 +14,27 @@ Widget buildEditProjectDialog(
   subtitleCon.text = data.subTitle;
   return AlertDialog(
     title: const Text("编辑项目"),
-    content: Column(mainAxisSize: MainAxisSize.min, children: [
-      TextField(controller: titleCon),
-      TextField(controller: subtitleCon)
-    ]),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(controller: titleCon),
+        TextField(controller: subtitleCon),
+      ],
+    ),
     actions: [
       TextButton(
-          child: const Text("取消"),
-          onPressed: () => Navigator.of(dialogContext).pop()),
+        child: const Text("取消"),
+        onPressed: () => Navigator.of(dialogContext).pop(),
+      ),
       TextButton(
-          child: const Text("确定"),
-          onPressed: () {
-            Provider.of<HomePageViewModel>(context, listen: false).editProject(
-              data.copyWith(title: titleCon.text, subTitle: subtitleCon.text),
-            );
-            Navigator.of(dialogContext).pop();
-          })
+        child: const Text("确定"),
+        onPressed: () {
+          Provider.of<HomePageViewModel>(context, listen: false).editProject(
+            data.copyWith(title: titleCon.text, subTitle: subtitleCon.text),
+          );
+          Navigator.of(dialogContext).pop();
+        },
+      ),
     ],
   );
 }

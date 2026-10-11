@@ -7,20 +7,16 @@ class SubProjectDbHelper {
 
   Future<void> insert(SubProjectData data) async {
     final db = await _databaseHelper.database;
-    await db.insert(
-      'sub_project_data',
-      {
-        'id': data.id,
-        'name': data.name,
-        'count': data.count,
-        'countPre': data.countPre,
-        'color': data.color,
-        'textColor': data.textColor,
-        'parentId': data.parentId,
-        'ext': data.ext,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('sub_project_data', {
+      'id': data.id,
+      'name': data.name,
+      'count': data.count,
+      'countPre': data.countPre,
+      'color': data.color,
+      'textColor': data.textColor,
+      'parentId': data.parentId,
+      'ext': data.ext,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<SubProjectData>> get() async {
@@ -59,11 +55,7 @@ class SubProjectDbHelper {
 
   Future<void> delete(String id) async {
     final db = await _databaseHelper.database;
-    await db.delete(
-      'sub_project_data',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('sub_project_data', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> deleteByParent(String parentId) async {

@@ -31,16 +31,19 @@ Color parseColor(
     /// rgba
     color = color.substring(5, color.length - 1);
     List<String> split = color.replaceAll(" ", "").split(",");
-//    print('rgba.length-${split.length}');
+    //    print('rgba.length-${split.length}');
     if (split.length == 3) {
       split.add("1.0");
     }
-//    print('rgba-$split');
+    //    print('rgba-$split');
     r = Color.fromARGB(
       max(
-          0,
-          min(int.parse((double.parse(split[3]) * 255.0).toInt().toString()),
-              255)),
+        0,
+        min(
+          int.parse((double.parse(split[3]) * 255.0).toInt().toString()),
+          255,
+        ),
+      ),
       max(0, min(int.parse(split[0]), 255)),
       max(0, min(int.parse(split[1]), 255)),
       max(0, min(int.parse(split[2]), 255)),
@@ -57,18 +60,22 @@ Color parseColor(
     );
   }
   if (alpha != null) {
-    r = r.withOpacity(min(alpha, 1.0));
+    r = r.withValues(alpha: min(alpha, 1.0));
   }
   return r;
 }
 
 String intColorToHex(Color color) {
-  return '#${color.value.toRadixString(16).substring(2, 8)}'; // 提取 rgb 部分
+  return '#${color.toARGB32().toRadixString(16).substring(2, 8)}'; // 提取 rgb 部分
 }
 
 //根据颜色亮度返回对应的文字颜色（黑或白）
 Color getTextColor(Color color) =>
-    ((color.red * 299 + color.green * 587 + color.blue * 114) / 1000).round() >
-            128
-        ? Colors.black
-        : Colors.white;
+    (((color.r * 255).round() * 299 +
+                    (color.g * 255).round() * 587 +
+                    (color.b * 255).round() * 114) /
+                1000)
+            .round() >
+        128
+    ? Colors.black
+    : Colors.white;

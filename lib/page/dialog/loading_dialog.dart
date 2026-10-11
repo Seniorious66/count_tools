@@ -7,20 +7,23 @@ class UpdatingProgressDialog extends StatelessWidget {
 
   const UpdatingProgressDialog(
     this.message, {
-    Key? key,
+    super.key,
     this.progressIndicatorColor,
     this.messageTextStyle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        content: Row(children: [
-          CircularProgressIndicator(
-              valueColor: progressIndicatorColor != null
-                  ? AlwaysStoppedAnimation(progressIndicatorColor!)
-                  : null),
-          const SizedBox(width: 20),
-          Text(message, style: messageTextStyle)
-        ]),
-      );
+    content: Row(
+      children: [
+        CircularProgressIndicator(
+          valueColor: progressIndicatorColor != null
+              ? AlwaysStoppedAnimation(progressIndicatorColor!)
+              : null,
+        ),
+        const SizedBox(width: 20),
+        Text(message, style: messageTextStyle),
+      ],
+    ),
+  );
 }

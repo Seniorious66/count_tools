@@ -20,4 +20,5 @@ String generateUniqueId() {
 String getCurrentDate() => DateFormat('yyyy-MM-dd').format(DateTime.now());
 
 //格式化时间-Date=>2024-01-01
-String formatDate(DateTime dateTime) => DateFormat('yyyy-MM-dd').format(dateTime);
+String formatDate(DateTime dateTime) =>
+    DateFormat('yyyy-MM-dd').format(dateTime);

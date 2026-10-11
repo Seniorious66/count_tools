@@ -6,24 +6,27 @@ class SingleItemWidget extends StatelessWidget {
   final String date;
   final List<ItemData> data;
 
-  const SingleItemWidget({Key? key, required this.date, required this.data})
-      : super(key: key);
+  const SingleItemWidget({super.key, required this.date, required this.data});
 
   @override
   Widget build(BuildContext context) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: GestureDetector(
-          child: Column(children: [_buildTitle(), _buildCountList()]),
-          onLongPress: () {}));
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: GestureDetector(
+      child: Column(children: [_buildTitle(), _buildCountList()]),
+      onLongPress: () {},
+    ),
+  );
 
   Widget _buildTitle() => Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      width: double.infinity,
-      child: Text("$date (${data.length})", style: AppTextStyle.heading3));
+    margin: const EdgeInsets.symmetric(vertical: 10),
+    width: double.infinity,
+    child: Text("$date (${data.length})", style: AppTextStyle.heading3),
+  );
 
   Widget _buildCountList() => ExpansionTile(
-      title: const Text('点击展开/折叠数据'),
-      children: data.map((item) => _buildCountItem(item)).toList());
+    title: const Text('点击展开/折叠数据'),
+    children: data.map((item) => _buildCountItem(item)).toList(),
+  );
 
   Widget _buildCountItem(ItemData item) {
     if (item.eventName.isEmpty && item.type.isEmpty && item.price.isEmpty) {

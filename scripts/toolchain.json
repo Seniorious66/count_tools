@@ -1,0 +1,15 @@
+{
+  "flutter": "3.47.5",
+  "dart": "3.13.4",
+  "jdkMajor": 21,
+  "jdk": "21.0.12.1",
+  "gradle": "9.3.1",
+  "agp": "9.1.0",
+  "kotlin": "2.4.0",
+  "androidCompileSdk": 36,
+  "pluginCompileSdk": 35,
+  "cmake": "3.22.1",
+  "ndk": "28.2.13676358",
+  "applicationId": "com.seniorious66.counttools",
+  "label": "Cheki账本"
+}

@@ -1,13 +1,13 @@
 class ItemData {
-  late String _id;  // 项目id
-  late String _price;  // 项目价格
-  late String _eventName;  // 活动名称
-  late String _type;  // 项目类型
-  late String _date;  // 项目日期
-  late String _itemName;  // 项目名称
-  late String _parentId;  // 项目父id
-  late String _projectId;  // 项目id
-  late String _ext;  // 项目扩展
+  late String _id; // 项目id
+  late String _price; // 项目价格
+  late String _eventName; // 活动名称
+  late String _type; // 项目类型
+  late String _date; // 项目日期
+  late String _itemName; // 项目名称
+  late String _parentId; // 项目父id
+  late String _projectId; // 项目id
+  late String _ext; // 项目扩展
 
   ItemData({
     required String id,
@@ -18,7 +18,7 @@ class ItemData {
     required String type,
     required String parentId,
     required String projectId,
-    required String ext
+    required String ext,
   }) {
     _id = id;
     _price = price;
@@ -52,19 +52,18 @@ class ItemData {
     String? itemName,
     String? parentId,
     String? projectId,
-    String? ext
-  }) =>
-      ItemData(
-          id: id ?? _id,
-          price: price ?? _price,
-          eventName: eventName ?? _eventName,
-          type: type ?? _type,
-          date: date ?? _date,
-          itemName: itemName ?? _itemName,
-          parentId: parentId ?? _parentId,
-          projectId: projectId ?? _projectId,
-          ext: ext ?? _ext
-      );
+    String? ext,
+  }) => ItemData(
+    id: id ?? _id,
+    price: price ?? _price,
+    eventName: eventName ?? _eventName,
+    type: type ?? _type,
+    date: date ?? _date,
+    itemName: itemName ?? _itemName,
+    parentId: parentId ?? _parentId,
+    projectId: projectId ?? _projectId,
+    ext: ext ?? _ext,
+  );
 
   String get id => _id;
 

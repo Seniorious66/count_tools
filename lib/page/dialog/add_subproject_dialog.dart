@@ -12,10 +12,10 @@ class AddSubProjectDialog extends StatefulWidget {
   final ProjectData parentData;
 
   const AddSubProjectDialog({
-    Key? key,
+    super.key,
     required this.extContext,
     required this.parentData,
-  }) : super(key: key);
+  });
 
   @override
   AddSubProjectDialogState createState() => AddSubProjectDialogState();
@@ -52,14 +52,20 @@ class AddSubProjectDialogState extends State<AddSubProjectDialog> {
           ListTile(
             title: const Text('选择颜色'),
             trailing: CircleAvatar(backgroundColor: selectedColor),
-            onTap: () => showColorPicker(context, selectedColor,
-                    (color) => setState(() => selectedColor = color)),
+            onTap: () => showColorPicker(
+              context,
+              selectedColor,
+              (color) => setState(() => selectedColor = color),
+            ),
           ),
           ListTile(
             title: const Text('选择文本颜色'),
             trailing: CircleAvatar(backgroundColor: selectedTextColor),
-            onTap: () => showColorPicker(context, selectedTextColor,
-                    (color) => setState(() => selectedTextColor = color)),
+            onTap: () => showColorPicker(
+              context,
+              selectedTextColor,
+              (color) => setState(() => selectedTextColor = color),
+            ),
           ),
         ],
       ),
@@ -71,8 +77,10 @@ class AddSubProjectDialogState extends State<AddSubProjectDialog> {
         TextButton(
           child: const Text("确定"),
           onPressed: () {
-            Provider.of<ProjectInfoViewModel>(widget.extContext, listen: false)
-                .addSubProject(
+            Provider.of<ProjectInfoViewModel>(
+              widget.extContext,
+              listen: false,
+            ).addSubProject(
               SubProjectData(
                 id: generateUniqueId(),
                 name: nameCon.text,
@@ -87,7 +95,7 @@ class AddSubProjectDialogState extends State<AddSubProjectDialog> {
             );
             Navigator.of(context).pop();
           },
-        )
+        ),
       ],
     );
   }

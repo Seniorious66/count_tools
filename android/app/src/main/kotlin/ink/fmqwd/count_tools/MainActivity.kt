@@ -1,4 +1,4 @@
-package com.example.count_tools
+package com.seniorious66.counttools
 
 import io.flutter.embedding.android.FlutterActivity
 

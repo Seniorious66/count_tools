@@ -9,23 +9,26 @@ class DatabaseHelper {
   factory DatabaseHelper() => _instance;
 
   static Database? _database;
+  static Future<Database>? _opening;
+  static Future<String> Function()? pathResolver;
 
   DatabaseHelper._internal();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB();
-    return _database!;
+    return _opening ??= _initDB()
+        .then((db) => _database = db)
+        .whenComplete(() => _opening = null);
   }
 
   Future<Database> _initDB() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final path = join(directory.path, 'user_database.db');
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createDB,
-    );
+    final path = pathResolver != null
+        ? await pathResolver!()
+        : join(
+            (await getApplicationDocumentsDirectory()).path,
+            'user_database.db',
+          );
+    return await openDatabase(path, version: 1, onCreate: _createDB);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -74,7 +77,9 @@ class DatabaseHelper {
   }
 
   Future<void> close() async {
-    final db = await database;
-    await db.close();
+    if (_opening != null) await _opening;
+    final db = _database;
+    _database = null;
+    await db?.close();
   }
 }

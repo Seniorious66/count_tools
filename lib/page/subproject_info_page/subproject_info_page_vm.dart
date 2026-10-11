@@ -24,7 +24,6 @@ class SubProjectInfoViewModel extends ChangeNotifier {
   bool _isShowPrice = true;
   bool get isShowPrice => _isShowPrice;
 
-
   Future<void> loadItems(String parentId) async {
     await _loadShared();
     _items = await itemDBHelper.getByParent(parentId);
@@ -77,20 +76,31 @@ class SubProjectInfoViewModel extends ChangeNotifier {
     await subProjectDbHelper.update(dataUpdate);
   }
 
-  Future<void> addItemClickLess(data,index,item,context) async {
+  Future<void> addItemClickLess(
+    SubProjectData data,
+    int index,
+    ItemData item,
+    BuildContext context,
+  ) async {
     final List<ItemData> items = List.generate(index, (_) => item);
     await addItems(items);
     await updateSubProject(data);
   }
 
-  Future<void> addItemClick(data, index, item, context) async {
+  Future<void> addItemClick(
+    SubProjectData data,
+    int index,
+    ItemData item,
+    BuildContext context,
+  ) async {
     if (index <= 100) {
       addItemClickLess(data, index, item, context);
     } else {
       showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const UpdatingProgressDialog("插入数据中……"));
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const UpdatingProgressDialog("插入数据中……"),
+      );
       final List<ItemData> items = List.generate(index, (_) => item);
       await addItems(items);
       await updateSubProject(data);
@@ -100,13 +110,13 @@ class SubProjectInfoViewModel extends ChangeNotifier {
     }
   }
 
-  deleteItemClick(BuildContext context, SubProjectData data) {
+  void deleteItemClick(BuildContext context, SubProjectData data) {
     if (items.isNotEmpty) {
       deleteItem(items.last.id, data.id);
       updateSubProject(data);
     }
   }
 
-  showSettingDialog(BuildContext context) =>
+  void showSettingDialog(BuildContext context) =>
       showSubProjectInfoSettingDialog(context, () => _loadShared());
 }

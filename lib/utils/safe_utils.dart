@@ -1,16 +1,14 @@
 /// 安全解析[bool]
-bool safeBool(dynamic src, {
-  bool defaultValue = false,
-}) {
+bool safeBool(dynamic src, {bool defaultValue = false}) {
   if (src == null) {
     return defaultValue;
   } else {
     if (src is bool) {
       return src;
-    }else if (src is int){
+    } else if (src is int) {
       return (src == 1);
     } else {
-      if (src.toString() == 'true' || src.toString() == 'false'){
+      if (src.toString() == 'true' || src.toString() == 'false') {
         return (src.toString() == 'true');
       }
       return (src.toString() == '1');
@@ -19,9 +17,7 @@ bool safeBool(dynamic src, {
 }
 
 /// 安全解析[int]
-int safeInt(dynamic src, {
-  int defaultValue = 0,
-}) {
+int safeInt(dynamic src, {int defaultValue = 0}) {
   if (src == null) {
     return defaultValue;
   } else if (src is int) {
@@ -32,16 +28,14 @@ int safeInt(dynamic src, {
 }
 
 /// 安全解析[double]
-double safeDouble(dynamic value,{
-  double defaultValue = 0.0,
-}) {
-  return value == null ? defaultValue : (double.tryParse(value.toString()) ?? defaultValue);
+double safeDouble(dynamic value, {double defaultValue = 0.0}) {
+  return value == null
+      ? defaultValue
+      : (double.tryParse(value.toString()) ?? defaultValue);
 }
 
 /// 安全解析[String]
-String safeString(dynamic src, {
-  String defaultValue = '',
-}) {
+String safeString(dynamic src, {String defaultValue = ''}) {
   if (src == null) {
     return defaultValue;
   } else {

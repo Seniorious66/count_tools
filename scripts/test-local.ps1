@@ -1,6 +1,7 @@
 param([switch]$BuildDebug, [string]$Python = 'python', [string]$Baseline = '')
 $ErrorActionPreference = 'Stop'
-Push-Location (Split-Path -Parent $PSScriptRoot)
+$repoRoot = Split-Path -Parent $PSScriptRoot
+Push-Location $repoRoot
 try {
     $planningArgs = @('scripts/verify-mastersheet.py')
     if ($Baseline) { $planningArgs += @('--baseline', $Baseline) }
@@ -8,12 +9,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Planning validation failed' }
     & $Python scripts/test-workflow.py
     if ($LASTEXITCODE -ne 0) { throw 'Workflow protection checks failed' }
-    if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) { throw 'Flutter SDK unavailable; configure scripts/use-dev-env.ps1 first.' }
-    & flutter pub get
+    . (Join-Path $PSScriptRoot 'use-dev-env.ps1')
+    $workspace = & (Join-Path $PSScriptRoot 'prepare-local-workspace.ps1')
+    Set-Location -LiteralPath $workspace
+    & flutter pub get --enforce-lockfile
     if ($LASTEXITCODE -ne 0) { throw 'Dependency resolution failed' }
-    & flutter analyze
+    & flutter analyze --no-pub
     if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed' }
-    & flutter test
+    & flutter test --no-pub
     if ($LASTEXITCODE -ne 0) { throw 'Flutter tests failed; template tests are not business acceptance' }
     if ($BuildDebug) {
         & flutter build apk --debug

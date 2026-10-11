@@ -71,12 +71,7 @@ class AppTextStyle {
     double size = 20,
     Color color = Colors.black,
     FontWeight fontWeight = FontWeight.w500,
-  }) =>
-      TextStyle(
-        fontSize: size,
-        fontWeight: fontWeight,
-        color: color,
-      );
+  }) => TextStyle(fontSize: size, fontWeight: fontWeight, color: color);
 
   static TextStyle customSize(double size) => TextStyle(fontSize: size);
 }

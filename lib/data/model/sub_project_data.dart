@@ -48,17 +48,16 @@ class SubProjectData {
     String? textColor,
     String? parentId,
     String? ext,
-  }) =>
-      SubProjectData(
-        id: _id,
-        name: name ?? _name,
-        count: count ?? _count,
-        countPre: countPre ?? _countPre,
-        color: color ?? _color,
-        textColor: textColor ?? _textColor,
-        parentId: parentId ?? _parentId,
-        ext: ext ?? _ext,
-      );
+  }) => SubProjectData(
+    id: _id,
+    name: name ?? _name,
+    count: count ?? _count,
+    countPre: countPre ?? _countPre,
+    color: color ?? _color,
+    textColor: textColor ?? _textColor,
+    parentId: parentId ?? _parentId,
+    ext: ext ?? _ext,
+  );
 
   String get id => _id;
 

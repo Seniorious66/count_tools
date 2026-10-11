@@ -61,7 +61,10 @@ class ProjectInfoViewModel extends ChangeNotifier {
     _ranking = getRanks(nums).map((e) => e.toString()).toList();
   }
 
-  Future<void> addSubProject(data, parentData) async {
+  Future<void> addSubProject(
+    SubProjectData data,
+    ProjectData parentData,
+  ) async {
     await subProjectDbHelper.insert(data);
     await loadSubProjects();
     await updateProjectCount(parentData);
@@ -79,9 +82,9 @@ class ProjectInfoViewModel extends ChangeNotifier {
   }
 
   Future<void> updateProjectCount(ProjectData parentData) async =>
-      await projectDBHelper.update(parentData.copyWith(
-        count: (subProjects.length).toString(),
-      ));
+      await projectDBHelper.update(
+        parentData.copyWith(count: (subProjects.length).toString()),
+      );
 
   List<int?> getRanks(List<int> numbers) {
     final rankedMap = <int, int>{};
@@ -107,27 +110,40 @@ class ProjectInfoViewModel extends ChangeNotifier {
   }
 
   List<SubProjectData> sortSubProjectData(List<SubProjectData> subProject) =>
-      subProject.toList()
-        ..sort((a, b) => (safeInt(isDesc ? b.count : a.count))
-            .compareTo(safeInt(isDesc ? a.count : b.count)));
+      subProject.toList()..sort(
+        (a, b) => (safeInt(
+          isDesc ? b.count : a.count,
+        )).compareTo(safeInt(isDesc ? a.count : b.count)),
+      );
 
-  pushToSubProjectPage(BuildContext context, SubProjectData data, String id) =>
-      RouteUtils.pushAnim(context, SubProjectInfoPage(parentData: data, projectId: id));
+  void pushToSubProjectPage(
+    BuildContext context,
+    SubProjectData data,
+    String id,
+  ) => RouteUtils.pushAnim(
+    context,
+    SubProjectInfoPage(parentData: data, projectId: id),
+  );
 
-  pushToCountPage(BuildContext context, String id) =>
+  void pushToCountPage(BuildContext context, String id) =>
       RouteUtils.pushAnim(context, CountPage(id: id));
 
-  addSubProjectDialog(BuildContext context, ProjectData data) => showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) =>
-          AddSubProjectDialog(extContext: context, parentData: data));
-
-  longClickSubProjectDialog(BuildContext context, SubProjectData data) =>
+  Future<dynamic> addSubProjectDialog(BuildContext context, ProjectData data) =>
       showDialog(
-          context: context,
-          builder: (BuildContext dialogContext) =>
-              LongClickSubProjectDialog(extContext: context, data: data));
+        context: context,
+        builder: (BuildContext dialogContext) =>
+            AddSubProjectDialog(extContext: context, parentData: data),
+      );
 
-  showProjectSettingDialog(BuildContext context) =>
+  Future<dynamic> longClickSubProjectDialog(
+    BuildContext context,
+    SubProjectData data,
+  ) => showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) =>
+        LongClickSubProjectDialog(extContext: context, data: data),
+  );
+
+  void showProjectSettingDialog(BuildContext context) =>
       showProjectInfoSettingDialog(context, () => loadSubProjects());
 }

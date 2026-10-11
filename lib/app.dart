@@ -2,7 +2,6 @@ import 'package:count_tools/page/home_page/home_page.dart';
 import 'package:count_tools/utils/setting_utils.dart';
 import 'package:flutter/material.dart';
 
-
 class App extends StatefulWidget {
   const App({super.key});
 
@@ -22,9 +21,8 @@ class AppState extends State<App> {
 
   Future<void> _loadThemeColor() async {
     MaterialColor color = await SettingUtils.getThemeColor();
-    setState(() => _themeColor = color);
+    if (mounted) setState(() => _themeColor = color);
   }
-
 
   Future<void> _initApp() async {
     if (!await SettingUtils.isNotFirstEnter()) {
@@ -38,7 +36,8 @@ class AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-      title: 'count_tools',
-      theme: ThemeData(primarySwatch: _themeColor),
-      home: const HomePage(title: '首页'));
+    title: 'Cheki账本',
+    theme: ThemeData(primarySwatch: _themeColor),
+    home: const HomePage(title: '首页'),
+  );
 }

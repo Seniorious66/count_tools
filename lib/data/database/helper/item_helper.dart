@@ -1,4 +1,4 @@
-import  'package:count_tools/data/database/data_base.dart';
+import 'package:count_tools/data/database/data_base.dart';
 import 'package:count_tools/data/model/item_data.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -7,21 +7,17 @@ class ItemDBHelper {
 
   Future<void> insert(ItemData data) async {
     final db = await _databaseHelper.database;
-    await db.insert(
-      'item_data',
-      {
-        'id': data.id,
-        'price': data.price,
-        'eventName': data.eventName,
-        'type': data.type,
-        'date': data.date,
-        'itemName': data.itemName,
-        'parentId': data.parentId,
-        'projectId': data.projectId,
-        'ext': data.ext,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('item_data', {
+      'id': data.id,
+      'price': data.price,
+      'eventName': data.eventName,
+      'type': data.type,
+      'date': data.date,
+      'itemName': data.itemName,
+      'parentId': data.parentId,
+      'projectId': data.projectId,
+      'ext': data.ext,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> insertItems(List<ItemData> data, {int chunkSize = 1000}) async {
@@ -33,20 +29,16 @@ class ItemDBHelper {
         final batch = txn.batch();
         await Future.delayed(const Duration(milliseconds: 10));
         for (var item in chunk) {
-          batch.insert(
-            'item_data',
-            {
-              'price': item.price,
-              'eventName': item.eventName,
-              'type': item.type,
-              'date': item.date,
-              'itemName': item.itemName,
-              'parentId': item.parentId,
-              'projectId': item.projectId,
-              'ext': item.ext
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          batch.insert('item_data', {
+            'price': item.price,
+            'eventName': item.eventName,
+            'type': item.type,
+            'date': item.date,
+            'itemName': item.itemName,
+            'parentId': item.parentId,
+            'projectId': item.projectId,
+            'ext': item.ext,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
         await batch.commit(noResult: true);
       });
@@ -91,7 +83,7 @@ class ItemDBHelper {
         'itemName': data.itemName,
         'parentId': data.parentId,
         'projectId': data.projectId,
-        'ext': data.ext
+        'ext': data.ext,
       },
       where: 'id = ?',
       whereArgs: [data.id],
@@ -112,7 +104,7 @@ class ItemDBHelper {
             'itemName': item.itemName,
             'parentId': item.parentId,
             'projectId': item.projectId,
-            'ext': item.ext
+            'ext': item.ext,
           },
           where: 'id = ?',
           whereArgs: [item.id],
@@ -123,20 +115,12 @@ class ItemDBHelper {
 
   Future<void> delete(String id) async {
     final db = await _databaseHelper.database;
-    await db.delete(
-      'item_data',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('item_data', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> deleteByParent(String parentId) async {
     final db = await _databaseHelper.database;
-    await db.delete(
-      'item_data',
-      where: 'parentId = ?',
-      whereArgs: [parentId],
-    );
+    await db.delete('item_data', where: 'parentId = ?', whereArgs: [parentId]);
   }
 
   Future<void> deleteByProject(String projectId) async {

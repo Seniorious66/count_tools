@@ -1,9 +1,9 @@
 class ProjectData {
-  late String _id;  // 项目id
+  late String _id; // 项目id
   late String _title; // 项目标题
-  late String _subTitle;  // 项目副标题
-  late String _count;  // 项目数量
-  late String _ext;  // 项目扩展
+  late String _subTitle; // 项目副标题
+  late String _count; // 项目数量
+  late String _ext; // 项目扩展
 
   ProjectData({
     required String id,
@@ -33,14 +33,13 @@ class ProjectData {
     String? subTitle,
     String? count,
     String? ext,
-  }) =>
-      ProjectData(
-        id: id ?? _id,
-        title: title ?? _title,
-        subTitle: subTitle ?? _subTitle,
-        count: count ?? _count,
-        ext: ext ?? _ext,
-      );
+  }) => ProjectData(
+    id: id ?? _id,
+    title: title ?? _title,
+    subTitle: subTitle ?? _subTitle,
+    count: count ?? _count,
+    ext: ext ?? _ext,
+  );
 
   String get id => _id;
 

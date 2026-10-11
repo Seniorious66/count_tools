@@ -57,15 +57,17 @@ class SettingUtils {
       _getThemeColorWidget(await getThemeColor());
 
   static Widget _getThemeColorWidget(MaterialColor color) => Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-            color: color, borderRadius: BorderRadius.circular(10)),
-      );
+    width: 50,
+    height: 50,
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(10),
+    ),
+  );
 
   //设置全局theme颜色
   static Future<void> setThemeColorWidget(MaterialColor color) async =>
-      await SharedUtils.setString("themeColor", color.value.toString());
+      await SharedUtils.setString("themeColor", color.toARGB32().toString());
 
   //获取projectInfo页面显示行数
   static Future<int> getProjectInfoRowNum() async =>
@@ -120,20 +122,19 @@ class SettingUtils {
   //获取是否主动接受更新
   static Future<bool> getIsAutoUpdate() async =>
       await SharedUtils.getBool("isAutoUpdate");
-
 }
 
 Widget getThemeColorWidget() => FutureBuilder<Widget>(
-      future: SettingUtils.getThemeColorWidget(),
-      builder: (BuildContext context, AsyncSnapshot<Widget> snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator();
-        } else if (snapshot.hasError) {
-          return Container();
-        } else if (snapshot.hasData) {
-          return snapshot.data!;
-        } else {
-          return Container();
-        }
-      },
-    );
+  future: SettingUtils.getThemeColorWidget(),
+  builder: (BuildContext context, AsyncSnapshot<Widget> snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const CircularProgressIndicator();
+    } else if (snapshot.hasError) {
+      return Container();
+    } else if (snapshot.hasData) {
+      return snapshot.data!;
+    } else {
+      return Container();
+    }
+  },
+);

@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 class CountPage extends StatefulWidget {
   final String id;
 
-  const CountPage({Key? key, required this.id}) : super(key: key);
+  const CountPage({super.key, required this.id});
 
   @override
   State<CountPage> createState() => _CountPageState();
@@ -25,43 +25,54 @@ class _CountPageState extends State<CountPage> {
 
   @override
   Widget build(BuildContext context) => ChangeNotifierProvider.value(
-      value: _vm,
-      child: Scaffold(
-          appBar: AppBar(title: const Text("统计"), actions: [
-            IconButton(onPressed: () => {}, icon: const Icon(Icons.settings))
-          ]),
-          body: Center(
-            child: ListView(children: [
-              _buildColorCountTitle(),
-              _buildColorCount(),
-              const SizedBox(height: 32),
-              _buildNameNumCountTitle(),
-              _buildNameNumCount(),
-              const SizedBox(height: 64),
-            ]),
-          )));
+    value: _vm,
+    child: Scaffold(
+      appBar: AppBar(
+        title: const Text("统计"),
+        actions: [
+          IconButton(onPressed: () => {}, icon: const Icon(Icons.settings)),
+        ],
+      ),
+      body: Center(
+        child: ListView(
+          children: [
+            _buildColorCountTitle(),
+            _buildColorCount(),
+            const SizedBox(height: 32),
+            _buildNameNumCountTitle(),
+            _buildNameNumCount(),
+            const SizedBox(height: 64),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _buildColorCountTitle() => Container(
-      margin: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-      child: const Text("当前项目颜色分布：", style: AppTextStyle.heading2));
+    margin: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+    child: const Text("当前项目颜色分布：", style: AppTextStyle.heading2),
+  );
 
-  Widget _buildColorCount() =>
-      Consumer<CountPageViewModel>(builder: (_, vm, __) {
-        if (vm.colorData.isEmpty) {
-          return const Text("暂无数据，请先添加");
-        }
-        return ColorPieChartWidget(vm.colorData, height: 400);
-      });
+  Widget _buildColorCount() => Consumer<CountPageViewModel>(
+    builder: (_, vm, _) {
+      if (vm.colorData.isEmpty) {
+        return const Text("暂无数据，请先添加");
+      }
+      return ColorPieChartWidget(vm.colorData, height: 400);
+    },
+  );
 
   Widget _buildNameNumCountTitle() => Container(
-      margin: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-      child: const Text("当前项目名称-数量分布：", style: AppTextStyle.heading2));
+    margin: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+    child: const Text("当前项目名称-数量分布：", style: AppTextStyle.heading2),
+  );
 
-  Widget _buildNameNumCount() =>
-      Consumer<CountPageViewModel>(builder: (_, vm, __) {
-        if (vm.countNum < 1) {
-          return const Center(child: Text("暂无详细数据，请先添加"));
-        }
-        return NameNumPieChartWidget(vm.subProjects, vm.countNum, height: 400);
-      });
+  Widget _buildNameNumCount() => Consumer<CountPageViewModel>(
+    builder: (_, vm, _) {
+      if (vm.countNum < 1) {
+        return const Center(child: Text("暂无详细数据，请先添加"));
+      }
+      return NameNumPieChartWidget(vm.subProjects, vm.countNum, height: 400);
+    },
+  );
 }

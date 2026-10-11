@@ -7,24 +7,29 @@ class LegendItem extends StatelessWidget {
   const LegendItem(this.data, {super.key, this.isShowCount = false});
 
   @override
-  Widget build(BuildContext context) =>
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          decoration: BoxDecoration(
-              border: Border.all(color: Colors.black),
-              color: data.color,
-              borderRadius: BorderRadius.circular(4)),
-          width: 16,
-          height: 16,
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.black),
+          color: data.color,
+          borderRadius: BorderRadius.circular(4),
         ),
-        const SizedBox(width: 4),
-        Row(children: [
+        width: 16,
+        height: 16,
+      ),
+      const SizedBox(width: 4),
+      Row(
+        children: [
           Text(data.name),
           if (isShowCount) Text('：${data.count}-'),
           Text('(${data.percent.toStringAsFixed(2)}%)'),
-        ]),
-        const SizedBox(width: 16)
-      ]);
+        ],
+      ),
+      const SizedBox(width: 16),
+    ],
+  );
 }
 
 class CountItemData {

@@ -10,9 +10,11 @@ class LongClickSubProjectDialog extends StatefulWidget {
   final BuildContext extContext;
   final SubProjectData data;
 
-  const LongClickSubProjectDialog(
-      {Key? key, required this.extContext, required this.data})
-      : super(key: key);
+  const LongClickSubProjectDialog({
+    super.key,
+    required this.extContext,
+    required this.data,
+  });
 
   @override
   LongClickSubProjectDialogState createState() =>
@@ -36,37 +38,66 @@ class LongClickSubProjectDialogState extends State<LongClickSubProjectDialog> {
     nameCon.text = widget.data.name;
 
     return AlertDialog(
-        title: const Text('修改信息'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
+      title: const Text('修改信息'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           TextField(
-              controller: nameCon,
-              decoration: const InputDecoration(labelText: "请输入姓名")),
+            controller: nameCon,
+            decoration: const InputDecoration(labelText: "请输入姓名"),
+          ),
           ListTile(
-              title: const Text('选择颜色'),
-              trailing: CircleAvatar(backgroundColor: selectedColor),
-              onTap: () => showColorPicker(context, selectedColor,
-                  (color) => setState(() => selectedColor = color))),
+            title: const Text('选择颜色'),
+            trailing: CircleAvatar(backgroundColor: selectedColor),
+            onTap: () => showColorPicker(
+              context,
+              selectedColor,
+              (color) => setState(() => selectedColor = color),
+            ),
+          ),
           ListTile(
-              title: const Text('选择字体颜色'),
-              trailing: CircleAvatar(backgroundColor: selectedTextColor),
-              onTap: () => showColorPicker(context, selectedTextColor,
-                  (color) => setState(() => selectedTextColor = color)))
-        ]),
-        actions: [
-          TextButton(
-              child: const Text("删除"),
-              onPressed: () => {
-                Provider.of<ProjectInfoViewModel>(widget.extContext, listen: false).deleteSubProject(widget.data.id),
-                Navigator.of(context).pop()}),
-          TextButton(
-              child: const Text("取消"),
-              onPressed: () => Navigator.of(context).pop()),
-          TextButton(
-              child: const Text("确定"),
-              onPressed: () => {
-                Provider.of<ProjectInfoViewModel>(widget.extContext, listen: false).editSubProject(widget.data.copyWith(name: nameCon.text, color: intColorToHex(selectedColor), textColor: intColorToHex(selectedTextColor))),
-                Navigator.of(context).pop()}
+            title: const Text('选择字体颜色'),
+            trailing: CircleAvatar(backgroundColor: selectedTextColor),
+            onTap: () => showColorPicker(
+              context,
+              selectedTextColor,
+              (color) => setState(() => selectedTextColor = color),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          child: const Text("删除"),
+          onPressed: () => {
+            Provider.of<ProjectInfoViewModel>(
+              widget.extContext,
+              listen: false,
+            ).deleteSubProject(widget.data.id),
+            Navigator.of(context).pop(),
+          },
+        ),
+        TextButton(
+          child: const Text("取消"),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        TextButton(
+          child: const Text("确定"),
+          onPressed: () => {
+            Provider.of<ProjectInfoViewModel>(
+              widget.extContext,
+              listen: false,
+            ).editSubProject(
+              widget.data.copyWith(
+                name: nameCon.text,
+                color: intColorToHex(selectedColor),
+                textColor: intColorToHex(selectedTextColor),
               ),
-        ]);
+            ),
+            Navigator.of(context).pop(),
+          },
+        ),
+      ],
+    );
   }
 }

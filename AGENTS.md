@@ -20,7 +20,7 @@
 - 开发分支 `personal/customization` 或其后代；固定基线 `baseline/upstream`。
 - origin 为个人 fork，upstream 只追溯；未经请求不自动 fetch/merge/rebase/cherry-pick 上游。
 - 原 App `com.example.count_tools`，安装版本 1.0.0 / 1；不能假设源码 HEAD 精确对应已安装 APK。
-- 个人身份和永久证书待确认。推荐独立包名并导入旧数据；决定前不改身份，不生成永久私钥。
+- 2026-10-11 用户确认独立包名 `com.seniorious66.counttools`、显示名「Cheki账本」、仓库外专属永久签名并备份到 E 和 NAS；固定 Flutter 3.47.5 与兼容 Dart 3 依赖。原 App 保留，真实导入仍需对应范围授权。
 - 只有同包名同证书才可原位升级；源码或调试授权不能解决签名冲突。绝不卸载旧 App 来安装重签名包。
 - 永久签名放仓库之外，保留两份独立备份；不借用 SalaryFlow 私钥，不打印/提交密码和私钥。
 - 正式候选固定包名/证书，versionCode 严格递增；旧功能在较新候选集中验收，不降级真实安装。
@@ -41,7 +41,7 @@
 ## 验证与交付
 
 - 配置、实现、测试通过、APK构建、正式签名、安装、真机验收分别记录；失败/未执行/跳过不是通过。
-- Flutter 工具链尚未建立；模板测试、旧依赖、Gradle和上游更新链风险在 MasterSheet，不绕过失败门槛。
+- 工具链版本见 `scripts/toolchain.json`；依赖锁见 pubspec.lock。使用隔离 Android 工作目录，不要求开启 Windows 开发者模式；模板测试、旧依赖、Gradle和上游更新链的实际验证状态看 MasterSheet，不绕过失败门槛。
 - 环境 `scripts/use-dev-env.ps1`；本地验证 `scripts/test-local.ps1`；只读数据库 `scripts/verify-database.py`。
 - 本地依赖完成可继续后续本地开发；累计待验风险持续记录，稳定化/日用完成必须有真实证据。
 - 视觉证据默认临时保存；必要留存注明用途。不删用户数据、源素材、APK、签名、必要备份及规划历史。

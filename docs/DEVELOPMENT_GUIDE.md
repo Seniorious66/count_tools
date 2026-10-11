@@ -4,7 +4,7 @@
 
 2026-10-11 建立 WF-001 流程；没有改业务、身份、签名或数据库，没有构建/安装个人 APK。
 上游 https://github.com/fmqwd/count_tools ，fork https://github.com/Seniorious66/count_tools 。
-固定 `baseline/upstream`，开发 `personal/customization`；本轮文件未提交/推送，Apache-2.0 保留。
+固定 `baseline/upstream`，开发 `personal/customization`；WF-001 建立时尚未提交，后续提交上传按 Git 追溯记录核对，Apache-2.0 保留。
 
 参考 `E:\OneDrive\Code\财务\salaryflow` 的 AGENTS、README、MOBILE、环境/构建/测试脚本及当前四表。
 本轮没有修改参考项目；不继承工资公式、S25/OEM规则、十个工作日观察期或旧许可证限制。
@@ -22,6 +22,8 @@
 | 精简证据与规划校验 | verify-mastersheet.py、verify-database.py、文本结论 |
 
 ## 当前缺口
+
+以下为 WF-001 建立时的历史缺口。2026-10-11 用户已批准独立包名 `com.seniorious66.counttools`、显示名「Cheki账本」、专属永久签名及 E/NAS 双备份，并确认固定 Flutter 3.47.5 的兼容升级路线。M0 实施状态与实际验证结果以 MasterSheet 为准，不能从脚本存在推断构建已通过。
 
 - 原安装是 com.example.count_tools / 1.0.0 / 1；设置页观察到1.0.4，源码 AppInfo 为1.0.2。源码与APK尚未证明精确对应。
 - 本机 PATH 没有 Flutter/Dart。源码要求 Dart >=2.19.2 <3.0.0；Gradle7.5、AGP7.2.0、Kotlin1.7.10。不能直接套 SalaryFlow JDK21。
@@ -83,7 +85,7 @@ python scripts/verify-database.py --database 'E:\OneDrive\Code\artifacts\count-t
 
 环境入口不会下载SDK或连接设备；本地入口依次规划、流程保护回归、依赖解析、analyze、test，失败即停。
 Debug APK 不是正式交付，不能替换真实安装。没有有效产品测试就不能标记本地完成。
-当前没有正式签名构建脚本；下一版固定SDK/JDK/Gradle/AGP与专属证书后建立 build-personal-android.ps1 和身份升级校验。
+M0 已建立 `build-personal-android.ps1`：显式候选名称/code、仓库外签名配置、独立 Android 工作目录、锁文件解析、实际签名和包名/版本核验，成功后写本地候选台账并要求以后 code 递增。构建不安装、不发布；实际通过状态看 MasterSheet。
 改MasterSheet使用支持原格式的工作簿工具；只读校验器不会改表。首次工作簿未入Git时仅报告历史基线尚未建立，不能声称 --baseline HEAD 通过。
 WF-002 起，“执行约定”维护 REQ 需求覆盖行：来源章节、目标版本、验收与状态。校验器检查关联版本/完整性；历史需求 ID 不可删除，改范围或验收须归档原六列完整 JSON 行，状态可以据证据推进。
 WF-003 起，校验器同时检查 M 阶段覆盖、产品目标映射、阶段硬依赖和完成门槛；修改已有产品/阶段范围同样归档原完整行。校验通过只证明规划记录一致，不证明业务已实现。
@@ -91,7 +93,9 @@ WF-013 起，LAYOUT-001 约定各 M 检查点紧接所属最后一个工作包�
 
 ## 下一开发版
 
-建议先推进工作包 v1.1.0 / 候选code下界11000：身份、可重复工具链、有效测试基线、上游更新链解耦，归属 M0 工程候选。当前未改任何产品版本元数据；产品版本提案在首次候选前固定。
+2026-10-11 本轮已获授权推进 M0 三个工作包，完成 M0 后停止。下文原建议保留为阶段设计背景；身份和 SDK 裁决已完成，M1 业务不属于本轮范围。
+
+WF-001 当时建议先推进工作包 v1.1.0 / 候选code下界11000：身份、可重复工具链、有效测试基线、上游更新链解耦，归属 M0 工程候选。当时未改产品版本元数据；本轮已设置个人工程候选元数据，实际构建与验证状态见 MasterSheet。
 推荐独立包名如 com.seniorious66.counttools 并保留原App；显示名/身份由用户确认。
 要原位替换原App必须先取得并验证同签名私钥，源码/调试授权不够；禁止卸载解决签名冲突，不借用SalaryFlow证书。
 独立个人版首装不会自动拥有旧库。v1.1.1建立全量备份/导入预检/预览/原子替换/回滚，隔离往返通过后才能授权迁移真数据。
