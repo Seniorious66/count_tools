@@ -101,6 +101,8 @@ v1.2.0 起按四表工作包推进团体/身份、Cheki、券库存/联动、成
 
 ## SQLite耦合和验收
 
+当前业务修订先读 [时间、领取与编辑规则](requirements/CHEKI_CHANGE_20261011.md)：当前界面只区分领取、登记两页，领取时间不得替代事件时间统计。旧完成原始事实及缺失领取时间必须保留追溯。
+
 界面设计与实现先读 [UI 规范](UI_DESIGN.md) 和其中的可点击原型。用户已指定 SalaryFlow 极简风及浅蓝浅粉拼色；布局待复核，四表仍维护范围和进度。按规范建立公共主题和组件，颜色不能替代状态文字，成员自定义颜色保留。HTML 原型的浏览器检查与 Flutter 构建、真实 Android 大字/键盘/读屏验收分别记录。
 
 源码存储在application documents下的app_flutter/user_database.db，当前user_version=1。
