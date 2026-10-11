@@ -17,6 +17,8 @@
 .modal:has(#dialog-footer:not([hidden])) .modal-body{max-height:calc(90vh - 172px)}#dialog-footer .footer-actions{margin:0;padding:12px 20px 20px}@media(max-width:600px){.modal:has(#dialog-footer:not([hidden])) .modal-body{max-height:calc(94dvh - 172px)}}
 .modal-body:has(.two-steps) .field{margin-top:12px}.modal-body:has(.two-steps) .selected-members{margin-bottom:12px}
 .attribute-options{column-gap:4px;justify-content:space-between}.attribute-options input{padding:0;margin:0;flex:0 0 18px}.attribute-options label{gap:5px;white-space:nowrap}
+#home-expiry[hidden],#home-ticket-pools[hidden]{display:none}
+.allocation-details .form-row>label:only-child{grid-column:1/-1}
 </style>
 </head>
 <body>
@@ -31,14 +33,14 @@
 <aside class="intro"><span class="eyebrow">CHEKI & TICKETS</span><h1>轻一点，<br>记清楚。</h1><p>留白、大数字、圆角卡片。<br>浅蓝记录 Cheki，浅粉管理特典券。</p><div class="palette"><div class="swatch blue">浅蓝</div><div class="swatch pink">浅粉</div></div><p class="note">UI 提案 · 合成示例<br>可切换页面和体验分步登记。<br>合成记录可登记与修改，刷新重置。</p></aside>
 <div><div class="phone" id="phone"><div class="statusbar" aria-hidden="true"><span>9:41</span><span>••• ▰</span></div><main class="scroller" id="scroller">
 <section class="page" id="home-page"><header class="header"><div><h1>我的 Cheki</h1><small>2026 年 10 月</small></div><button class="icon" data-action="manage" aria-label="打开管理"><svg><use href="#settings"/></svg></button></header>
-<div class="hero"><button data-go="records"><label>本月实际 Cheki</label><strong class="number"><span id="home-physical">15</span><small> 张</small></strong><small id="home-participation">成员累计 18 张</small></button><button data-go="tickets"><label>当前可用特典券</label><strong class="number">14<small> 张</small></strong><small>长期 10 · 限时 4</small></button></div>
+<div class="hero"><button data-go="records"><label>本月实际 Cheki</label><strong class="number"><span id="home-physical">15</span><small> 张</small></strong><small id="home-participation">成员累计 18 张</small></button><button data-go="tickets"><label>当前可用特典券</label><strong class="number"><span id="home-ticket-total">14</span><small> 张</small></strong><small id="home-ticket-pools">长期 10 · 限时 4</small></button></div>
 <button class="card pending-card" data-filter-go="pending"><span><small>未领取 Cheki</small><strong class="number"><span id="pending-total">6</span> <small>张</small></strong></span><span class="muted">所有时间 · 待领取<br>查看未领取记录 ›</span></button>
 <div class="actions"><button class="primary" data-action="register">＋ 记一笔</button><button class="secondary" data-action="buy">购券</button></div>
-<button class="warning" data-action="expiry"><span aria-hidden="true">!</span><div><b>4 张券将于 10 月 15 日到期</b><br><small>晨星 · A 基础券　查看券池</small></div></button>
+<button class="warning" id="home-expiry" data-action="expiry"><span aria-hidden="true">!</span><div><b>4 张券将于 10 月 15 日到期</b><br><small>晨星 · A 基础券　查看券池</small></div></button>
 <div class="section"><h2>最近记录</h2><button class="text-link" data-go="records">全部记录</button></div><div id="recent-list"></div>
 </section>
 <section class="page" id="records-page" hidden><header class="header"><h1>记录</h1><button class="icon" data-action="register" aria-label="新增记录">＋</button></header><div class="summary"><strong class="number" id="record-physical">14</strong> 张 <span>／</span> <span id="record-participation">成员累计 18 张</span></div><div class="chips" id="record-filters"><button data-filter="all" aria-pressed="true">全部</button><button data-filter="pending" aria-pressed="false">未领取</button></div><p class="muted" id="record-count">8 笔记录</p><div id="record-list"></div></section>
-<section class="page" id="tickets-page" hidden><header class="header"><h1>券库</h1><button class="secondary" data-action="buy">＋ 购券</button></header><div class="card ticket-hero"><small>当前可用特典券</small><strong class="number">14 <small>张</small></strong><small>长期 10 · 限时 4 · 过期 1 另列</small></div><div class="section"><h2>晨星</h2><small>2 种券</small></div><article class="card ticket-card"><div class="ticket-top"><div><h3>晨星 · A 基础券</h3><small>晨星 · 个人券 · A</small></div><strong class="stock number">12</strong></div><div class="pool"><span>长期</span><b>8 张</b></div><div class="pool"><span>限时 · 10/15 截止</span><b>4 张</b></div><button class="warning" data-action="expiry" style="margin-top:12px">! 临期 4 张 · 查看详情</button></article><article class="card ticket-card"><div class="ticket-top"><div><h3>晨星 · 通用券</h3><small>晨星 · 团体券</small></div><strong class="stock number">2</strong></div><div class="pool"><span>长期</span><b>2 张</b></div><p class="expired">过期 1 张 · 10/01 截止 · 保留历史</p><button class="text-link" data-action="ticket-detail">查看流水与操作</button></article></section>
+<section class="page" id="tickets-page" hidden><header class="header"><h1>券库</h1><button class="secondary" data-action="buy">＋ 购券</button></header><div id="ticket-content"></div></section>
 <section class="page" id="stats-page" hidden><div id="stats-overview">
 <header class="header"><h1>统计</h1><button class="icon" data-action="manage" aria-label="打开管理"><svg><use href="#settings"/></svg></button></header>
 <div class="chips period-tabs" aria-label="统计时间范围"><button data-period="day">日</button><button data-period="week">周</button><button data-period="month" aria-pressed="true">月</button><button data-period="year">年</button><button data-period="all">所有</button></div>
