@@ -114,6 +114,8 @@ v1.2.0 起按四表工作包推进团体/身份、Cheki、券库存/联动、成
 
 当前 v1.2.0 源码使用公共 R1 主题与 `ChekiAppShell`，稳定页面 ID 维护状态和返回；只注册真实可用页面。通用项目暂为「旧版项目」兼容入口，后续 v1.2.1 接入真实 Cheki 首页和记录；旧数据不自动映射。旧设置原值保留，R1 界面不沿用旧单色主题或虚假个人信息入口。中文系统文案使用固定 Flutter SDK 自带的 localizations；设置内可查应用版本、来源和完整 Apache 许可。源码接入和本地检查不等于已构建或安装最新 APK。
 
+成员管理与登记复用 `member_inputs.dart`：`MemberColorField` 先局部预览，只有确认才向表单返回颜色；取消或系统返回不改原值。`MemberMultiSelectField` 使用稳定成员 ID，打开可搜索多选面板，姓名带团体前缀和配置色，确认才返回选择，外部表单保留草稿。停用或缺失的原选择明确提示、保持 ID，只有用户移除才删除。保存服务还必须重新校验成员存在、停用和最终同人身份规则；这些控件不替代实体管理或持久化，当前 App 尚未接入成员管理。颜色面板有标准 RGB 滑块补充画布交互，Widget 语义检查不代表 Android TalkBack 已验收。
+
 源码存储在application documents下的app_flutter/user_database.db。M0 候选使用 schema 2，当前 M1 开发源码使用 schema 3，旧导出为 schema 1；新增迁移账本及团体/尺寸表，但不转换旧四表事实。完整机制及后续字段审查见 [数据版本指导](STORAGE.md)。
 迁移包括四张业务表、sqlite_sequence、SharedPreferences设置、适用journal/WAL，保留时间戳ID与ext。
 项目count是子项目数，子项目count需核对其明细数量。发现不一致报告，不自动修复。
