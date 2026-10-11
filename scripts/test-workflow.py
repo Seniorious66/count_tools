@@ -1,9 +1,12 @@
 """Regression checks for planning history protection and isolated DB validation."""
 import copy
+import io
 import importlib.util
 import sqlite3
 import tempfile
 import unittest
+import zipfile
+import xml.etree.ElementTree as ET
 from contextlib import closing
 from pathlib import Path
 
@@ -32,6 +35,29 @@ class PlanningTests(unittest.TestCase):
 
     def test_current(self):
         planning.validate_book(self.book, copy.deepcopy(self.book))
+
+    def iso_date_fixture(self, value):
+        original = (planning.ROOT / planning.REL).read_bytes()
+        output = io.BytesIO()
+        with zipfile.ZipFile(io.BytesIO(original)) as source, zipfile.ZipFile(output, 'w') as target:
+            for name in source.namelist():
+                content = source.read(name)
+                if name == 'xl/worksheets/sheet2.xml':
+                    xml = ET.fromstring(content)
+                    cell = xml.find('.//s:c[@r="B8"]', planning.NS)
+                    cell.set('t', 'd')
+                    cell.find('s:v', planning.NS).text = value
+                    content = ET.tostring(xml)
+                target.writestr(name, content)
+        return output.getvalue()
+
+    def test_iso_date_matches_numeric_history(self):
+        parsed = planning.read_book(self.iso_date_fixture('2026-10-11T00:00:00.000Z'))
+        self.assertEqual(parsed, self.book)
+        planning.validate_book(parsed, self.book)
+
+    def test_invalid_iso_date_rejected(self):
+        with self.assertRaises(ValueError): planning.read_book(self.iso_date_fixture('invalid-date'))
 
     def test_missing_dependency(self):
         self.book['版本规划'][self.cell('v1.1.0', 'F')] = 'v99.0.0'

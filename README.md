@@ -42,6 +42,7 @@ M0 正在实施，M1–M5 仍为计划阶段。具体工作包、依赖、估算
 - [UI 设计规范与原型](docs/UI_DESIGN.md)：参考 SalaryFlow 极简布局，采用浅蓝与浅粉拼色；可点击预览主要页面和登记流程。
 - [开发指导](docs/DEVELOPMENT_GUIDE.md)：环境、实施、验证与交付方法。
 - [固定工具链](docs/TOOLCHAIN.md)：复用已有 Android 工具、首次补齐依赖和后续本地构建。
+- [工程恢复指导](docs/RECOVERY.md)：M0 的本地隔离备份、预检、预览和恢复入口；App 内用户页面后续实施。
 - [项目开发约定](AGENTS.md)：每轮规划、数据保护和验收规则。
 - [Git 提交追溯](docs/GIT_TRACEABILITY.md)：本地提交、自动上传和失败重试。
 - [设备流程](docs/MOBILE.md)：安装身份检查、备份、升级和真机验收。

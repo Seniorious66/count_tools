@@ -9,6 +9,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Planning validation failed' }
     & $Python scripts/test-workflow.py
     if ($LASTEXITCODE -ne 0) { throw 'Workflow protection checks failed' }
+    & $Python scripts/test-recovery.py
+    if ($LASTEXITCODE -ne 0) { throw 'Isolated complete recovery checks failed' }
     . (Join-Path $PSScriptRoot 'use-dev-env.ps1')
     $workspace = & (Join-Path $PSScriptRoot 'prepare-local-workspace.ps1')
     Set-Location -LiteralPath $workspace

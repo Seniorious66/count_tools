@@ -7,6 +7,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
+from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[1]
 REL = 'outputs/workflow-20261011/CountTools-MasterSheet.xlsx'
@@ -39,6 +40,11 @@ def read_book(data):
                     value = shared[int(value)]
                 elif typ == 'inlineStr':
                     value = ''.join(t.text or '' for t in c.findall('.//s:t', NS))
+                elif typ == 'd' and value is not None:
+                    parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    if parsed.tzinfo is not None:
+                        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+                    value = (parsed - datetime(1899, 12, 30)).total_seconds() / 86400
                 elif value is not None and typ not in ('str', 'e', 'b'):
                     value = float(value)
                 require(typ != 'e', f'Excel error at {sh.attrib["name"]}!{c.attrib["r"]}')
