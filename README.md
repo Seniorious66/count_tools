@@ -39,6 +39,7 @@
 
 - [需求原文 V0.2](docs/requirements/CHEKI_V0.2.md)：暂定业务与功能需求。
 - [评估与初步设计](docs/requirements/CHEKI_DESIGN_V0.2.md)：现有差距、页面构思、数据模型和待裁决问题。
+- [UI 设计规范与原型](docs/UI_DESIGN.md)：参考 SalaryFlow 极简布局，采用浅蓝与浅粉拼色；可点击预览主要页面和登记流程。
 - [开发指导](docs/DEVELOPMENT_GUIDE.md)：环境、实施、验证与交付方法。
 - [项目开发约定](AGENTS.md)：每轮规划、数据保护和验收规则。
 - [Git 提交追溯](docs/GIT_TRACEABILITY.md)：本地提交、自动上传和失败重试。
