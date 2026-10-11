@@ -43,5 +43,22 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-#环境配置
-pubspec.lock
+# Local outputs, personal data and signing material
+/local-artifacts/
+/private-data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.bak
+*.apk
+*.aab
+*.jks
+*.keystore
+**/key.properties
+**/*signing*.properties
+**/local.properties
+__pycache__/
+# Commit pubspec.lock after the Flutter toolchain is pinned.

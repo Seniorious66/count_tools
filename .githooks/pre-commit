@@ -1,0 +1,4 @@
+#!/bin/sh
+trace_python=$(git config --get counttools.python || true)
+if [ -z "$trace_python" ]; then trace_python=python; fi
+exec "$trace_python" scripts/git-trace.py pre-commit

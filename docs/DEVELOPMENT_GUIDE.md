@@ -1,0 +1,111 @@
+# 统计工具后续开发指导
+
+## 起点与参考
+
+2026-10-11 建立 WF-001 流程；没有改业务、身份、签名或数据库，没有构建/安装个人 APK。
+上游 https://github.com/fmqwd/count_tools ，fork https://github.com/Seniorious66/count_tools 。
+固定 `baseline/upstream`，开发 `personal/customization`；本轮文件未提交/推送，Apache-2.0 保留。
+
+参考 `E:\OneDrive\Code\财务\salaryflow` 的 AGENTS、README、MOBILE、环境/构建/测试脚本及当前四表。
+本轮没有修改参考项目；不继承工资公式、S25/OEM规则、十个工作日观察期或旧许可证限制。
+
+| SalaryFlow 机制 | 本仓库适配 |
+| --- | --- |
+| 四表 MasterSheet 唯一来源 | outputs/workflow-20261011/CountTools-MasterSheet.xlsx |
+| 每轮先计划再补同一日志 | AGENTS + 唯一 ROUND ID + 历史保留检查 |
+| 高耦合基础优先 | 身份/环境 → 备份恢复 → schema迁移 → 确认后的功能 |
+| 独立上游与开发分支 | baseline/upstream、personal/customization，不自动同步 |
+| React/Core/typecheck/build | Flutter analyze/test/build，不复制 npm/Capacitor |
+| 固定签名与递增版本 | 首次身份决定后建立专属外部证书和正式构建脚本 |
+| 本地/设备验收分开 | 明确设备授权，候选按versionCode，累计未验风险 |
+| 隔离测试保护真数据 | 仓库外只读原备份，隔离写测试与回滚 |
+| 精简证据与规划校验 | verify-mastersheet.py、verify-database.py、文本结论 |
+
+## 当前缺口
+
+- 原安装是 com.example.count_tools / 1.0.0 / 1；设置页观察到1.0.4，源码 AppInfo 为1.0.2。源码与APK尚未证明精确对应。
+- 本机 PATH 没有 Flutter/Dart。源码要求 Dart >=2.19.2 <3.0.0；Gradle7.5、AGP7.2.0、Kotlin1.7.10。不能直接套 SalaryFlow JDK21。
+- Android 未跟踪 gradlew；旧 CI 从根目录调用 gradlew。已改为手动规划检查，未冒充有效 Flutter 构建。
+- 默认计数器模板测试不能代表业务。首次开发需替换为与 App 行为相符的隔离测试，不能跳过失败。
+- pubspec.lock 原被忽略；本轮解除忽略，首次SDK固定后解析、检查、提交锁文件，不自动全量升级依赖。
+- 源码 release 使用debug signingConfig，并含上游更新地址；原安装私钥未知。下一开发版处理，当前未改产品。
+
+## 文件职责与规划表
+
+AGENTS.md 是后续规则；MasterSheet 是范围/状态/依赖/风险/决定/每轮历史的唯一可编辑来源；
+本文是操作指南，MOBILE.md 是身份与数据验收；docs/personal/WF001_DELIVERY.md 是本轮事实。
+
+四表与 SalaryFlow 同名：版本规划、Changelog、决策与风险、执行约定。
+工作包含目标、收益、状态、优先级、硬依赖、估算、范围、验收、门槛、影响和候选code下界；O/P/Q 列分别列 App 产品目标、所属里程碑和拆分/升版理由。
+原 v-ID 是历史工作包编号，不直接用作 App versionName；多个工作包可组成一个产品版。M0–M5 阶段表在同一“版本规划”下方。
+大小版本触发、耦合拆包、已选核心 MVP 和用户检查方法见 [版本与阶段验收指导](PLANNING_AND_ACCEPTANCE.md)。
+“待开发”是排期，不是已批准实施；估算空白表示未估算，0只用于无开发工作量基线。
+每轮 Changelog 同一 ID 起草后补结果，结束历史不覆盖；纠错追加来源和原因。
+DEC/RISK ID 保留；描述修正另记，状态与新证据可追加。重新排范围要先保留被替换范围和理由。
+
+## 每轮操作
+
+1. 读工作区/分支和四表，选一个依赖适用工作包，核对所属产品目标/里程碑，不覆盖用户改动。
+2. 向用户输出“本轮规划”：工作包、产品目标/阶段、目标/范围、文件、不做项、验收、未决决定。
+3. Changelog新建ROUND后实施；变化同步版本/风险/依赖/估算，不静默扩范围。
+4. 在本地和隔离数据上验证；未决只阻塞相依工作，不停止其他授权工作。
+5. 跑检查，逐项记录通过/失败/未执行；修本轮引入问题，保留既有失败。
+6. 有APK交付时正式签名、包名/证书/递增版本及最终内容校验，输出local-artifacts/android。
+7. 无设备授权停在本地交付，登记候选与风险；获准才按MOBILE验收。
+8. 补同一ROUND、更新版本状态与历史校验，交付实际结果和下一步。
+
+WF-004 用户已持续授权每次提交推送个人 fork。每轮使用 [提交追溯指导](GIT_TRACEABILITY.md) 的入口：提交前检查暂存内容与历史，提交后自动推送 `origin` 个人分支并查询远端。失败保留提交、报告“未上传”，重试后再称上传完成；不 force、不同步上游，不附带发布制品。
+
+阶段交付时提供可操作隔离候选、步骤/预期、实际前后对账与恢复证据、未验问题；用户复核后补阶段结论。工作包、本地验证、候选、实机和阶段验收分别记，不用完成百分比替代门槛。
+
+## 检查命令
+
+Python检查仅用标准库，不依赖安装Flutter：
+
+```powershell
+python scripts/verify-mastersheet.py
+python scripts/test-workflow.py
+python scripts/test-git-trace.py
+# 首个含工作簿的提交建立后每轮必跑：
+python scripts/verify-mastersheet.py --baseline HEAD
+python scripts/verify-database.py --database 'E:\OneDrive\Code\artifacts\count-tools-export\20261011_102725\user_database.db'
+.\scripts\use-dev-env.ps1 -Inspect
+```
+
+首次工具链固定后，给当前终端显式配置仓库外SDK：
+
+```powershell
+. .\scripts\use-dev-env.ps1 -FlutterRoot 'C:\独立工具目录\flutter' -JdkRoot 'C:\独立工具目录\jdk' -AndroidSdk 'C:\Users\Aphoe\AppData\Local\Android\Sdk'
+.\scripts\test-local.ps1 -Baseline HEAD
+# 可选本地调试编译，不连接/安装手机：
+.\scripts\test-local.ps1 -Baseline HEAD -BuildDebug
+```
+
+环境入口不会下载SDK或连接设备；本地入口依次规划、流程保护回归、依赖解析、analyze、test，失败即停。
+Debug APK 不是正式交付，不能替换真实安装。没有有效产品测试就不能标记本地完成。
+当前没有正式签名构建脚本；下一版固定SDK/JDK/Gradle/AGP与专属证书后建立 build-personal-android.ps1 和身份升级校验。
+改MasterSheet使用支持原格式的工作簿工具；只读校验器不会改表。首次工作簿未入Git时仅报告历史基线尚未建立，不能声称 --baseline HEAD 通过。
+WF-002 起，“执行约定”维护 REQ 需求覆盖行：来源章节、目标版本、验收与状态。校验器检查关联版本/完整性；历史需求 ID 不可删除，改范围或验收须归档原六列完整 JSON 行，状态可以据证据推进。
+WF-003 起，校验器同时检查 M 阶段覆盖、产品目标映射、阶段硬依赖和完成门槛；修改已有产品/阶段范围同样归档原完整行。校验通过只证明规划记录一致，不证明业务已实现。
+
+## 下一开发版
+
+建议先推进工作包 v1.1.0 / 候选code下界11000：身份、可重复工具链、有效测试基线、上游更新链解耦，归属 M0 工程候选。当前未改任何产品版本元数据；产品版本提案在首次候选前固定。
+推荐独立包名如 com.seniorious66.counttools 并保留原App；显示名/身份由用户确认。
+要原位替换原App必须先取得并验证同签名私钥，源码/调试授权不够；禁止卸载解决签名冲突，不借用SalaryFlow证书。
+独立个人版首装不会自动拥有旧库。v1.1.1建立全量备份/导入预检/预览/原子替换/回滚，隔离往返通过后才能授权迁移真数据。
+v1.1.2建立稳定schema与逐级迁移。2026-10-11 WF-002 已将暂定 Cheki V0.2 评估和初步设计纳入 MasterSheet，业务仍未实施。
+需求原文见 [CHEKI_V0.2.md](requirements/CHEKI_V0.2.md)，评估/页面/模型/未决规则见 [CHEKI_DESIGN_V0.2.md](requirements/CHEKI_DESIGN_V0.2.md)。
+v1.2.0 起按四表工作包推进团体/身份、Cheki、券库存/联动、成本纠错、BI、批量携带和旧映射；用户已选择 M2 核心 MVP 先行，完整 BI 与批量旧迁移后交。每个新增持久化包扩展当前模型备份，M2 的全模型恢复是试用门槛；本文不另维护排期。
+实施相依版本前裁决四表 DEC 的时间、未知成本、交换 FIFO、下游纠错与多人 BI 门槛；暂定需求与建议路线不等于全路线实施授权。
+
+## SQLite耦合和验收
+
+源码存储在application documents下的app_flutter/user_database.db，当前user_version=1。
+迁移包括四张业务表、sqlite_sequence、SharedPreferences设置、适用journal/WAL，保留时间戳ID与ext。
+项目count是子项目数，子项目count需核对其明细数量。发现不一致报告，不自动修复。
+备份使用SQLite一致快照或正确处理事务附属文件，不能复制运行中单文件宣称完整。
+price目前TEXT；金额精度变更另定义兼容/回滚，不在UI修复中顺便改事实。
+新字段需检查helper/model/page/statistics/cache/backup/migration全部消费者。
+冷启动、数据核对、真实恢复和UI逐项验收；安装成功不等于全通过。
+公开发布需要发布授权和许可声明；流程建立不证明产品可构建，静态脚本存在不证明APK已签名。
