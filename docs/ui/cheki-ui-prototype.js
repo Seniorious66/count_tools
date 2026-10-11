@@ -60,7 +60,7 @@ function showRecord(id){
 }
 const attrs=r=>[r.homework?'宿题':r.sign?'有签':'无签',r.back?'背签':''].filter(Boolean).join(' · ');
 function attributesHtml(){
- return `<fieldset class="attribute-field"><legend>属性</legend><div class="checks">${[['unsigned','无签',!draft.sign&&!draft.homework],['sign','有签',draft.sign],['homework','宿题',draft.homework]].map(([k,n,checked])=>`<label><input id="${k}-input" data-sign-choice="${k}" type="checkbox" ${checked?'checked':''}>${n}</label>`).join('')}</div><div class="checks"><label><input id="back-input" type="checkbox" ${draft.back?'checked':''} ${draft.sign&&!draft.homework?'':'disabled'}>背签</label></div></fieldset>`;
+ return `<fieldset class="attribute-field"><legend>属性</legend><div class="checks attribute-options">${[['unsigned','无签',!draft.sign&&!draft.homework],['sign','有签',draft.sign],['homework','宿题',draft.homework]].map(([k,n,checked])=>`<label><input id="${k}-input" data-sign-choice="${k}" type="checkbox" ${checked?'checked':''}>${n}</label>`).join('')}<label><input id="back-input" type="checkbox" ${draft.back?'checked':''} ${draft.sign&&!draft.homework?'':'disabled'}>背签</label></div></fieldset>`;
 }
 function syncAttributes(){
  $('unsigned-input').checked=!draft.sign&&!draft.homework;$('sign-input').checked=draft.sign;$('homework-input').checked=draft.homework;
