@@ -20,6 +20,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed' }
     & flutter test --no-pub
     if ($LASTEXITCODE -ne 0) { throw 'Flutter tests failed; template tests are not business acceptance' }
+    if ($env:COUNT_TOOLS_CATALOG_ACCEPTANCE) {
+        & $Python (Join-Path $repoRoot 'scripts/test-catalog-recovery.py') --source $env:COUNT_TOOLS_CATALOG_ACCEPTANCE
+        if ($LASTEXITCODE -ne 0) { throw 'Current catalog complete recovery checks failed' }
+    }
     if ($BuildDebug) {
         & flutter build apk --debug
         if ($LASTEXITCODE -ne 0) { throw 'Android debug compilation failed' }

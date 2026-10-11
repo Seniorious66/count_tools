@@ -1,8 +1,10 @@
 import 'package:sqflite/sqflite.dart';
+import '../../cheki/data/catalog_schema.dart';
 
 /// Storage versions are independent of product versions. Never rewrite legacy facts.
 class StorageSchema {
-  static const version = 2;
+  static const version = 3;
+  static const migrations = {2: 'preserve_legacy_v1', 3: 'catalog_base_v1'};
   static const migrationTable = 'count_tools_migrations';
   static const columns = <String, List<String>>{
     'users': ['id', 'username', 'user_key', 'ext'],
@@ -73,14 +75,21 @@ class StorageSchema {
         throw StateError('Legacy relationships or counts are inconsistent');
       }
     }
-    if (schema == 2) {
-      final entries = await db.query(migrationTable);
-      if (entries.length != 1 ||
-          entries.single['version'] != 2 ||
-          entries.single['migration'] != 'preserve_legacy_v1') {
+    if (schema >= 2) {
+      final entries = await db.query(migrationTable, orderBy: 'version');
+      final expected = migrations.entries
+          .where((entry) => entry.key <= schema)
+          .toList();
+      if (entries.length != expected.length ||
+          entries.indexed.any(
+            (pair) =>
+                pair.$2['version'] != expected[pair.$1].key ||
+                pair.$2['migration'] != expected[pair.$1].value,
+          )) {
         throw StateError('Storage migration ledger is invalid');
       }
     }
+    if (schema >= 3) await CatalogSchema.validate(db);
   }
 
   /// Called only by sqflite version callbacks, which already run in one transaction.
@@ -90,19 +99,25 @@ class StorageSchema {
     int newVersion, {
     Future<void> Function()? afterStep,
   }) async {
-    if (oldVersion != 1 || newVersion != 2) {
+    if (oldVersion < 1 || oldVersion >= newVersion || newVersion > version) {
       throw StateError('Unsupported migration path');
     }
     await validate(db, oldVersion);
-    await db.execute(
-      'CREATE TABLE $migrationTable ('
-      'version INTEGER PRIMARY KEY, migration TEXT NOT NULL)',
-    );
-    await db.insert(migrationTable, {
-      'version': 2,
-      'migration': 'preserve_legacy_v1',
-    });
-    if (afterStep != null) await afterStep();
-    await validate(db, newVersion);
+    for (var step = oldVersion + 1; step <= newVersion; step++) {
+      if (step == 2) {
+        await db.execute(
+          'CREATE TABLE $migrationTable ('
+          'version INTEGER PRIMARY KEY, migration TEXT NOT NULL)',
+        );
+      } else if (step == 3) {
+        await CatalogSchema.create(db);
+      }
+      await db.insert(migrationTable, {
+        'version': step,
+        'migration': migrations[step],
+      });
+      if (afterStep != null) await afterStep();
+      await validate(db, step);
+    }
   }
 }

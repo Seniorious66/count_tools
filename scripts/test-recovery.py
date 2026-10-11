@@ -204,7 +204,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(recovery.database_audit(self.root / 'current/database.sqlite')['version'],1)
 
     def test_unsupported_and_false_schema2_reject_readonly(self):
-        for version in (3,2):
+        for version in (4,3,2):
             with closing(sqlite3.connect(self.database)) as db,db:
                 db.execute(f'PRAGMA user_version={version}')
             before=self.database.read_bytes()

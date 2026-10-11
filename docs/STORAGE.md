@@ -1,6 +1,6 @@
 # 数据版本与迁移指导
 
-M0 使用 schema 2；App 产品号、工程候选号与 schema 编号分别管理。schema 2 只在旧四表旁新增 `count_tools_migrations` 版本账本，不转换金额、日期或旧记录含义。旧数据库的 schema 1 与工程备份格式 1 继续识别。
+M0 候选使用 schema 2；当前 M1 开发源码使用 schema 3。App 产品号、工程候选号与 schema 编号分别管理。schema 2 只在旧四表旁新增 `count_tools_migrations` 版本账本，schema 3 再增加团体、尺寸、操作与修改历史，不转换旧金额、日期或记录含义。旧数据库的 schema 1/2 与工程备份格式 1 继续识别。
 
 ## 打开与失败行为
 
@@ -29,5 +29,13 @@ python scripts/test-recovery.py -v
 ```
 
 常规应用测试包含合成 schema 1→2、重复打开、DDL 后失败回滚、未来版本/关联拒绝、NULL/未知字段编辑保留、各读取模型和页面、统计重复加载与设置保留。恢复测试覆盖 schema 1/2 和旧格式 1 往返。
+
+## schema 3：团体与尺寸
+
+`cheki_groups` / `cheki_sizes` 保存稳定 ID、名称、停用状态、真实创建/修改动作时间和修订号。只初始化三寸/五寸定义，没有默认四寸或默认成员，不把旧子项目自动识别成团体成员。改名/停用保留原 ID 与创建动作时间，旧名称保存在修改历史中；没有硬删除入口。
+
+`CatalogStore` 一次 SQLite 事务共同写定义、`cheki_catalog_operations` 和 `cheki_catalog_history`。同操作标识同请求返回当时结果，冲突请求拒绝；过时修订不能覆盖新内容。新增后重新读取实际 SQL 行，包含未来列的默认值；编辑保留 NULL、未知列和 BLOB。操作与历史有实际外键约束，打开/恢复时进一步核对请求、结果、历史起点、修订链和当前定义。系统动作时间回退则拒绝编辑，不伪造时间。
+
+`catalog_storage_test.dart` 覆盖逐级升级、第二步 DDL 失败回滚、默认/自定义尺寸、改名停用及重开、幂等冲突/过时编辑、写入故障回滚、外键与审计损坏拒绝。页面检查另见 `catalog_pages_test.dart`。设置 `COUNT_TOOLS_CATALOG_ACCEPTANCE` 时，只向预先标记的仓库外新目录导出应用实际生成的合成 schema 3；随后 `test-catalog-recovery.py --source '<合成目录>'` 检查全表/序列/未知字段/设置/附件往返、冷进程读取、故障回滚及旧格式兼容。历史 M0 验收副本不能用作新 schema 的测试写入目标。
 
 个人旧备份消费者检查是额外的本地验收，不把私人样本写入测试或 Git。仅对带 `.acceptance-copy.json` 标记的副本设置 `COUNT_TOOLS_LEGACY_ACCEPTANCE`，运行 `storage_migration_test.dart` 中的 `private isolated legacy consumers and cold bootstrap`，日志留在仓库外。必须先从只读原快照复制，测试完成后比较所有原表、字段、序列、设置和原备份，不能将源目录作为测试目标。相关历史产物见 [M0 验收报告](acceptance/M0_20261011.md)。

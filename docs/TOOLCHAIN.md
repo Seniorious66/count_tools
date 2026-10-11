@@ -6,6 +6,8 @@
 
 已有 Android 构建环境可以复用 JDK、SDK 平台和构建工具。Flutter 项目另需其固定的 Flutter/Dart、Gradle、Android 插件和 NDK；这些首次下载到项目独立缓存，后续重复构建复用缓存。“初始化”不代表重装整个 Android 环境。
 
+首次准备已在 M0 完成，并已成功构建工程候选。后续开发只配置和检查当前进程环境、同步工作目录中的源码副本，再使用现有工具链与缓存。SDK 副本和独立缓存是本项目采用的隔离策略，不是 Android 强制每个项目重新安装环境；只有明确调整工具版本或新增所需依赖时，才补齐相应组件。
+
 NDK 固定为 Flutter 3.47.5 要求的 28.2.13676358（r28c）。本机新版 Android CLI 的旧 sdkmanager 兼容入口无法安装该版本，因此使用 [Android 官方归档](https://github.com/android/ndk/wiki/Unsupported-Downloads) 的 Windows ZIP。下载完整后执行 `scripts/install-pinned-ndk.ps1 -Archive '<仓库外归档路径>'`，先核对官方大小与校验值，再安装到 SDK 的独立版本目录；不覆盖已有版本或调整其他项目配置。归档及解压缓存不进入 Git。
 
 本轮最终采用 CountTools 缓存中的独立 Android SDK：`scripts/prepare-android-sdk.ps1` 从已有 SDK 复制平台、build-tools、platform-tools、licenses、cmdline-tools，NDK 加入该副本。环境脚本优先使用这个目录；也可以显式传入 SDK 路径。已有平台和工具无需重新下载，SalaryFlow 仍使用原来的 SDK。第三方插件要求其他 compileSdk 时，其平台由构建工具加到副本中，不降低 App 的 API 36 编译目标。

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'home_page_vm.dart';
+import '../../cheki/ui/catalog_pages.dart';
 
 class HomePage extends StatefulWidget {
   final String title;
@@ -30,6 +31,13 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.tune),
+            tooltip: 'Cheki 管理',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => CatalogManagementPage()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => _vm.pushSetPage(context),

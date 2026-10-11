@@ -11,14 +11,14 @@ class ChekiCard extends StatelessWidget {
   final Widget child;
   final Color color;
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: color,
+  Widget build(BuildContext context) => Material(
+    color: color,
+    clipBehavior: Clip.antiAlias,
+    shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: ChekiColors.line),
+      side: const BorderSide(color: ChekiColors.line),
     ),
-    child: child,
+    child: Padding(padding: const EdgeInsets.all(16), child: child),
   );
 }
 

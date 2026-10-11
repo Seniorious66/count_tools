@@ -32,6 +32,7 @@ class DatabaseHelper {
     return await openDatabase(
       path,
       version: StorageSchema.version,
+      onConfigure: (db) => db.execute('PRAGMA foreign_keys=ON'),
       onCreate: (db, version) async {
         await _createDB(db, 1);
         await StorageSchema.migrate(db, 1, version);

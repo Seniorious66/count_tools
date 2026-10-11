@@ -146,7 +146,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.runAsync(() async {
         final db = await DatabaseHelper().database;
-        expect(await db.getVersion(), 2);
+        expect(await db.getVersion(), StorageSchema.version);
         final home = HomePageViewModel();
         await home.loadProjects();
         expect(home.projects.length, 1);
@@ -211,18 +211,21 @@ void main() {
     });
   }
   test(
-    'v1 to v2 preserves all facts, unknown fields, sequences and repeated opens',
+    'v1 to current schema preserves all facts, unknown fields, sequences and repeated opens',
     () async {
       final old = await openDatabase(path);
       final before = await legacyRows(old);
       await old.close();
       final migrated = await DatabaseHelper().database;
-      expect(await migrated.getVersion(), 2);
+      expect(await migrated.getVersion(), StorageSchema.version);
       expect(await legacyRows(migrated), before);
       await DatabaseHelper().close();
       final reopened = await DatabaseHelper().database;
       expect(await legacyRows(reopened), before);
-      expect((await reopened.query(StorageSchema.migrationTable)).length, 1);
+      expect(
+        (await reopened.query(StorageSchema.migrationTable)).length,
+        StorageSchema.migrations.length,
+      );
     },
   );
   test(
@@ -254,18 +257,21 @@ void main() {
         isEmpty,
       );
       await unchanged.close();
-      expect(await (await DatabaseHelper().database).getVersion(), 2);
+      expect(
+        await (await DatabaseHelper().database).getVersion(),
+        StorageSchema.version,
+      );
     },
   );
   test(
     'future versions and invalid relationships reject without reset',
     () async {
       final old = await openDatabase(path);
-      await old.setVersion(3);
+      await old.setVersion(StorageSchema.version + 1);
       await old.close();
       await expectLater(DatabaseHelper().database, throwsA(isA<StateError>()));
       final same = await openDatabase(path);
-      expect(await same.getVersion(), 3);
+      expect(await same.getVersion(), StorageSchema.version + 1);
       await same.setVersion(1);
       await same.execute("UPDATE item_data SET parentId='999' WHERE id=91");
       await same.close();
@@ -385,7 +391,7 @@ void main() {
     (tester) async {
       await tester.runAsync(() async {
         final db = await openDatabase(path);
-        await db.setVersion(3);
+        await db.setVersion(StorageSchema.version + 1);
         await db.close();
       });
       SharedPreferences.setMockInitialValues({
