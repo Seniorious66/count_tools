@@ -1,12 +1,6 @@
+/// A view of legacy values. Display fallbacks never overwrite stored NULLs.
 class SubProjectData {
-  late String _id; // 子项目id
-  late String _name; // 子项目名称
-  late String _count; // 子项目数量
-  late String _countPre; // 子项目数量百分比
-  late String _color; // 子项目颜色
-  late String _textColor; // 子项目文字颜色
-  late String _parentId; // 父项目id
-  late String _ext; // 扩展字段
+  final Map<String, dynamic> _raw;
 
   SubProjectData({
     required String id,
@@ -17,27 +11,18 @@ class SubProjectData {
     required String textColor,
     required String parentId,
     required String ext,
-  }) {
-    _id = id;
-    _name = name;
-    _count = count;
-    _countPre = countPre;
-    _color = color;
-    _textColor = textColor;
-    _parentId = parentId;
-    _ext = ext;
-  }
+  }) : _raw = {
+         'id': id,
+         'name': name,
+         'count': count,
+         'countPre': countPre,
+         'color': color,
+         'textColor': textColor,
+         'parentId': parentId,
+         'ext': ext,
+       };
 
-  SubProjectData.fromJson(Map<String, dynamic> json) {
-    _id = json['id'].toString();
-    _name = json['name'];
-    _count = json['count'].toString();
-    _countPre = json['countPre'];
-    _color = json['color'];
-    _textColor = json['textColor'];
-    _parentId = json['parentId'];
-    _ext = json['ext'];
-  }
+  SubProjectData.fromJson(Map<String, dynamic> json) : _raw = Map.of(json);
 
   SubProjectData copyWith({
     String? id,
@@ -48,43 +33,43 @@ class SubProjectData {
     String? textColor,
     String? parentId,
     String? ext,
-  }) => SubProjectData(
-    id: _id,
-    name: name ?? _name,
-    count: count ?? _count,
-    countPre: countPre ?? _countPre,
-    color: color ?? _color,
-    textColor: textColor ?? _textColor,
-    parentId: parentId ?? _parentId,
-    ext: ext ?? _ext,
-  );
-
-  String get id => _id;
-
-  String get name => _name;
-
-  String get count => _count;
-
-  String get countPre => _countPre;
-
-  String get color => _color;
-
-  String get textColor => _textColor;
-
-  String get parentId => _parentId;
-
-  String get ext => _ext;
-
-  Map<String, dynamic> toJson() {
-    final map = <String, dynamic>{};
-    map['id'] = _id;
-    map['name'] = _name;
-    map['count'] = _count;
-    map['countPre'] = _countPre;
-    map['color'] = _color;
-    map['textColor'] = _textColor;
-    map['parentId'] = _parentId;
-    map['ext'] = _ext;
-    return map;
+  }) {
+    final values = Map<String, dynamic>.of(_raw);
+    if (id != null && id != this.id) {
+      values['id'] = id;
+    }
+    if (name != null && name != this.name) {
+      values['name'] = name;
+    }
+    if (count != null && count != this.count) {
+      values['count'] = count;
+    }
+    if (countPre != null && countPre != this.countPre) {
+      values['countPre'] = countPre;
+    }
+    if (color != null && color != this.color) {
+      values['color'] = color;
+    }
+    if (textColor != null && textColor != this.textColor) {
+      values['textColor'] = textColor;
+    }
+    if (parentId != null && parentId != this.parentId) {
+      values['parentId'] = parentId;
+    }
+    if (ext != null && ext != this.ext) {
+      values['ext'] = ext;
+    }
+    return SubProjectData.fromJson(values);
   }
+
+  String get id => _raw['id']?.toString() ?? '';
+  String get name => _raw['name']?.toString() ?? '';
+  String get count => _raw['count']?.toString() ?? '';
+  String get countPre => _raw['countPre']?.toString() ?? '';
+  String get color => _raw['color']?.toString() ?? '';
+  String get textColor => _raw['textColor']?.toString() ?? '';
+  String get parentId => _raw['parentId']?.toString() ?? '';
+  String get ext => _raw['ext']?.toString() ?? '';
+
+  Map<String, dynamic> toJson() => Map.of(_raw);
 }

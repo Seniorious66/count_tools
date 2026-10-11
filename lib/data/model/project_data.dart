@@ -1,9 +1,6 @@
+/// A view of legacy values. Display fallbacks never overwrite stored NULLs.
 class ProjectData {
-  late String _id; // 项目id
-  late String _title; // 项目标题
-  late String _subTitle; // 项目副标题
-  late String _count; // 项目数量
-  late String _ext; // 项目扩展
+  final Map<String, dynamic> _raw;
 
   ProjectData({
     required String id,
@@ -11,21 +8,15 @@ class ProjectData {
     required String subTitle,
     required String count,
     required String ext,
-  }) {
-    _id = id;
-    _title = title;
-    _subTitle = subTitle;
-    _count = count;
-    _ext = ext;
-  }
+  }) : _raw = {
+         'id': id,
+         'title': title,
+         'subTitle': subTitle,
+         'count': count,
+         'ext': ext,
+       };
 
-  ProjectData.fromJson(Map<String, dynamic> json) {
-    _id = json['id'].toString();
-    _title = json['title'] ?? '';
-    _subTitle = json['subTitle'] ?? '';
-    _count = json['count'] ?? '';
-    _ext = json['ext'];
-  }
+  ProjectData.fromJson(Map<String, dynamic> json) : _raw = Map.of(json);
 
   ProjectData copyWith({
     String? id,
@@ -33,31 +24,31 @@ class ProjectData {
     String? subTitle,
     String? count,
     String? ext,
-  }) => ProjectData(
-    id: id ?? _id,
-    title: title ?? _title,
-    subTitle: subTitle ?? _subTitle,
-    count: count ?? _count,
-    ext: ext ?? _ext,
-  );
-
-  String get id => _id;
-
-  String get title => _title;
-
-  String get subTitle => _subTitle;
-
-  String get count => _count;
-
-  String get ext => _ext;
-
-  Map<String, dynamic> toJson() {
-    final map = <String, dynamic>{};
-    map['id'] = _id;
-    map['title'] = _title;
-    map['subTitle'] = _subTitle;
-    map['count'] = _count;
-    map['ext'] = _ext;
-    return map;
+  }) {
+    final values = Map<String, dynamic>.of(_raw);
+    if (id != null && id != this.id) {
+      values['id'] = id;
+    }
+    if (title != null && title != this.title) {
+      values['title'] = title;
+    }
+    if (subTitle != null && subTitle != this.subTitle) {
+      values['subTitle'] = subTitle;
+    }
+    if (count != null && count != this.count) {
+      values['count'] = count;
+    }
+    if (ext != null && ext != this.ext) {
+      values['ext'] = ext;
+    }
+    return ProjectData.fromJson(values);
   }
+
+  String get id => _raw['id']?.toString() ?? '';
+  String get title => _raw['title']?.toString() ?? '';
+  String get subTitle => _raw['subTitle']?.toString() ?? '';
+  String get count => _raw['count']?.toString() ?? '';
+  String get ext => _raw['ext']?.toString() ?? '';
+
+  Map<String, dynamic> toJson() => Map.of(_raw);
 }

@@ -194,13 +194,14 @@ class DatabaseTests(unittest.TestCase):
         self.path = Path(self.temp.name) / 'fixture.db'
         with closing(sqlite3.connect(self.path)) as db, db:
             db.executescript('''
-                CREATE TABLE users (id INTEGER PRIMARY KEY);
-                CREATE TABLE project_data (id INTEGER PRIMARY KEY, count TEXT);
-                CREATE TABLE sub_project_data (id INTEGER PRIMARY KEY, parentId TEXT, count TEXT);
-                CREATE TABLE item_data (id INTEGER PRIMARY KEY, parentId TEXT, projectId TEXT);
-                INSERT INTO project_data VALUES (10, '1');
-                INSERT INTO sub_project_data VALUES (20, '10', '1');
-                INSERT INTO item_data VALUES (30, '20', '10');
+                PRAGMA user_version=1;
+                CREATE TABLE users (id INTEGER PRIMARY KEY,username TEXT,user_key TEXT,ext TEXT);
+                CREATE TABLE project_data (id INTEGER PRIMARY KEY,title TEXT,subTitle TEXT,count TEXT,ext TEXT);
+                CREATE TABLE sub_project_data (id INTEGER PRIMARY KEY,name TEXT,count TEXT,countPre TEXT,color TEXT,textColor TEXT,parentId TEXT,ext TEXT);
+                CREATE TABLE item_data (id INTEGER PRIMARY KEY,price TEXT,eventName TEXT,type TEXT,date TEXT,itemName TEXT,parentId TEXT,projectId TEXT,ext TEXT);
+                INSERT INTO project_data VALUES (10,'fixture',NULL,'1',NULL);
+                INSERT INTO sub_project_data VALUES (20,'member','1','100','4280391411','4278190080','10',NULL);
+                INSERT INTO item_data VALUES (30,NULL,NULL,NULL,'2024-01-01','record','20','10',NULL);
             ''')
 
     def test_read_only_valid(self):
@@ -217,7 +218,7 @@ class DatabaseTests(unittest.TestCase):
 
     def test_wrong_project_rejected(self):
         with closing(sqlite3.connect(self.path)) as db, db:
-            db.execute("INSERT INTO project_data VALUES (11, '0')")
+            db.execute("INSERT INTO project_data VALUES (11,'other',NULL,'0',NULL)")
             db.execute("UPDATE item_data SET projectId='11'")
         with self.assertRaisesRegex(ValueError, 'Relationship/count'):
             database.verify(self.path)

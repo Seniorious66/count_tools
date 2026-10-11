@@ -105,7 +105,7 @@ class _ProjectInfoPageState extends State<ProjectInfoPage> {
       itemCount: subProjects.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: _vm.row,
-        childAspectRatio: 1,
+        childAspectRatio: 0.75,
       ),
       itemBuilder: (context, index) => SingleSubProjectWidget(
         index: ranking[index],

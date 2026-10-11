@@ -44,7 +44,7 @@ void main() {
       await ProjectDBHelper().insert(project);
       await DatabaseHelper().close();
       final reopened = await ProjectDBHelper().get();
-      expect(reopened.single.toJson(), project.toJson());
+      expect(reopened.single.toJson(), {...project.toJson(), 'id': 17});
       final connections = await Future.wait([
         DatabaseHelper().database,
         DatabaseHelper().database,

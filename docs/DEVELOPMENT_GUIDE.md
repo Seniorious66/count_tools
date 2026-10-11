@@ -110,7 +110,7 @@ v1.2.0 起按四表工作包推进团体/身份、Cheki、券库存/联动、成
 
 界面设计与实现先读 [UI 规范](UI_DESIGN.md) 和其中的可点击原型。用户已指定 SalaryFlow 极简风及浅蓝浅粉拼色；布局待复核，四表仍维护范围和进度。按规范建立公共主题和组件，颜色不能替代状态文字，成员自定义颜色保留。HTML 原型的浏览器检查与 Flutter 构建、真实 Android 大字/键盘/读屏验收分别记录。
 
-源码存储在application documents下的app_flutter/user_database.db，当前user_version=1。
+源码存储在application documents下的app_flutter/user_database.db。M0 使用 schema 2，旧导出为 schema 1；新增迁移账本但不转换旧四表事实。完整机制及后续字段审查见 [数据版本指导](STORAGE.md)。
 迁移包括四张业务表、sqlite_sequence、SharedPreferences设置、适用journal/WAL，保留时间戳ID与ext。
 项目count是子项目数，子项目count需核对其明细数量。发现不一致报告，不自动修复。
 备份使用SQLite一致快照或正确处理事务附属文件，不能复制运行中单文件宣称完整。

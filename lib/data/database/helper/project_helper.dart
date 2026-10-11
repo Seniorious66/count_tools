@@ -7,13 +7,11 @@ class ProjectDBHelper {
 
   Future<void> insert(ProjectData data) async {
     final db = await _databaseHelper.database;
-    await db.insert('project_data', {
-      'id': data.id,
-      'title': data.title,
-      'subTitle': data.subTitle,
-      'count': data.count,
-      'ext': data.ext,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'project_data',
+      data.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
   }
 
   Future<List<ProjectData>> get() async {
@@ -26,12 +24,7 @@ class ProjectDBHelper {
     final db = await _databaseHelper.database;
     await db.update(
       'project_data',
-      {
-        'title': data.title,
-        'subTitle': data.subTitle,
-        'count': data.count,
-        'ext': data.ext,
-      },
+      data.toJson()..remove('id'),
       where: 'id = ?',
       whereArgs: [data.id],
     );

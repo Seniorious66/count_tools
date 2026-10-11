@@ -16,6 +16,33 @@ def verify(path):
         tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         if not required <= tables:
             raise ValueError('Required tables missing')
+        schema = db.execute('PRAGMA user_version').fetchone()[0]
+        if schema not in (1, 2):
+            raise ValueError('Unsupported storage version')
+        columns = {
+            'users': ('id', 'username', 'user_key', 'ext'),
+            'project_data': ('id', 'title', 'subTitle', 'count', 'ext'),
+            'sub_project_data': ('id', 'name', 'count', 'countPre', 'color', 'textColor', 'parentId', 'ext'),
+            'item_data': ('id', 'price', 'eventName', 'type', 'date', 'itemName', 'parentId', 'projectId', 'ext'),
+        }
+        import re
+        for table, fields in columns.items():
+            names = {r[1] for r in db.execute(f'PRAGMA table_info("{table}")')}
+            if not set(fields) <= names:
+                raise ValueError('Required storage columns missing')
+            for row in db.execute(f'SELECT {",".join(fields)} FROM "{table}"'):
+                if type(row[0]) is not int or row[0] <= 0:
+                    raise ValueError('Invalid record ID')
+                if any(v is not None and not isinstance(v, str) for v in row[1:]):
+                    raise ValueError('Invalid legacy field storage type')
+                if table in ('project_data', 'sub_project_data'):
+                    count = row[fields.index('count')]
+                    if not isinstance(count, str) or not re.fullmatch(r'\d+', count):
+                        raise ValueError('Invalid legacy count')
+        if schema == 2:
+            if 'count_tools_migrations' not in tables or db.execute(
+                'SELECT version,migration FROM count_tools_migrations').fetchall() != [(2, 'preserve_legacy_v1')]:
+                raise ValueError('Storage migration ledger is invalid')
         counts = {t: db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0] for t in sorted(required)}
         queries = {
             'orphan_subprojects': 'SELECT COUNT(*) FROM sub_project_data s LEFT JOIN project_data p ON s.parentId=p.id WHERE p.id IS NULL',

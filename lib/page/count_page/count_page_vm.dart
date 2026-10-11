@@ -37,6 +37,7 @@ class CountPageViewModel extends ChangeNotifier {
   }
 
   Future<void> loadCountData() async {
+    _countNum = 0;
     for (var e in _subProjects) {
       _countNum = _countNum + safeInt(e.count);
     }

@@ -190,6 +190,27 @@ class RecoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError): recovery.snapshot(self.database,self.settings,self.database.parent / 'backup-child')
         self.assertFalse((self.database.parent / 'backup-child').exists())
 
+    def test_schema2_and_old_format1_both_roundtrip_with_full_fields(self):
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute('CREATE TABLE count_tools_migrations(version INTEGER PRIMARY KEY,migration TEXT NOT NULL)')
+            db.execute("INSERT INTO count_tools_migrations VALUES(2,'preserve_legacy_v1')")
+            db.execute('PRAGMA user_version=2')
+        newer = self.base / 'schema2-bundle'
+        recovery.snapshot(self.database,self.settings,newer,[self.attachment])
+        recovery.restore(newer,self.root)
+        self.assertEqual(recovery.database_audit(self.database),recovery.database_audit(self.root / 'current/database.sqlite'))
+        recovery.restore(self.bundle,self.root)
+        self.assertEqual(recovery.verify_bundle(self.bundle)['database']['version'],1)
+        self.assertEqual(recovery.database_audit(self.root / 'current/database.sqlite')['version'],1)
+
+    def test_unsupported_and_false_schema2_reject_readonly(self):
+        for version in (3,2):
+            with closing(sqlite3.connect(self.database)) as db,db:
+                db.execute(f'PRAGMA user_version={version}')
+            before=self.database.read_bytes()
+            with self.assertRaises(ValueError): recovery.database_audit(self.database)
+            self.assertEqual(self.database.read_bytes(),before)
+
 
 if __name__ == '__main__':
     if sys.argv[1:2] == ['--crash-helper']:

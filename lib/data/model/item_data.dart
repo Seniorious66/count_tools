@@ -1,47 +1,30 @@
+/// A view of legacy values. Display fallbacks never overwrite stored NULLs.
 class ItemData {
-  late String _id; // 项目id
-  late String _price; // 项目价格
-  late String _eventName; // 活动名称
-  late String _type; // 项目类型
-  late String _date; // 项目日期
-  late String _itemName; // 项目名称
-  late String _parentId; // 项目父id
-  late String _projectId; // 项目id
-  late String _ext; // 项目扩展
+  final Map<String, dynamic> _raw;
 
   ItemData({
     required String id,
     required String price,
     required String eventName,
+    required String type,
     required String date,
     required String itemName,
-    required String type,
     required String parentId,
     required String projectId,
     required String ext,
-  }) {
-    _id = id;
-    _price = price;
-    _eventName = eventName;
-    _date = date;
-    _itemName = itemName;
-    _type = type;
-    _projectId = projectId;
-    _parentId = parentId;
-    _ext = ext;
-  }
+  }) : _raw = {
+         'id': id,
+         'price': price,
+         'eventName': eventName,
+         'type': type,
+         'date': date,
+         'itemName': itemName,
+         'parentId': parentId,
+         'projectId': projectId,
+         'ext': ext,
+       };
 
-  ItemData.fromJson(Map<String, dynamic> json) {
-    _id = json['id'].toString();
-    _price = json['price'];
-    _eventName = json['eventName'] ?? '';
-    _type = json['type'];
-    _date = json['date'] ?? '';
-    _itemName = json['itemName'] ?? '';
-    _parentId = json['parentId'] ?? '';
-    _projectId = json['projectId'] ?? '';
-    _ext = json['ext'] ?? '';
-  }
+  ItemData.fromJson(Map<String, dynamic> json) : _raw = Map.of(json);
 
   ItemData copyWith({
     String? id,
@@ -53,47 +36,47 @@ class ItemData {
     String? parentId,
     String? projectId,
     String? ext,
-  }) => ItemData(
-    id: id ?? _id,
-    price: price ?? _price,
-    eventName: eventName ?? _eventName,
-    type: type ?? _type,
-    date: date ?? _date,
-    itemName: itemName ?? _itemName,
-    parentId: parentId ?? _parentId,
-    projectId: projectId ?? _projectId,
-    ext: ext ?? _ext,
-  );
-
-  String get id => _id;
-
-  String get price => _price;
-
-  String get eventName => _eventName;
-
-  String get type => _type;
-
-  String get date => _date;
-
-  String get itemName => _itemName;
-
-  String get parentId => _parentId;
-
-  String get projectId => _projectId;
-
-  String get ext => _ext;
-
-  Map<String, dynamic> toJson() {
-    final map = <String, dynamic>{};
-    map['id'] = _id;
-    map['price'] = _price;
-    map['eventName'] = _eventName;
-    map['type'] = _type;
-    map['date'] = _date;
-    map['itemName'] = _itemName;
-    map['parentId'] = _parentId;
-    map['projectId'] = _projectId;
-    map['ext'] = _ext;
-    return map;
+  }) {
+    final values = Map<String, dynamic>.of(_raw);
+    if (id != null && id != this.id) {
+      values['id'] = id;
+    }
+    if (price != null && price != this.price) {
+      values['price'] = price;
+    }
+    if (eventName != null && eventName != this.eventName) {
+      values['eventName'] = eventName;
+    }
+    if (type != null && type != this.type) {
+      values['type'] = type;
+    }
+    if (date != null && date != this.date) {
+      values['date'] = date;
+    }
+    if (itemName != null && itemName != this.itemName) {
+      values['itemName'] = itemName;
+    }
+    if (parentId != null && parentId != this.parentId) {
+      values['parentId'] = parentId;
+    }
+    if (projectId != null && projectId != this.projectId) {
+      values['projectId'] = projectId;
+    }
+    if (ext != null && ext != this.ext) {
+      values['ext'] = ext;
+    }
+    return ItemData.fromJson(values);
   }
+
+  String get id => _raw['id']?.toString() ?? '';
+  String get price => _raw['price']?.toString() ?? '';
+  String get eventName => _raw['eventName']?.toString() ?? '';
+  String get type => _raw['type']?.toString() ?? '';
+  String get date => _raw['date']?.toString() ?? '';
+  String get itemName => _raw['itemName']?.toString() ?? '';
+  String get parentId => _raw['parentId']?.toString() ?? '';
+  String get projectId => _raw['projectId']?.toString() ?? '';
+  String get ext => _raw['ext']?.toString() ?? '';
+
+  Map<String, dynamic> toJson() => Map.of(_raw);
 }

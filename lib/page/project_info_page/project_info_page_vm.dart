@@ -1,4 +1,5 @@
 import 'package:count_tools/data/database/helper/item_helper.dart';
+import 'package:count_tools/data/database/data_base.dart';
 import 'package:count_tools/data/database/helper/project_helper.dart';
 import 'package:count_tools/data/database/helper/sub_project_helper.dart';
 import 'package:count_tools/data/model/item_data.dart';
@@ -76,8 +77,16 @@ class ProjectInfoViewModel extends ChangeNotifier {
   }
 
   Future<void> deleteSubProject(String id) async {
-    await subProjectDbHelper.delete(id);
-    await itemDBHelper.deleteByParent(id);
+    final db = await DatabaseHelper().database;
+    await db.transaction((txn) async {
+      await txn.delete('item_data', where: 'parentId = ?', whereArgs: [id]);
+      await txn.delete('sub_project_data', where: 'id = ?', whereArgs: [id]);
+      await txn.rawUpdate(
+        'UPDATE project_data SET count = CAST('
+        '(SELECT COUNT(*) FROM sub_project_data WHERE parentId=?) AS TEXT) WHERE id=?',
+        [parentId, parentId],
+      );
+    });
     await loadSubProjects();
   }
 
@@ -101,7 +110,7 @@ class ProjectInfoViewModel extends ChangeNotifier {
   }
 
   String getCountPercentage(String count) {
-    if (count == '0') {
+    if (count == '0' || items.isEmpty) {
       return '0.0%';
     }
     int total = safeInt(count);

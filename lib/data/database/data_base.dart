@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'schema.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -28,7 +29,19 @@ class DatabaseHelper {
             (await getApplicationDocumentsDirectory()).path,
             'user_database.db',
           );
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: StorageSchema.version,
+      onCreate: (db, version) async {
+        await _createDB(db, 1);
+        await StorageSchema.migrate(db, 1, version);
+      },
+      onUpgrade: StorageSchema.migrate,
+      onDowngrade: (db, oldVersion, newVersion) async {
+        throw StateError('Newer storage cannot be downgraded');
+      },
+      onOpen: (db) async => StorageSchema.validate(db, await db.getVersion()),
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {

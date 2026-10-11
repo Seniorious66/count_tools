@@ -7,17 +7,11 @@ class ItemDBHelper {
 
   Future<void> insert(ItemData data) async {
     final db = await _databaseHelper.database;
-    await db.insert('item_data', {
-      'id': data.id,
-      'price': data.price,
-      'eventName': data.eventName,
-      'type': data.type,
-      'date': data.date,
-      'itemName': data.itemName,
-      'parentId': data.parentId,
-      'projectId': data.projectId,
-      'ext': data.ext,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'item_data',
+      data.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
   }
 
   Future<void> insertItems(List<ItemData> data, {int chunkSize = 1000}) async {
@@ -29,16 +23,11 @@ class ItemDBHelper {
         final batch = txn.batch();
         await Future.delayed(const Duration(milliseconds: 10));
         for (var item in chunk) {
-          batch.insert('item_data', {
-            'price': item.price,
-            'eventName': item.eventName,
-            'type': item.type,
-            'date': item.date,
-            'itemName': item.itemName,
-            'parentId': item.parentId,
-            'projectId': item.projectId,
-            'ext': item.ext,
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
+          batch.insert(
+            'item_data',
+            item.toJson()..remove('id'),
+            conflictAlgorithm: ConflictAlgorithm.abort,
+          );
         }
         await batch.commit(noResult: true);
       });
@@ -75,16 +64,7 @@ class ItemDBHelper {
     final db = await _databaseHelper.database;
     await db.update(
       'item_data',
-      {
-        'price': data.price,
-        'eventName': data.eventName,
-        'type': data.type,
-        'date': data.date,
-        'itemName': data.itemName,
-        'parentId': data.parentId,
-        'projectId': data.projectId,
-        'ext': data.ext,
-      },
+      data.toJson()..remove('id'),
       where: 'id = ?',
       whereArgs: [data.id],
     );
@@ -96,16 +76,7 @@ class ItemDBHelper {
       for (var item in data) {
         await txn.update(
           'item_data',
-          {
-            'price': item.price,
-            'eventName': item.eventName,
-            'type': item.type,
-            'date': item.date,
-            'itemName': item.itemName,
-            'parentId': item.parentId,
-            'projectId': item.projectId,
-            'ext': item.ext,
-          },
+          item.toJson()..remove('id'),
           where: 'id = ?',
           whereArgs: [item.id],
         );

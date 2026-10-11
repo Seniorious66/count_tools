@@ -7,16 +7,11 @@ class SubProjectDbHelper {
 
   Future<void> insert(SubProjectData data) async {
     final db = await _databaseHelper.database;
-    await db.insert('sub_project_data', {
-      'id': data.id,
-      'name': data.name,
-      'count': data.count,
-      'countPre': data.countPre,
-      'color': data.color,
-      'textColor': data.textColor,
-      'parentId': data.parentId,
-      'ext': data.ext,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'sub_project_data',
+      data.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
   }
 
   Future<List<SubProjectData>> get() async {
@@ -39,15 +34,7 @@ class SubProjectDbHelper {
     final db = await _databaseHelper.database;
     await db.update(
       'sub_project_data',
-      {
-        'name': data.name,
-        'count': data.count,
-        'countPre': data.countPre,
-        'color': data.color,
-        'textColor': data.textColor,
-        'parentId': data.parentId,
-        'ext': data.ext,
-      },
+      data.toJson()..remove('id'),
       where: 'id = ?',
       whereArgs: [data.id],
     );
