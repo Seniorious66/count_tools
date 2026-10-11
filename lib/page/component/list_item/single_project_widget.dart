@@ -1,5 +1,5 @@
 import 'package:count_tools/data/model/project_data.dart';
-import 'package:count_tools/value/style/text_style.dart';
+import 'package:count_tools/cheki/ui/components.dart';
 import 'package:flutter/material.dart';
 
 class SingleProjectWidget extends StatelessWidget {
@@ -17,47 +17,57 @@ class SingleProjectWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onClick,
-    child: Container(
-      width: double.infinity,
-      height: 100,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      margin: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Text(project.title, style: AppTextStyle.heading3),
-              Expanded(child: Container()),
-              Text(project.count, style: AppTextStyle.bodyBd),
-            ],
-          ),
-          const SizedBox(height: 3),
-          Text(project.subTitle),
-          const SizedBox(height: 6),
-          Expanded(child: Container()),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              GestureDetector(
-                onTap: onDelete,
-                child: const Icon(Icons.delete, size: 20),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: onEdit,
-                child: const Icon(Icons.edit, size: 20),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    child: ChekiCard(
+      child: InkWell(
+        onTap: onClick,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    project.title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    project.count,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ],
+            ),
+            if (project.subTitle.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                project.subTitle,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
-          ),
-        ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  tooltip: '删除项目',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+                IconButton(
+                  tooltip: '修改项目',
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     ),
   );

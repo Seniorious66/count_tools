@@ -16,12 +16,38 @@ class HomePageViewModel extends ChangeNotifier {
   final ItemDBHelper itemDBHelper = ItemDBHelper();
 
   List<ProjectData> _projects = [];
+  bool _disposed = false;
+  bool _loading = true;
+  bool _loadFailed = false;
 
   List<ProjectData> get projects => _projects;
+  bool get loading => _loading;
+  bool get loadFailed => _loadFailed;
 
   Future<void> loadProjects() async {
-    _projects = await projectHelper.get();
+    if (_disposed) return;
+    _loading = true;
+    _loadFailed = false;
     notifyListeners();
+    try {
+      final projects = await projectHelper.get();
+      if (_disposed) return;
+      _projects = projects;
+    } catch (_) {
+      if (_disposed) return;
+      _loadFailed = true;
+    } finally {
+      if (!_disposed) {
+        _loading = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   Future<void> addProject(ProjectData data) async {

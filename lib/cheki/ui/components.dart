@@ -25,10 +25,12 @@ class ChekiCard extends StatelessWidget {
 /// Configuration owns availability. Missing features have no destination.
 class ChekiDestination {
   const ChekiDestination({
+    required this.id,
     required this.label,
     required this.icon,
     required this.page,
   });
+  final String id;
   final String label;
   final IconData icon;
   final Widget page;
@@ -38,12 +40,21 @@ class ChekiShell extends StatefulWidget {
   ChekiShell({
     required List<ChekiDestination> destinations,
     this.onManage,
+    List<Widget> actions = const [],
     super.key,
-  }) : destinations = List.unmodifiable(destinations) {
+  }) : destinations = List.unmodifiable(destinations),
+       actions = List.unmodifiable(actions) {
     if (destinations.isEmpty) throw ArgumentError('至少需要一个可用页面');
+    if (destinations.any(
+          (d) => d.id.trim().isEmpty || d.label.trim().isEmpty,
+        ) ||
+        destinations.map((d) => d.id).toSet().length != destinations.length) {
+      throw ArgumentError('页面标识必须非空且唯一，标题必须非空');
+    }
   }
   final List<ChekiDestination> destinations;
   final VoidCallback? onManage;
+  final List<Widget> actions;
   @override
   State<ChekiShell> createState() => _ChekiShellState();
 }
@@ -53,43 +64,82 @@ class _ChekiShellState extends State<ChekiShell> {
   @override
   void didUpdateWidget(ChekiShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldLabel = oldWidget.destinations[_index].label;
-    final next = widget.destinations.indexWhere((d) => d.label == oldLabel);
+    final oldId = oldWidget.destinations[_index].id;
+    final next = widget.destinations.indexWhere((d) => d.id == oldId);
     _index = next < 0 ? 0 : next;
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(widget.destinations[_index].label),
-      actions: [
-        if (widget.onManage != null)
-          IconButton(
-            onPressed: widget.onManage,
-            tooltip: '打开管理',
-            icon: const Icon(Icons.tune),
-          ),
-      ],
-    ),
-    body: SafeArea(
-      top: false,
-      child: IndexedStack(
-        index: _index,
-        children: widget.destinations.map((d) => d.page).toList(),
+  Widget build(BuildContext context) => PopScope(
+    canPop: _index == 0,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop && _index != 0) setState(() => _index = 0);
+    },
+    child: Scaffold(
+      appBar: AppBar(
+        toolbarHeight: MediaQuery.textScalerOf(context).scale(24) > 32
+            ? MediaQuery.textScalerOf(context).scale(24) * 1.5 + 16
+            : 56,
+        title: Text(
+          widget.destinations[_index].label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          if (widget.onManage != null)
+            IconButton(
+              onPressed: widget.onManage,
+              tooltip: '打开管理',
+              icon: const Icon(Icons.tune),
+            ),
+          ...widget.actions,
+        ],
       ),
+      body: SafeArea(
+        top: false,
+        child: Stack(
+          fit: StackFit.expand,
+          children: widget.destinations
+              .asMap()
+              .entries
+              .map(
+                (entry) => Offstage(
+                  key: ValueKey(entry.value.id),
+                  offstage: entry.key != _index,
+                  child: TickerMode(
+                    enabled: entry.key == _index,
+                    child: ExcludeFocus(
+                      excluding: entry.key != _index,
+                      child: entry.value.page,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ),
+      bottomNavigationBar: widget.destinations.length < 2
+          ? null
+          : NavigationBar(
+              height:
+                  80 +
+                  (MediaQuery.textScalerOf(context).scale(12) - 12).clamp(
+                        0,
+                        48,
+                      ) *
+                      3,
+              selectedIndex: _index,
+              onDestinationSelected: (value) => setState(() => _index = value),
+              destinations: widget.destinations
+                  .map(
+                    (d) => NavigationDestination(
+                      icon: Icon(d.icon),
+                      label: d.label,
+                    ),
+                  )
+                  .toList(),
+            ),
     ),
-    bottomNavigationBar: widget.destinations.length < 2
-        ? null
-        : NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: (value) => setState(() => _index = value),
-            destinations: widget.destinations
-                .map(
-                  (d) =>
-                      NavigationDestination(icon: Icon(d.icon), label: d.label),
-                )
-                .toList(),
-          ),
   );
 }
 

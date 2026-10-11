@@ -52,7 +52,7 @@ void main() {
     (tester) async {
       await tester.pumpWidget(const App());
       await settleIo(tester);
-      await tester.tap(find.byTooltip('Cheki 管理'));
+      await tester.tap(find.byTooltip('打开管理'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('团体'));
       await settleIo(tester);

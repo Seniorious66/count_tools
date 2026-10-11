@@ -162,11 +162,13 @@ void main() {
             onManage: () => managed++,
             destinations: [
               ChekiDestination(
+                id: 'home',
                 label: '首页',
                 icon: Icons.home_outlined,
                 page: TextField(controller: input),
               ),
               const ChekiDestination(
+                id: 'records',
                 label: '记录',
                 icon: Icons.notes,
                 page: Text('记录服务入口'),

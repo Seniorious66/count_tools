@@ -1,7 +1,10 @@
-import 'package:count_tools/page/home_page/home_page.dart';
+import 'package:count_tools/cheki/ui/app_shell.dart';
+import 'package:count_tools/cheki/ui/theme.dart';
+import 'package:count_tools/cheki/ui/source_license.dart';
 import 'package:count_tools/data/database/data_base.dart';
 import 'package:count_tools/utils/setting_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class App extends StatefulWidget {
@@ -12,24 +15,18 @@ class App extends StatefulWidget {
 }
 
 class AppState extends State<App> {
-  MaterialColor _themeColor = Colors.blue;
   late Future<void> _ready;
 
   @override
   void initState() {
     super.initState();
+    registerSourceLicense();
     _ready = _initApp();
-  }
-
-  Future<void> _loadThemeColor() async {
-    MaterialColor color = await SettingUtils.getThemeColor();
-    if (mounted) setState(() => _themeColor = color);
   }
 
   Future<void> _initApp() async {
     // Validate/migrate before any screen or preference initialization can write.
     await DatabaseHelper().database;
-    await _loadThemeColor();
     if (!await SettingUtils.isNotFirstEnter()) {
       final prefs = await SharedPreferences.getInstance();
       if (!prefs.containsKey('projectInfoRowNum')) {
@@ -51,7 +48,10 @@ class AppState extends State<App> {
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Cheki账本',
-    theme: ThemeData(primarySwatch: _themeColor),
+    locale: const Locale('zh', 'CN'),
+    supportedLocales: const [Locale('zh', 'CN')],
+    localizationsDelegates: GlobalMaterialLocalizations.delegates,
+    theme: chekiTheme(),
     home: FutureBuilder<void>(
       future: _ready,
       builder: (context, snapshot) {
@@ -70,7 +70,7 @@ class AppState extends State<App> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        return const HomePage(title: '首页');
+        return const ChekiAppShell();
       },
     ),
   );
