@@ -40,6 +40,10 @@ try {
         & $Python (Join-Path $repoRoot 'scripts/test-names-recovery.py') --source $env:COUNT_TOOLS_NAMES_ACCEPTANCE
         if ($LASTEXITCODE -ne 0) { throw 'Current record names complete recovery checks failed' }
     }
+    if ($env:COUNT_TOOLS_M1_ACCEPTANCE) {
+        & $Python (Join-Path $repoRoot 'scripts/test-m1-recovery.py') --source $env:COUNT_TOOLS_M1_ACCEPTANCE
+        if ($LASTEXITCODE -ne 0) { throw 'Combined M1 complete recovery checks failed' }
+    }
     if ($BuildDebug) {
         & flutter build apk --debug
         if ($LASTEXITCODE -ne 0) { throw 'Android debug compilation failed' }
