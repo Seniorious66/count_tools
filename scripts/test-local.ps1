@@ -32,6 +32,10 @@ try {
         & $Python (Join-Path $repoRoot 'scripts/test-nullable-recovery.py') --source $env:COUNT_TOOLS_NULLABLE_ACCEPTANCE
         if ($LASTEXITCODE -ne 0) { throw 'Current nullable records complete recovery checks failed' }
     }
+    if ($env:COUNT_TOOLS_RECEIPT_ACCEPTANCE) {
+        & $Python (Join-Path $repoRoot 'scripts/test-receipt-recovery.py') --source $env:COUNT_TOOLS_RECEIPT_ACCEPTANCE
+        if ($LASTEXITCODE -ne 0) { throw 'Current receipt records complete recovery checks failed' }
+    }
     if ($BuildDebug) {
         & flutter build apk --debug
         if ($LASTEXITCODE -ne 0) { throw 'Android debug compilation failed' }

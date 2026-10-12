@@ -451,6 +451,15 @@ void main() {
       await tester.tap(find.text('修改记录'));
       await settleIo(tester);
       await tester.scrollUntilVisible(
+        find.widgetWithText(TextButton, '补填实际领取时间'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(find.widgetWithText(TextButton, '补填实际领取时间'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, '补填实际领取时间'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
         find.byKey(const ValueKey('record-receipt-time')),
         180,
         scrollable: find.byType(Scrollable).first,

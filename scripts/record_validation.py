@@ -34,14 +34,14 @@ def information(raw):
             else:total+=b['quantity']
             stamp=b.get('received_at')
             if stamp is not None:
-                if not isinstance(stamp,str) or b['origin']=='initial' or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(?:\d{3})?Z',stamp):raise ValueError('Receipt time invalid')
+                if not isinstance(stamp,str) or b.get('origin')=='initial' or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(?:\d{3})?Z',stamp):raise ValueError('Receipt time invalid')
                 dt=datetime.datetime.fromisoformat(stamp.replace('Z','+00:00'))
                 if dt.isoformat(timespec='milliseconds' if len(stamp)==24 else 'microseconds').replace('+00:00','Z')!=stamp:raise ValueError('Receipt time normalized unexpectedly')
                 if day is not None and (dt+datetime.timedelta(hours=8)).date().isoformat()<day:raise ValueError('Receipt predates occurrence')
         if q is not None and total>q:raise ValueError('Over-receipt')
         if known and total==0 and hint in ('received','partial'):raise ValueError('Receipt status conflicts with known zero received')
         initial=[b for b in batches if b.get('origin')=='initial']
-        if initial and (len(initial)!=1 or len(batches)!=1 or (q is not None and initial[0].get('quantity') is not None and initial[0]['quantity']!=q)):raise ValueError('Initial receipt invalid')
+        if initial and (len(initial)!=1 or len(batches)!=1 or hint not in (None,'received') or (q is not None and initial[0].get('quantity') is not None and initial[0]['quantity']!=q)):raise ValueError('Initial receipt invalid')
         if known and q is not None and hint is not None and hint!=('unreceived' if total==0 else 'received' if total==q else 'partial'):raise ValueError('Receipt hint inconsistent')
     if data.get('cost_reference') is not None:raise ValueError('M1 cost allocation unavailable')
     return data

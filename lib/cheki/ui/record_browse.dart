@@ -609,6 +609,22 @@ class _RecordDetailPageState extends State<RecordDetailPage>
               onPressed: () => edit(original: r),
               child: const Text('修改记录'),
             ),
+            if (r.information.receiptStatus != ReceiptStatus.received)
+              OutlinedButton(
+                onPressed: () => Navigator.push<StoredRecord>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecordEditPage(
+                      store: store,
+                      original: r,
+                      addReceipt: true,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  r.information.receiptStatus == null ? '补录领取' : '补领',
+                ),
+              ),
             TextButton(
               onPressed: () => Navigator.push<void>(
                 context,

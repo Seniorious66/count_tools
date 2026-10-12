@@ -87,6 +87,8 @@ final class RecordInformation {
       if (initial.isNotEmpty &&
           (initial.length != 1 ||
               batches.length != 1 ||
+              (_raw['receipt_status_hint'] != null &&
+                  _raw['receipt_status_hint'] != 'received') ||
               (quantity != null &&
                   initial.single['quantity'] != null &&
                   initial.single['quantity'] != quantity))) {
@@ -165,6 +167,14 @@ final class RecordInformation {
       throw const FormatException('已知领取数量与状态不一致');
     }
     if (received == null || quantity == null) {
+      final batches = _raw['receipt_batches'];
+      if (_raw['receipt_status_hint'] == null &&
+          batches is List &&
+          batches.length == 1 &&
+          (batches.single as Map)['origin'] == 'initial') {
+        return ReceiptStatus
+            .received; // Explicit whole-receipt source, not a default.
+      }
       return _raw['receipt_status_hint'] == null
           ? null
           : ReceiptStatus.values.singleWhere(

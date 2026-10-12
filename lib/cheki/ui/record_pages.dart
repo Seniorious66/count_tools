@@ -11,6 +11,7 @@ import 'components.dart';
 import 'identity_pages.dart' show identityActionLabel;
 import 'member_inputs.dart';
 import 'theme.dart';
+import 'receipt_edit.dart';
 import 'record_browse.dart' show recordAppBar;
 export 'record_browse.dart'
     show RecordListPage, RecordHomePage, RecordDetailPage;
@@ -20,11 +21,13 @@ class RecordEditPage extends StatefulWidget {
     required this.store,
     this.original,
     this.historical = false,
+    this.addReceipt = false,
     super.key,
   });
   final RecordStore store;
   final StoredRecord? original;
   final bool historical;
+  final bool addReceipt;
   @override
   State<RecordEditPage> createState() => _RecordEditPageState();
 }
@@ -57,27 +60,11 @@ class _RecordEditPageState extends State<RecordEditPage> {
   late String? _size = _initial.sizeId;
   late SignatureKind? _signature = _initial.signature;
   late bool? _back = _initial.backSigned;
-  late ReceiptStatus? _receipt = _initial.receiptStatus;
-  late final _received = TextEditingController(
-    text: _initial.receivedQuantity?.toString() ?? '',
+  late final _receipts = ReceiptEditController(
+    _initial,
+    clock: widget.store.clock,
   );
-  String? get _originalReceiptTime {
-    final batches = _initial.toMap()['receipt_batches'];
-    return batches is List && batches.length == 1
-        ? (batches.single as Map)['received_at'] as String?
-        : null;
-  }
-
-  String get _originalReceiptInput => _originalReceiptTime == null
-      ? ''
-      : DateTime.parse(_originalReceiptTime!)
-            .toUtc()
-            .add(const Duration(hours: 8))
-            .toIso8601String()
-            .substring(0, 19)
-            .replaceFirst('T', ' ');
-  late final _receiptTime = TextEditingController(text: _originalReceiptInput);
-  bool _receiptTouched = false, _saving = false, _leaving = false;
+  bool _saving = false, _leaving = false;
   String? _error;
   final _operationId = newOperationId();
   late Future<(IdentityDirectory, List<CatalogEntity>)> _directory = _load();
@@ -86,10 +73,20 @@ class _RecordEditPageState extends State<RecordEditPage> {
     await CatalogStore(widget.store.database).list(CatalogKind.size),
   );
   @override
+  void initState() {
+    super.initState();
+    _quantity.addListener(
+      () => _receipts.updateTotal(int.tryParse(_quantity.text.trim())),
+    );
+    if (widget.addReceipt) _receipts.add();
+  }
+
+  @override
   void dispose() {
-    for (final c in [_day, _quantity, _note, _received, _receiptTime]) {
+    for (final c in [_day, _quantity, _note]) {
       c.dispose();
     }
+    _receipts.dispose();
     super.dispose();
   }
 
@@ -99,52 +96,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
   RecordInformation _information() {
     final quantity = _number(_quantity.text);
     final raw = _initial.toMap();
-    Object? batches = raw['receipt_batches'];
-    var hint = raw['receipt_status_hint'];
-    final initialBatches =
-        batches is List &&
-        batches.length == 1 &&
-        (batches.single as Map)['origin'] == 'initial';
-    final previousBatch = batches is List && batches.length == 1
-        ? batches.single as Map
-        : <String, Object?>{};
-    if (_receiptTouched || (initialBatches && quantity != _initial.quantity)) {
-      hint = _receipt?.name;
-      if (_receipt == null) {
-        batches = null;
-      } else if (_receipt == ReceiptStatus.unreceived) {
-        batches = [];
-      } else if (_receipt == ReceiptStatus.received) {
-        final actual =
-            widget.original != null &&
-            (_initial.receiptStatus != ReceiptStatus.received ||
-                !initialBatches ||
-                _receiptTime.text.trim().isNotEmpty);
-        batches = [
-          {
-            ...previousBatch,
-            'quantity': quantity,
-            'origin': actual ? 'actual' : 'initial',
-            'received_at': actual ? _actualTime() : null,
-          },
-        ];
-      } else {
-        final received = _number(_received.text);
-        if (received != null &&
-            quantity != null &&
-            (received <= 0 || received >= quantity)) {
-          throw const FormatException('部分领取张数需小于总张数');
-        }
-        batches = [
-          {
-            ...previousBatch,
-            'quantity': received,
-            'origin': 'actual',
-            'received_at': _actualTime(),
-          },
-        ];
-      }
-    }
+    final receiptChanges = _receipts.patch(quantity);
     final oldAttributes = (raw['attributes'] as Map?) ?? {};
     // Only replace changed fields. An untouched missing key, NULL, empty list
     // or unknown nested attribute must remain exactly as it was recorded.
@@ -162,11 +114,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
           'kind': _signature?.name,
           'back_signed': _back,
         },
-      if (_receiptTouched ||
-          (initialBatches && quantity != _initial.quantity)) ...{
-        'receipt_batches': batches,
-        'receipt_status_hint': hint,
-      },
+      ...receiptChanges,
       if (_note.text != (_initial.note ?? ''))
         'note': _note.text.isEmpty ? null : _note.text,
     });
@@ -203,25 +151,6 @@ class _RecordEditPageState extends State<RecordEditPage> {
     }
   }
 
-  String? _actualTime() {
-    final value = _receiptTime.text.trim();
-    if (value.isEmpty) return null;
-    if (value == _originalReceiptInput) return _originalReceiptTime;
-    if (!RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$').hasMatch(value)) {
-      throw const FormatException('领取时间请填写 年-月-日 时:分:秒，或留空后补');
-    }
-    final day = OccurredOn.parse(value.substring(0, 10));
-    final hour = int.parse(value.substring(11, 13)),
-        minute = int.parse(value.substring(14, 16)),
-        second = int.parse(value.substring(17, 19));
-    if (hour > 23 || minute > 59 || second > 59) {
-      throw const FormatException('领取时间无效');
-    }
-    return DateTime.parse(
-      '${day.value}T${value.substring(11)}.000Z',
-    ).subtract(const Duration(hours: 8)).toIso8601String();
-  }
-
   Future<void> _backRequest() async {
     if (_saving) return;
     final changed =
@@ -232,7 +161,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
         _members.join('\u0000') != (_initial.memberIds ?? []).join('\u0000') ||
         _signature != _initial.signature ||
         _back != _initial.backSigned ||
-        _receiptTouched;
+        _receipts.changed;
     final leave =
         !changed ||
         await showDialog<bool>(
@@ -429,56 +358,10 @@ class _RecordEditPageState extends State<RecordEditPage> {
                       child: const Text('背签信息留空'),
                     ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('record-receipt-${_receipt?.name}'),
-                    initialValue: _receipt?.name,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: '领取状态'),
-                    items: [
-                      const DropdownMenuItem(value: '', child: Text('未填写')),
-                      for (final s in ReceiptStatus.values)
-                        DropdownMenuItem(value: s.name, child: Text(s.label)),
-                    ],
-                    onChanged: (v) => setState(() {
-                      _receiptTouched = true;
-                      _receipt = v == ''
-                          ? null
-                          : ReceiptStatus.values.singleWhere(
-                              (s) => s.name == v,
-                            );
-                    }),
+                  ReceiptEditor(
+                    controller: _receipts,
+                    existing: widget.original != null,
                   ),
-                  if (_receipt == ReceiptStatus.partial ||
-                      (_receipt == ReceiptStatus.received &&
-                          widget.original != null)) ...[
-                    const SizedBox(height: 16),
-                    if (_receipt == ReceiptStatus.partial)
-                      TextField(
-                        key: const ValueKey('record-received-quantity'),
-                        controller: _received,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: '已领取张数'),
-                        onChanged: (_) => _receiptTouched = true,
-                      ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      key: const ValueKey('record-receipt-time'),
-                      controller: _receiptTime,
-                      decoration: const InputDecoration(
-                        labelText: '实际领取时间（可后补）',
-                        hintText: '2026-10-12 11:00:00',
-                      ),
-                      onChanged: (_) => _receiptTouched = true,
-                    ),
-                  ],
-                  if (!_receiptTouched &&
-                      widget.original != null &&
-                      _initial.toMap()['receipt_batches'] is List &&
-                      (_initial.toMap()['receipt_batches'] as List).isNotEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text('原领取批次与时间保留；改变领取信息时在核对页确认。'),
-                    ),
                   const SizedBox(height: 16),
                   TextField(
                     key: const ValueKey('record-note'),
