@@ -80,10 +80,10 @@ void main() {
     (tester) async {
       await tester.pumpWidget(const App());
       await settleIo(tester);
-      expect(find.text('旧版项目'), findsOneWidget);
-      expect(find.text('合成项目'), findsOneWidget);
+      expect(find.text('首页'), findsWidgets);
+      expect(find.text('合成项目'), findsNothing);
       expect(find.byType(AppBar), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.text('券库'), findsNothing);
       expect(find.text('统计'), findsNothing);
       final context = tester.element(find.byType(ChekiShell));
@@ -97,10 +97,25 @@ void main() {
       await tester.tap(find.byTooltip('打开管理'));
       await tester.pumpAndSettle();
       expect(find.text('团体'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('尺寸'),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('尺寸'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('旧版项目'),
+        -160,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('旧版项目'));
+      await settleIo(tester);
+      expect(find.text('合成项目'), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('合成项目'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await settleIo(tester);
+      expect(find.byKey(const ValueKey('home-month')), findsOneWidget);
       await tester.tap(find.byTooltip('打开设置'));
       await tester.pumpAndSettle();
       expect(find.text('版本'), findsOneWidget);
@@ -139,12 +154,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('合成项目'), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-month')), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await tester.runAsync(() => DatabaseHelper().close());
       await tester.pumpWidget(const App());
       await settleIo(tester);
-      expect(find.text('合成项目'), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-month')), findsOneWidget);
       await tester.runAsync(checkPreferences);
       await tester.pumpWidget(const SizedBox());
     },
@@ -281,11 +296,23 @@ void main() {
         await settleIo(tester);
         expect(find.byTooltip('打开管理').hitTestable(), findsOneWidget);
         expect(find.byTooltip('打开设置').hitTestable(), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('home-month')).hitTestable(),
+          findsOneWidget,
+        );
+        await tester.tap(find.byTooltip('打开管理'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('旧版项目'));
+        await settleIo(tester);
         expect(find.byTooltip('修改项目').hitTestable(), findsOneWidget);
         expect(
           find.byKey(const Key('add_project_btn')).hitTestable(),
           findsOneWidget,
         );
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        await tester.binding.handlePopRoute();
+        await settleIo(tester);
         await tester.tap(find.byTooltip('打开设置'));
         await tester.pumpAndSettle();
         await tester.ensureVisible(find.text('关于'));

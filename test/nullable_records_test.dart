@@ -333,6 +333,9 @@ void main() {
       final id = rows.single.id, created = rows.single.createdAt;
       await tester.tap(find.byKey(ValueKey('record-$id')));
       await settleIo(tester);
+      await tester.ensureVisible(find.text('修改记录'));
+      await tester.tap(find.text('修改记录'));
+      await settleIo(tester);
       await tester.enterText(
         find.byKey(const ValueKey('record-day')),
         '2026-10-11',
@@ -344,6 +347,8 @@ void main() {
       await tester.tap(find.text('核对'));
       await settleIo(tester);
       await tester.tap(find.text('保存'));
+      await settleIo(tester);
+      await tester.binding.handlePopRoute();
       await settleIo(tester);
       expect(find.text('已知张数 3'), findsOneWidget);
       expect(find.text('张数未填写 1 条'), findsNothing);
@@ -442,6 +447,9 @@ void main() {
       await settleIo(tester);
       await tester.tap(find.byKey(ValueKey('record-${r!.id}')));
       await settleIo(tester);
+      await tester.ensureVisible(find.text('修改记录'));
+      await tester.tap(find.text('修改记录'));
+      await settleIo(tester);
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('record-receipt-time')),
         180,
@@ -494,6 +502,9 @@ void main() {
       );
       await settleIo(tester);
       await tester.tap(find.byKey(ValueKey('record-${r!.id}')));
+      await settleIo(tester);
+      await tester.ensureVisible(find.text('修改记录'));
+      await tester.tap(find.text('修改记录'));
       await settleIo(tester);
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('record-received-quantity')),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/database/data_base.dart';
+import '../../page/home_page/home_page.dart';
 import '../data/catalog_contract.dart';
 import '../data/catalog_store.dart';
 import '../data/identity_contract.dart';
@@ -24,6 +25,22 @@ class CatalogManagementPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ChekiCard(
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('旧版项目'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const HomePage(title: '旧版项目'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: ChekiCard(

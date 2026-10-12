@@ -1,136 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../data/catalog_contract.dart';
 import '../data/catalog_store.dart';
 import '../data/identity_store.dart';
 import '../data/record_store.dart';
+import '../data/record_query.dart';
 import '../domain/record_contract.dart';
 import '../domain/record_information.dart';
 import 'components.dart';
 import 'identity_pages.dart' show identityActionLabel;
 import 'member_inputs.dart';
 import 'theme.dart';
-
-class RecordListPage extends StatefulWidget {
-  const RecordListPage({required this.store, super.key});
-  final RecordStore store;
-  @override
-  State<RecordListPage> createState() => _RecordListPageState();
-}
-
-class _RecordListPageState extends State<RecordListPage> {
-  late Future<List<StoredRecord>> _records = widget.store.list();
-  void _reload() => setState(() {
-    _records = widget.store.list();
-  });
-  Future<void> _edit({StoredRecord? original, bool historical = false}) async {
-    final saved = await Navigator.push<StoredRecord>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => RecordEditPage(
-          store: widget.store,
-          original: original,
-          historical: historical,
-        ),
-      ),
-    );
-    if (mounted && saved != null) _reload();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Cheki记录'),
-      actions: [
-        IconButton(
-          tooltip: '补录旧信息',
-          onPressed: () => _edit(historical: true),
-          icon: const Icon(Icons.post_add),
-        ),
-        IconButton(
-          tooltip: '新增记录',
-          onPressed: () => _edit(),
-          icon: const Icon(Icons.add),
-        ),
-      ],
-    ),
-    body: SafeArea(
-      top: false,
-      child: FutureBuilder<List<StoredRecord>>(
-        future: _records,
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: TextButton(
-                onPressed: _reload,
-                child: const Text('读取失败，点击重试'),
-              ),
-            );
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final records = snapshot.data!;
-          var knownTotal = 0, unknownQuantity = 0, unknownDate = 0;
-          for (final r in records) {
-            final info = r.information;
-            if (info.quantity == null) {
-              unknownQuantity++;
-            } else {
-              knownTotal += info.quantity!;
-            }
-            if (info.occurredOn == null) unknownDate++;
-          }
-          return RefreshIndicator(
-            onRefresh: () async {
-              _reload();
-              await _records;
-            },
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                ChekiCard(
-                  color: ChekiColors.blue,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('已知张数 $knownTotal'),
-                      if (unknownQuantity > 0) Text('张数未填写 $unknownQuantity 条'),
-                      if (unknownDate > 0) Text('发生日期未填写 $unknownDate 条'),
-                    ],
-                  ),
-                ),
-                if (records.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('还没有记录'),
-                  ),
-                for (final r in records)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: ChekiCard(
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        key: ValueKey('record-${r.id}'),
-                        title: Text(
-                          r.information.occurredOn?.value ?? '发生日期未填写',
-                        ),
-                        subtitle: Text(
-                          '${r.information.quantity == null ? '张数未填写' : '${r.information.quantity} 张'} · ${r.information.receiptStatus?.label ?? '领取信息未填写'}${r.information.missingFields.isNotEmpty ? '\n待补录：${r.information.missingFields.join('、')}' : ''}',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _edit(original: r),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
-    ),
-  );
-}
+import 'record_browse.dart' show recordAppBar;
+export 'record_browse.dart'
+    show RecordListPage, RecordHomePage, RecordDetailPage;
 
 class RecordEditPage extends StatefulWidget {
   const RecordEditPage({
@@ -263,17 +146,29 @@ class _RecordEditPageState extends State<RecordEditPage> {
       }
     }
     final oldAttributes = (raw['attributes'] as Map?) ?? {};
+    // Only replace changed fields. An untouched missing key, NULL, empty list
+    // or unknown nested attribute must remain exactly as it was recorded.
     return _initial.patch({
-      'occurred_on': _day.text.trim().isEmpty ? null : _day.text.trim(),
-      'quantity': quantity,
-      'size_id': _size,
-      'member_ids': _members.isEmpty ? null : _members,
-      'attributes': _signature == null && _back == null
-          ? null
-          : {...oldAttributes, 'kind': _signature?.name, 'back_signed': _back},
-      'receipt_batches': batches,
-      'receipt_status_hint': hint,
-      'note': _note.text.isEmpty ? null : _note.text,
+      if (_day.text != (_initial.occurredOn?.value ?? ''))
+        'occurred_on': _day.text.trim().isEmpty ? null : _day.text.trim(),
+      if (_quantity.text != (_initial.quantity?.toString() ?? ''))
+        'quantity': quantity,
+      if (_size != _initial.sizeId) 'size_id': _size,
+      if (jsonEncode(_members) != jsonEncode(_initial.memberIds ?? []))
+        'member_ids': _members.isEmpty ? null : _members,
+      if (_signature != _initial.signature || _back != _initial.backSigned)
+        'attributes': {
+          ...oldAttributes,
+          'kind': _signature?.name,
+          'back_signed': _back,
+        },
+      if (_receiptTouched ||
+          (initialBatches && quantity != _initial.quantity)) ...{
+        'receipt_batches': batches,
+        'receipt_status_hint': hint,
+      },
+      if (_note.text != (_initial.note ?? ''))
+        'note': _note.text.isEmpty ? null : _note.text,
     });
   }
 
@@ -372,14 +267,13 @@ class _RecordEditPageState extends State<RecordEditPage> {
       if (!popped) _backRequest();
     },
     child: Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.original != null
-              ? '修改记录'
-              : widget.historical
-              ? '补录旧信息'
-              : '记录',
-        ),
+      appBar: recordAppBar(
+        context,
+        widget.original != null
+            ? '修改记录'
+            : widget.historical
+            ? '补录旧信息'
+            : '记录',
         actions: [
           if (widget.original != null)
             IconButton(
@@ -697,7 +591,7 @@ class _RecordReviewPageState extends State<RecordReviewPage> {
   Widget build(BuildContext context) => PopScope<StoredRecord>(
     canPop: !_saving || _leaving,
     child: Scaffold(
-      appBar: AppBar(title: const Text('核对')),
+      appBar: recordAppBar(context, '核对'),
       body: SafeArea(
         top: false,
         child: Column(
@@ -706,6 +600,14 @@ class _RecordReviewPageState extends State<RecordReviewPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  if (widget.original != null) ...[
+                    RecordChangeView(
+                      before: widget.original!.information,
+                      after: widget.information,
+                      store: widget.store,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   RecordInformationView(
                     info: widget.information,
                     store: widget.store,
@@ -717,14 +619,20 @@ class _RecordReviewPageState extends State<RecordReviewPage> {
                         '保存后可补录：${widget.information.missingFields.join('、')}',
                       ),
                     ),
-                  if (_error != null)
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: ChekiColors.danger),
-                    ),
                 ],
               ),
             ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: ChekiColors.danger),
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SizedBox(
@@ -742,7 +650,7 @@ class _RecordReviewPageState extends State<RecordReviewPage> {
   );
 }
 
-class RecordInformationView extends StatelessWidget {
+class RecordInformationView extends StatefulWidget {
   const RecordInformationView({
     required this.info,
     required this.store,
@@ -750,10 +658,13 @@ class RecordInformationView extends StatelessWidget {
   });
   final RecordInformation info;
   final RecordStore store;
-  Future<(IdentityDirectory, List<CatalogEntity>)> _labels() async => (
-    await IdentityStore(store.database).directory(),
-    await CatalogStore(store.database).list(CatalogKind.size),
-  );
+  @override
+  State<RecordInformationView> createState() => _RecordInformationViewState();
+}
+
+class _RecordInformationViewState extends State<RecordInformationView> {
+  RecordInformation get info => widget.info;
+  late Future<RecordReadModel> _labels = widget.store.readModel();
   @override
   Widget build(BuildContext context) => ChekiCard(
     child: Column(
@@ -761,46 +672,163 @@ class RecordInformationView extends StatelessWidget {
       children: [
         Text('发生日期：${info.occurredOn?.value ?? '未填写'}'),
         Text('张数：${info.quantity ?? '未填写'}'),
-        FutureBuilder<(IdentityDirectory, List<CatalogEntity>)>(
-          future: _labels(),
+        FutureBuilder<RecordReadModel>(
+          future: _labels,
           builder: (context, snapshot) {
-            if (snapshot.hasError) return const Text('成员与尺寸读取失败');
+            if (snapshot.hasError) {
+              return TextButton(
+                onPressed: () =>
+                    setState(() => _labels = widget.store.readModel()),
+                child: const Text('成员与尺寸读取失败，点击重试'),
+              );
+            }
             if (!snapshot.hasData) return const Text('正在读取成员与尺寸…');
-            final (directory, sizes) = snapshot.data!;
-            final groups = {for (final g in directory.groups) g.id: g};
-            final members = {for (final m in directory.members) m.id: m};
+            final labels = snapshot.data!;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '尺寸：${info.sizeId == null ? '未填写' : sizes.where((s) => s.id == info.sizeId).firstOrNull?.name ?? '尺寸信息不可用'}',
+                  '尺寸：${info.sizeId == null ? '未填写' : labels.sizes[info.sizeId]?.name ?? '尺寸信息不可用'}',
                 ),
                 Text(
-                  '参与成员：${info.memberIds == null || info.memberIds!.isEmpty ? '未填写' : info.memberIds!.map((id) {
-                          final m = members[id];
-                          return m == null ? '成员信息不可用' : '${groups[m.groupId]?.name ?? '未填写团体'} · ${m.name}';
-                        }).join('、')}',
+                  '参与成员：${info.memberIds == null || info.memberIds!.isEmpty ? '未填写' : info.memberIds!.map(labels.memberLabel).join('、')}',
                 ),
               ],
             );
           },
         ),
         Text('属性：${info.signature?.label ?? '未填写'}'),
-        Text(
-          '背签：${info.backSigned == null
-              ? '未填写'
-              : info.backSigned!
-              ? '是'
-              : '否'}',
-        ),
+        if (info.signature == SignatureKind.signed)
+          Text(
+            '背签：${info.backSigned == null
+                ? '未填写'
+                : info.backSigned!
+                ? '是'
+                : '否'}',
+          ),
         Text('领取：${info.receiptStatus?.label ?? '未填写'}'),
+        Text('已领取张数：${info.receivedQuantity ?? '未填写'}'),
+        for (final line in recordReceiptLines(info)) Text(line),
         if (info.note != null) Text('备注：${info.note}'),
       ],
     ),
   );
 }
 
-class RecordHistoryPage extends StatelessWidget {
+List<String> recordReceiptLines(RecordInformation info) {
+  final batches = info.toMap()['receipt_batches'];
+  if (batches == null) return ['领取批次：未填写'];
+  if ((batches as List).isEmpty) return ['领取批次：无'];
+  return [
+    for (var index = 0; index < batches.length; index++)
+      '第${index + 1}次：${(batches[index] as Map)['quantity'] ?? '未填写'} 张 · ${switch ((batches[index] as Map)['origin']) {
+        'initial' => '初始已领取',
+        'actual' => '实际领取',
+        'legacyUnknown' => '历史时间未知',
+        _ => '来源未填写',
+      }}\n${(batches[index] as Map)['received_at'] == null
+          ? (batches[index] as Map)['origin'] == 'initial'
+                ? '不设实际领取时间'
+                : '实际领取时间未填写'
+          : identityActionLabel((batches[index] as Map)['received_at'] as String)}',
+  ];
+}
+
+class RecordChangeView extends StatefulWidget {
+  const RecordChangeView({
+    required this.before,
+    required this.after,
+    required this.store,
+    super.key,
+  });
+  final RecordInformation before, after;
+  final RecordStore store;
+  @override
+  State<RecordChangeView> createState() => _RecordChangeViewState();
+}
+
+class _RecordChangeViewState extends State<RecordChangeView> {
+  late Future<RecordReadModel> _labels = widget.store.readModel();
+  String _value(String key, RecordInformation info, RecordReadModel m) =>
+      switch (key) {
+        'occurred_on' => info.occurredOn?.value ?? '未填写',
+        'quantity' => info.quantity?.toString() ?? '未填写',
+        'size_id' =>
+          info.sizeId == null ? '未填写' : m.sizes[info.sizeId]?.name ?? '尺寸信息不可用',
+        'member_ids' =>
+          (info.memberIds ?? []).isEmpty
+              ? '未填写'
+              : info.memberIds!.map(m.memberLabel).join('、'),
+        'attributes' =>
+          info.signature == SignatureKind.signed
+              ? '有签 · 背签${info.backSigned == null
+                    ? '未填写'
+                    : info.backSigned!
+                    ? '是'
+                    : '否'}'
+              : info.signature?.label ?? '未填写',
+        'receipt_batches' => recordReceiptLines(info).join('\n'),
+        'receipt_status_hint' => info.receiptStatus?.label ?? '未填写',
+        'note' => info.note ?? '未填写',
+        _ => '其他信息',
+      };
+  @override
+  Widget build(BuildContext context) => FutureBuilder<RecordReadModel>(
+    future: _labels,
+    builder: (context, s) {
+      if (s.hasError) {
+        return TextButton(
+          onPressed: () => setState(() {
+            _labels = widget.store.readModel();
+          }),
+          child: const Text('修改对照读取失败，点击重试'),
+        );
+      }
+      if (!s.hasData) return const Text('正在读取修改对照…');
+      final before = widget.before.toMap(), after = widget.after.toMap();
+      const fields = {
+        'occurred_on': '发生日期',
+        'quantity': '张数',
+        'size_id': '尺寸',
+        'member_ids': '参与成员',
+        'attributes': '属性',
+        'receipt_batches': '领取批次',
+        'receipt_status_hint': '领取状态',
+        'note': '备注',
+      };
+      final changed = fields.keys
+          .where((k) => jsonEncode(before[k]) != jsonEncode(after[k]))
+          .toList();
+      return ChekiCard(
+        color: ChekiColors.pink,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('修改对照'),
+            if (changed.isEmpty) const Text('业务信息没有变化'),
+            for (final k in changed)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      fields[k]!,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text('修改前：${_value(k, widget.before, s.data!)}'),
+                    Text('修改后：${_value(k, widget.after, s.data!)}'),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+class RecordHistoryPage extends StatefulWidget {
   const RecordHistoryPage({
     required this.store,
     required this.record,
@@ -809,27 +837,54 @@ class RecordHistoryPage extends StatelessWidget {
   final RecordStore store;
   final StoredRecord record;
   @override
+  State<RecordHistoryPage> createState() => _RecordHistoryPageState();
+}
+
+class _RecordHistoryPageState extends State<RecordHistoryPage> {
+  late Future<List<Map<String, Object?>>> _history = widget.store.history(
+    widget.record,
+  );
+  @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('记录历史')),
+    appBar: recordAppBar(context, '记录历史'),
     body: FutureBuilder<List<Map<String, Object?>>>(
-      future: store.history(record),
+      future: _history,
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const Center(child: Text('历史读取失败'));
+        if (snapshot.hasError) {
+          return Center(
+            child: TextButton(
+              onPressed: () => setState(
+                () => _history = widget.store.history(widget.record),
+              ),
+              child: const Text('历史读取失败，点击重试'),
+            ),
+          );
+        }
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            for (final h in snapshot.data!)
+            for (final h in snapshot.data!.reversed)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(identityActionLabel(h['created_at'] as String)),
+                    if (h['before_json'] != null)
+                      RecordChangeView(
+                        store: widget.store,
+                        before: StoredRecord.fromRow(
+                          decodeSqlRow(h['before_json'] as String),
+                        ).information,
+                        after: StoredRecord.fromRow(
+                          decodeSqlRow(h['after_json'] as String),
+                        ).information,
+                      ),
                     RecordInformationView(
-                      store: store,
+                      store: widget.store,
                       info: StoredRecord.fromRow(
                         decodeSqlRow(h['after_json'] as String),
                       ).information,

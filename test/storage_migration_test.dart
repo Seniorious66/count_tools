@@ -373,6 +373,14 @@ void main() {
       }
 
       await show(const App());
+      expect(find.byKey(const ValueKey('home-month')), findsOneWidget);
+      await tester.tap(find.byTooltip('打开管理'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('旧版项目'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 80)),
+      );
+      await tester.pumpAndSettle();
       expect(find.text('合成项目'), findsOneWidget);
       await show(ProjectInfoPage(parentData: project));
       expect(find.text('合成成员'), findsOneWidget);
@@ -383,6 +391,13 @@ void main() {
       await show(const SizedBox());
       await tester.runAsync(() => DatabaseHelper().close());
       await show(const App());
+      await tester.tap(find.byTooltip('打开管理'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('旧版项目'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 80)),
+      );
+      await tester.pumpAndSettle();
       expect(find.text('合成项目'), findsOneWidget);
     },
   );

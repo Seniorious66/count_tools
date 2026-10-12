@@ -1,36 +1,49 @@
 import 'package:flutter/material.dart';
-import '../../page/home_page/home_page.dart';
+import '../../data/database/data_base.dart';
+import '../data/record_store.dart';
 import '../../value/info.dart';
 import 'catalog_pages.dart';
 import 'components.dart';
+import 'record_pages.dart';
 
-/// Only working destinations are registered. v1.2.1 replaces the compatibility
-/// project destination with actual Cheki home/records after its services exist.
+/// M1 exposes working home/records; legacy projects remain in management.
 class ChekiAppShell extends StatelessWidget {
   const ChekiAppShell({super.key});
   @override
-  Widget build(BuildContext context) => ChekiShell(
-    destinations: const [
-      ChekiDestination(
-        id: 'legacy-projects',
-        label: '旧版项目',
-        icon: Icons.folder_outlined,
-        page: HomePage(title: '旧版项目', embedded: true),
-      ),
-    ],
-    onManage: () => Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => CatalogManagementPage())),
-    actions: [
-      IconButton(
-        tooltip: '打开设置',
-        icon: const Icon(Icons.settings),
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const ChekiSettingsPage()),
+  Widget build(BuildContext context) {
+    final store = RecordStore(() => DatabaseHelper().database);
+    return ChekiShell(
+      destinations: [
+        ChekiDestination(
+          id: 'home',
+          label: '首页',
+          icon: Icons.home_outlined,
+          page: RecordHomePage(store: store),
         ),
-      ),
-    ],
-  );
+        ChekiDestination(
+          id: 'records',
+          label: '记录',
+          icon: Icons.notes,
+          page: RecordListPage(store: store, embedded: true),
+        ),
+      ],
+      onManage: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => CatalogManagementPage()),
+        );
+        RecordStore.invalidateReads();
+      },
+      actions: [
+        IconButton(
+          tooltip: '打开设置',
+          icon: const Icon(Icons.settings),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ChekiSettingsPage()),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class ChekiSettingsPage extends StatelessWidget {

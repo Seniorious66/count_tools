@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import '../domain/record_information.dart';
@@ -6,6 +7,8 @@ import 'catalog_schema.dart';
 import 'catalog_store.dart';
 import 'identity_schema.dart';
 import 'identity_store.dart';
+import 'identity_contract.dart';
+import 'record_query.dart';
 
 class StoredRecord {
   StoredRecord.fromRow(Map<String, Object?> row) : _raw = copySqlRow(row) {
@@ -183,6 +186,28 @@ class RecordStore {
   final Future<Database> Function() database;
   final DateTime Function() clock;
   final Future<void> Function()? afterWrite;
+  static final _changes = StreamController<void>.broadcast();
+  static Stream<void> get changes => _changes.stream;
+
+  /// Also invalidates names after returning from entity management.
+  static void invalidateReads() => _changes.add(null);
+  Future<RecordReadModel> readModel() async => (await database()).transaction(
+    (tx) async => RecordReadModel(
+      records: (await tx.query(
+        RecordSchema.records,
+        orderBy: 'created_at DESC,id',
+      )).map(StoredRecord.fromRow),
+      groups: (await tx.query(
+        CatalogKind.group.table,
+      )).map(CatalogEntity.fromRow),
+      members: (await tx.query(
+        IdentityKind.member.table,
+      )).map((r) => IdentityEntity.fromRow(IdentityKind.member, r)),
+      sizes: (await tx.query(
+        CatalogKind.size.table,
+      )).map(CatalogEntity.fromRow),
+    ),
+  );
   Future<List<StoredRecord>> list() async => (await (await database()).query(
     RecordSchema.records,
     orderBy: 'created_at DESC,id',
@@ -240,7 +265,7 @@ class RecordStore {
       'revision': original?.revision,
       'information_json': info.encode(),
     });
-    return (await database()).transaction((tx) async {
+    final saved = await (await database()).transaction((tx) async {
       final existing = await tx.query(
         RecordSchema.operations,
         where: 'id=?',
@@ -339,5 +364,7 @@ class RecordStore {
       if (afterWrite != null) await afterWrite!();
       return StoredRecord.fromRow(row);
     });
+    invalidateReads();
+    return saved;
   }
 }

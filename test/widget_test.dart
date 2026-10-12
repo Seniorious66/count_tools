@@ -31,6 +31,17 @@ void main() {
     DatabaseHelper.pathResolver = null;
     await scratch.delete(recursive: true);
   });
+  Future<void> openLegacy(WidgetTester tester) async {
+    expect(find.byKey(const ValueKey('home-month')), findsOneWidget);
+    await tester.tap(find.byTooltip('打开管理'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('旧版项目'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 80)),
+    );
+    await tester.pumpAndSettle();
+  }
+
   test(
     'project writes survive close and reopen with original ID/ext',
     () async {
@@ -71,7 +82,12 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 80)),
     );
     await tester.pumpAndSettle();
+    await openLegacy(tester);
     expect(find.text('合成项目'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.settings));
     await tester.pumpAndSettle();
     expect(find.text('版本'), findsOneWidget);
@@ -88,6 +104,7 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 80)),
     );
     await tester.pumpAndSettle();
+    await openLegacy(tester);
     expect(find.text('没有项目，点击+添加'), findsOneWidget);
     await tester.tap(find.byKey(const Key('add_project_btn')));
     await tester.pumpAndSettle();
