@@ -17,6 +17,64 @@ RecordDraft draft() {
 }
 
 void main() {
+  test(
+    'unassigned cost is null and references preserve unknown metadata through draft edits',
+    () {
+      final initial = draft();
+      expect(initial.costReference.hasReference, isFalse);
+      expect(initial.toMap()['cost_reference'], isNull);
+      final reference = <String, Object?>{
+        'operation_id': 'future-allocation-operation',
+        'unknown': {
+          'text': '保留',
+          'nullable': null,
+          'values': [1, '精确原文'],
+        },
+      };
+      final withReference = RecordDraft.fromMap({
+        ...initial.toMap(),
+        'cost_reference': reference,
+      });
+      (reference['unknown'] as Map)['text'] = '外部改动';
+      expect(
+        (withReference.costReference.toJson() as Map)['unknown']['text'],
+        '保留',
+      );
+      final roundtrip = RecordDraft.decode(
+        withReference.changeOccurrence(OccurredOn.parse('2026-10-12')).encode(),
+      );
+      expect(
+        roundtrip.costReference.operationId,
+        'future-allocation-operation',
+      );
+      expect(
+        roundtrip.costReference.toJson(),
+        withReference.costReference.toJson(),
+      );
+      final exposed = roundtrip.costReference.toJson() as Map;
+      exposed['operation_id'] = '其他';
+      expect(
+        roundtrip.costReference.operationId,
+        'future-allocation-operation',
+      );
+      for (final invalid in [
+        0,
+        '',
+        <String, Object?>{},
+        {'operation_id': ' '},
+        {'operation_id': 1},
+        {'operation_id': 'valid', 'nonfinite': double.nan},
+      ]) {
+        expect(
+          () => RecordDraft.fromMap({
+            ...initial.toMap(),
+            'cost_reference': invalid,
+          }),
+          throwsFormatException,
+        );
+      }
+    },
+  );
   final day = OccurredOn.parse('2026-10-11');
   test(
     'strict integer entry refuses decimal, negative, empty and overflow without coercion',

@@ -3,6 +3,7 @@ import argparse
 import json
 import sqlite3
 from catalog_validation import verify_catalog
+from identity_validation import verify_identity
 from contextlib import closing
 from pathlib import Path
 
@@ -18,7 +19,7 @@ def verify(path):
         if not required <= tables:
             raise ValueError('Required tables missing')
         schema = db.execute('PRAGMA user_version').fetchone()[0]
-        if schema not in (1, 2, 3):
+        if schema not in (1, 2, 3, 4):
             raise ValueError('Unsupported storage version')
         columns = {
             'users': ('id', 'username', 'user_key', 'ext'),
@@ -41,13 +42,15 @@ def verify(path):
                     if not isinstance(count, str) or not re.fullmatch(r'\d+', count):
                         raise ValueError('Invalid legacy count')
         if schema >= 2:
-            expected = [(2, 'preserve_legacy_v1')] + ([(3, 'catalog_base_v1')] if schema >= 3 else [])
+            expected = [(2, 'preserve_legacy_v1')] + ([(3, 'catalog_base_v1')] if schema >= 3 else []) + ([(4, 'identity_base_v1')] if schema >= 4 else [])
             if 'count_tools_migrations' not in tables or db.execute(
                 'SELECT version,migration FROM count_tools_migrations ORDER BY version').fetchall() != expected:
                 raise ValueError('Storage migration ledger is invalid')
         counts = {t: db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0] for t in sorted(required)}
         if schema >= 3:
             counts.update(verify_catalog(db))
+        if schema >= 4:
+            counts.update(verify_identity(db))
         queries = {
             'orphan_subprojects': 'SELECT COUNT(*) FROM sub_project_data s LEFT JOIN project_data p ON s.parentId=p.id WHERE p.id IS NULL',
             'orphan_items': 'SELECT COUNT(*) FROM item_data i LEFT JOIN sub_project_data s ON i.parentId=s.id LEFT JOIN project_data p ON i.projectId=p.id WHERE s.id IS NULL OR p.id IS NULL OR CAST(i.projectId AS TEXT) != CAST(s.parentId AS TEXT)',

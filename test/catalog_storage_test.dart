@@ -231,7 +231,7 @@ void main() {
       await DatabaseHelper().close();
       await expectLater(DatabaseHelper().database, throwsA(isA<StateError>()));
       final inspection = await openDatabase(path);
-      expect(await inspection.getVersion(), 3);
+      expect(await inspection.getVersion(), StorageSchema.version);
       expect(
         (await inspection.query(CatalogKind.group.table)).single['id'],
         item.id,
@@ -363,7 +363,7 @@ void main() {
           name: '四寸',
           operationId: 'acceptance-four',
         );
-        await StorageSchema.validate(db, 3);
+        await StorageSchema.validate(db, StorageSchema.version);
         await DatabaseHelper().close();
         File(path).copySync(target.path);
         File('${root.path}/preferences.json').writeAsStringSync(

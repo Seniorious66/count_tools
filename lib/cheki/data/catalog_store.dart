@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:sqflite/sqflite.dart';
 import 'catalog_contract.dart';
 import 'catalog_schema.dart';
+import 'identity_schema.dart';
 
 String newOperationId() {
   final random = Random.secure();
@@ -96,6 +97,18 @@ class CatalogStore {
         return CatalogEntity.fromRow(
           decodeSqlRow(oldOperation.single['result_json'] as String),
         );
+      }
+      final identityTables = await tx.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        [IdentitySchema.operations],
+      );
+      if (identityTables.isNotEmpty &&
+          (await tx.query(
+            IdentitySchema.operations,
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('此操作已用于其他修改，请重新核对');
       }
       Map<String, Object?>? before;
       if (original != null) {

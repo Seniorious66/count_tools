@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'record_contract.dart';
+import 'cost_reference.dart';
 
 Map<String, Object?> _copyJson(Map<String, Object?> value) {
   try {
@@ -64,6 +65,7 @@ final class RecordDraft {
     // Validate the complete state now, not only when a getter happens to run.
     this.attributes;
     receipt;
+    costReference;
   }
   factory RecordDraft.create({
     required OccurredOn occurredOn,
@@ -95,6 +97,7 @@ final class RecordDraft {
           },
       ],
       'note': note,
+      'cost_reference': null,
     });
   }
   final Map<String, Object?> _raw;
@@ -104,6 +107,8 @@ final class RecordDraft {
   List<String> get memberIds =>
       List.unmodifiable((_raw['member_ids'] as List).cast<String>());
   String? get note => _raw['note'] as String?;
+  CostReference get costReference =>
+      CostReference.fromJson(_raw['cost_reference']);
   ChekiAttributes get attributes {
     final value = _raw['attributes'] as Map;
     return ChekiAttributes(

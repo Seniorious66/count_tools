@@ -24,6 +24,10 @@ try {
         & $Python (Join-Path $repoRoot 'scripts/test-catalog-recovery.py') --source $env:COUNT_TOOLS_CATALOG_ACCEPTANCE
         if ($LASTEXITCODE -ne 0) { throw 'Current catalog complete recovery checks failed' }
     }
+    if ($env:COUNT_TOOLS_IDENTITY_ACCEPTANCE) {
+        & $Python (Join-Path $repoRoot 'scripts/test-identity-recovery.py') --source $env:COUNT_TOOLS_IDENTITY_ACCEPTANCE
+        if ($LASTEXITCODE -ne 0) { throw 'Current identity complete recovery checks failed' }
+    }
     if ($BuildDebug) {
         & flutter build apk --debug
         if ($LASTEXITCODE -ne 0) { throw 'Android debug compilation failed' }

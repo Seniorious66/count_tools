@@ -1,4 +1,4 @@
-"""Validate complete recovery against an actual Dart-produced synthetic schema 3."""
+"""Validate complete recovery against an actual Dart-produced schema 3/4 catalog."""
 import argparse
 import importlib.util
 import json
@@ -42,7 +42,7 @@ class CatalogRecoveryTests(unittest.TestCase):
 
     def test_application_catalog_and_full_unknown_fields_roundtrip_cold(self):
         before = recovery.database_audit(self.database)
-        self.assertEqual(before['version'], 3)
+        self.assertIn(before['version'], (3, 4))
         self.assertEqual(before['tables']['cheki_groups']['count'], 1)
         self.assertEqual(before['tables']['cheki_sizes']['count'], 3)
         self.assertEqual(before['tables']['cheki_catalog_operations']['count'], 5)
@@ -122,11 +122,13 @@ class CatalogRecoveryTests(unittest.TestCase):
         self.assertEqual(recovery.database_audit(root / 'current/database.sqlite'), recovery.database_audit(database))
 
     def test_future_version_and_malformed_audit_refused(self):
+        with closing(sqlite3.connect(self.database)) as db:
+            version = db.execute('PRAGMA user_version').fetchone()[0]
         with closing(sqlite3.connect(self.database)) as db, db:
-            db.execute('PRAGMA user_version=4')
+            db.execute('PRAGMA user_version=5')
         with self.assertRaises(ValueError): recovery.database_audit(self.database)
         with closing(sqlite3.connect(self.database)) as db, db:
-            db.execute('PRAGMA user_version=3')
+            db.execute(f'PRAGMA user_version={version}')
             db.execute("UPDATE cheki_catalog_operations SET result_json='[]'")
         with self.assertRaises(ValueError): recovery.database_audit(self.database)
 

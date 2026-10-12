@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../data/database/data_base.dart';
 import '../data/catalog_contract.dart';
 import '../data/catalog_store.dart';
+import '../data/identity_contract.dart';
+import '../data/identity_store.dart';
+import 'identity_pages.dart';
 import 'components.dart';
 import 'theme.dart';
 
@@ -19,6 +22,34 @@ class CatalogManagementPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            for (final kind in IdentityKind.values.reversed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ChekiCard(
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(kind == IdentityKind.member ? '成员' : '同人关联'),
+                    subtitle: Text(
+                      kind == IdentityKind.member
+                          ? '团体、名称、颜色与转团历史'
+                          : '手动关联同一人的不同成员身份',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => IdentityListPage(
+                          kind: kind,
+                          store: IdentityStore(
+                            store.database,
+                            clock: store.clock,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             for (final kind in CatalogKind.values)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),

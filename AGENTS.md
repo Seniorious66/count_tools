@@ -21,6 +21,7 @@
 - origin 为个人 fork，upstream 只追溯；未经请求不自动 fetch/merge/rebase/cherry-pick 上游。
 - 原 App `com.example.count_tools`，安装版本 1.0.0 / 1；不能假设源码 HEAD 精确对应已安装 APK。
 - 2026-10-11 用户确认独立包名 `com.seniorious66.counttools`、显示名「Cheki账本」、仓库外专属永久签名并备份到 E 和 NAS；固定 Flutter 3.47.5 与兼容 Dart 3 依赖。原 App 保留，真实导入仍需对应范围授权。
+- 2026-10-12 用户确认：改名保留历史名、转团新建成员身份、手动关联同一人；一张 Cheki 最多选同一 Person 的一个身份，允许不同人跨团。产品序列采用 M1 0.1.0、M2 1.0.0、BI 1.1.0、携带 1.2.0，候选后缀与 versionCode 递增；路线确认不授权 M2 以后开发或制品发布。
 - 只有同包名同证书才可原位升级；源码或调试授权不能解决签名冲突。绝不卸载旧 App 来安装重签名包。
 - 永久签名放仓库之外，保留两份独立备份；不借用 SalaryFlow 私钥，不打印/提交密码和私钥。
 - 正式候选固定包名/证书，versionCode 严格递增；旧功能在较新候选集中验收，不降级真实安装。
