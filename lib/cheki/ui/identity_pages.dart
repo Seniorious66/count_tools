@@ -122,10 +122,11 @@ class _IdentityListPageState extends State<IdentityListPage> {
                           children: [
                             if (item.kind == IdentityKind.member)
                               MemberLabel(
-                                group:
-                                    groupMap[item.groupId]?.name ?? '团体信息不可用',
+                                group: groupMap[item.groupId]?.name ?? '未填写团体',
                                 name: item.name,
-                                color: Color(0xff000000 | item.colorRgb!),
+                                color: item.colorRgb == null
+                                    ? ChekiColors.inputBorder
+                                    : Color(0xff000000 | item.colorRgb!),
                               )
                             else
                               Text(item.name),
@@ -199,22 +200,22 @@ class IdentityEditPage extends StatefulWidget {
 
 class _IdentityEditPageState extends State<IdentityEditPage> {
   IdentityEntity? get _initial => widget.original ?? widget.transferFrom;
-  late final _name = TextEditingController(text: _initial?.name ?? '');
+  late final _name = TextEditingController(text: _initial?.knownName ?? '');
   late String? _groupId = widget.original?.groupId;
   late String? _personId = _initial?.personId;
-  late int _color = _initial?.colorRgb ?? 0x83bcd8;
+  late int? _color = _initial?.colorRgb;
   late bool _active = widget.original?.active ?? true;
   late Future<IdentityDirectory> _directory = widget.store.directory();
   final _operationId = newOperationId();
   bool _saving = false, _discarded = false;
   String? _error;
   bool get _dirty =>
-      _name.text != (_initial?.name ?? '') ||
+      _name.text != (_initial?.knownName ?? '') ||
       _active != (widget.original?.active ?? true) ||
       (widget.kind == IdentityKind.member &&
           (_groupId != widget.original?.groupId ||
               _personId != _initial?.personId ||
-              _color != (_initial?.colorRgb ?? 0x83bcd8)));
+              _color != _initial?.colorRgb));
   @override
   void initState() {
     super.initState();
@@ -292,9 +293,8 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
 
   Future<void> _save() async {
     if (_saving) return;
-    if (_name.text.trim().isEmpty ||
-        (widget.kind == IdentityKind.member && _groupId == null)) {
-      setState(() => _error = _name.text.trim().isEmpty ? '请输入名称' : '请选择团体');
+    if (widget.transferFrom != null && _groupId == null) {
+      setState(() => _error = '转团请选择目标团体');
       return;
     }
     setState(() {
@@ -326,7 +326,7 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
       } else if (original == null) {
         result = await widget.store.createMember(
           name: _name.text,
-          groupId: _groupId!,
+          groupId: _groupId,
           personId: _personId,
           colorRgb: _color,
           operationId: _operationId,
@@ -335,6 +335,7 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
         result = await widget.store.editMember(
           original: original,
           name: _name.text,
+          fillGroupId: original.groupId == null ? _groupId : null,
           colorRgb: _color,
           personId: _personId,
           active: _active,
@@ -484,7 +485,7 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 16),
-                            if (widget.original != null)
+                            if (widget.original?.groupId != null)
                               InputDecorator(
                                 decoration: const InputDecoration(
                                   labelText: '团体',
@@ -502,21 +503,28 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                                 decoration: const InputDecoration(
                                   labelText: '团体',
                                 ),
-                                items: groups
-                                    .map(
-                                      (g) => DropdownMenuItem(
-                                        value: g.id,
-                                        child: Text(
-                                          g.name,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
+                                items: [
+                                  if (widget.transferFrom == null)
+                                    const DropdownMenuItem<String>(
+                                      value: '',
+                                      child: Text('未填写'),
+                                    ),
+                                  ...groups.map(
+                                    (g) => DropdownMenuItem(
+                                      value: g.id,
+                                      child: Text(
+                                        g.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    )
-                                    .toList(),
+                                    ),
+                                  ),
+                                ],
                                 onChanged: _saving
                                     ? null
-                                    : (id) => setState(() => _groupId = id),
+                                    : (id) => setState(
+                                        () => _groupId = id == '' ? null : id,
+                                      ),
                               ),
                               TextButton(
                                 onPressed: _saving
@@ -561,11 +569,17 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                               ),
                               const SizedBox(height: 8),
                               MemberColorField(
-                                value: Color(0xff000000 | _color),
+                                value: Color(0xff000000 | (_color ?? 0x83bcd8)),
                                 enabled: !_saving,
                                 onChanged: (color) => setState(
                                   () => _color = color.toARGB32() & 0xffffff,
                                 ),
+                              ),
+                              TextButton(
+                                onPressed: _saving || _color == null
+                                    ? null
+                                    : () => setState(() => _color = null),
+                                child: Text(_color == null ? '颜色未填写' : '清空颜色'),
                               ),
                             ] else
                               const Text('保留原同人关联与颜色，新增后可修改。原成员身份保持不变。'),
@@ -588,20 +602,20 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                         ),
                       ),
                     ),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: ChekiColors.danger),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: ChekiColors.danger),
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SizedBox(
@@ -685,7 +699,7 @@ class _IdentityHistoryItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(after['name'] as String),
+            Text(after['name'] as String? ?? '未填写名称'),
             if (before != null && before['name'] != after['name'])
               Text('原名：${before['name']}'),
             Text(
@@ -699,13 +713,17 @@ class _IdentityHistoryItem extends StatelessWidget {
                     width: 16,
                     height: 16,
                     decoration: BoxDecoration(
-                      color: Color(0xff000000 | (after['color_rgb'] as int)),
+                      color: after['color_rgb'] == null
+                          ? ChekiColors.inputBorder
+                          : Color(0xff000000 | (after['color_rgb'] as int)),
                       shape: BoxShape.circle,
                       border: Border.all(color: ChekiColors.inputBorder),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Flexible(child: Text('成员颜色')),
+                  Flexible(
+                    child: Text(after['color_rgb'] == null ? '颜色未填写' : '成员颜色'),
+                  ),
                 ],
               ),
             if (before != null && before['person_id'] != after['person_id'])

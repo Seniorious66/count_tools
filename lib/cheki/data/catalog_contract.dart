@@ -76,8 +76,7 @@ final class CatalogEntity {
   CatalogEntity.fromRow(Map<String, Object?> row) : _raw = copySqlRow(row) {
     if (row['id'] is! String ||
         (row['id'] as String).trim().isEmpty ||
-        row['name'] is! String ||
-        (row['name'] as String).trim().isEmpty ||
+        (row['name'] != null && row['name'] is! String) ||
         row['active'] is! int ||
         ![0, 1].contains(row['active']) ||
         row['revision'] is! int ||
@@ -93,7 +92,9 @@ final class CatalogEntity {
   }
   final Map<String, Object?> _raw;
   String get id => _raw['id'] as String;
-  String get name => _raw['name'] as String;
+  String? get knownName => _raw['name'] as String?;
+  String get name =>
+      knownName == null || knownName!.trim().isEmpty ? '未填写名称' : knownName!;
   bool get active => _raw['active'] == 1;
   int get revision => _raw['revision'] as int;
   String get createdAt => _raw['created_at'] as String;

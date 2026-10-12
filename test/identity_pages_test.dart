@@ -305,9 +305,12 @@ void main() {
         '保留输入',
       );
       await tester.tap(find.text('保存'));
-      await tester.pump();
-      expect(find.text('请选择团体'), findsOneWidget);
-      expect((await store.list(IdentityKind.member)).length, 1);
+      await settleIo(tester);
+      final saved = (await tester.runAsync(
+        () => store.list(IdentityKind.member),
+      ))!;
+      expect(saved.length, 2);
+      expect(saved.singleWhere((m) => m.name == '保留输入').groupId, isNull);
     },
   );
 

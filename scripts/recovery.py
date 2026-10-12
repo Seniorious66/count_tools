@@ -71,7 +71,7 @@ def unique_pairs(pairs):
 def database_audit(path):
     path = Path(path).resolve(strict=True)
     checks = legacy_check.verify(path)
-    if checks['schema_version'] not in (1, 2, 3, 4):
+    if checks['schema_version'] not in (1, 2, 3, 4, 5):
         raise ValueError('Unsupported database schema; no automatic conversion')
     with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as db:
         db.execute('PRAGMA query_only=ON')

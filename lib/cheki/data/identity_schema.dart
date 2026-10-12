@@ -83,7 +83,7 @@ abstract final class IdentitySchema {
       IdentityKind.person.table,
     )).map((r) => r['id']).toSet();
     void references(Map<String, Object?> row) {
-      if (!groupIds.contains(row['group_id']) ||
+      if ((row['group_id'] != null && !groupIds.contains(row['group_id'])) ||
           (row['person_id'] != null && !personIds.contains(row['person_id']))) {
         throw StateError('Member relationship invalid');
       }
@@ -133,10 +133,14 @@ abstract final class IdentitySchema {
         final previous = last[key];
         final allowed = {
           ...mutableFields(kind),
-          if (kind == IdentityKind.member && before == null) 'group_id',
+          if (kind == IdentityKind.member &&
+              (before == null || fields.containsKey('group_id')))
+            'group_id',
         };
         if (fields['active'] is! int ||
-            (kind == IdentityKind.member && fields['color_rgb'] is! int)) {
+            (kind == IdentityKind.member &&
+                fields['color_rgb'] != null &&
+                fields['color_rgb'] is! int)) {
           throw StateError('Identity request field type invalid');
         }
         if (request['kind'] != kind.name ||
@@ -182,6 +186,12 @@ abstract final class IdentitySchema {
         } else {
           IdentityEntity.fromRow(kind, before);
           final changed = {...mutableFields(kind), 'updated_at', 'revision'};
+          if (kind == IdentityKind.member && fields.containsKey('group_id')) {
+            if (before['group_id'] != null || after['group_id'] == null) {
+              throw StateError('Only unknown group may be completed in place');
+            }
+            changed.add('group_id');
+          }
           final a = copySqlRow(before)
             ..removeWhere((key, _) => changed.contains(key));
           final b = copySqlRow(after)

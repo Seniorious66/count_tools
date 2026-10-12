@@ -1,14 +1,17 @@
 import 'package:sqflite/sqflite.dart';
 import '../../cheki/data/catalog_schema.dart';
 import '../../cheki/data/identity_schema.dart';
+import '../../cheki/data/nullable_schema.dart';
+import '../../cheki/data/record_store.dart';
 
 /// Storage versions are independent of product versions. Never rewrite legacy facts.
 class StorageSchema {
-  static const version = 4;
+  static const version = 5;
   static const migrations = {
     2: 'preserve_legacy_v1',
     3: 'catalog_base_v1',
     4: 'identity_base_v1',
+    5: 'nullable_business_v1',
   };
   static const migrationTable = 'count_tools_migrations';
   static const columns = <String, List<String>>{
@@ -96,6 +99,7 @@ class StorageSchema {
     }
     if (schema >= 3) await CatalogSchema.validate(db);
     if (schema >= 4) await IdentitySchema.validate(db);
+    if (schema >= 5) await RecordSchema.validate(db);
   }
 
   /// Called only by sqflite version callbacks, which already run in one transaction.
@@ -119,6 +123,9 @@ class StorageSchema {
         await CatalogSchema.create(db);
       } else if (step == 4) {
         await IdentitySchema.create(db);
+      } else if (step == 5) {
+        await NullableSchema.migrate(db);
+        await RecordSchema.create(db);
       }
       await db.insert(migrationTable, {
         'version': step,

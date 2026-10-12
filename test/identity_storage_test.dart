@@ -188,10 +188,7 @@ void main() {
         () => store.validateSelection(['missing']),
         throwsA(isA<CatalogException>()),
       );
-      expect(
-        () => store.validateSelection([]),
-        throwsA(isA<CatalogException>()),
-      );
+      expect(await store.validateSelection([]), isEmpty);
       final stopped = await store.editMember(
         original: c,
         name: c.name,
@@ -365,10 +362,8 @@ void main() {
           throwsA(isA<CatalogException>()),
         );
       }
-      expect(
-        () => store.createPerson(name: ' ', operationId: 'blank'),
-        throwsA(isA<CatalogException>()),
-      );
+      final blank = await store.createPerson(name: ' ', operationId: 'blank');
+      expect(blank.knownName, isNull);
       expect(
         () => member('bad-person', personId: 'missing'),
         throwsA(isA<CatalogException>()),
@@ -541,7 +536,7 @@ void main() {
         );
         await member('unlinked');
         expect(transferred.personId, p.id);
-        await StorageSchema.validate(db, 4);
+        await StorageSchema.validate(db, StorageSchema.version);
         await DatabaseHelper().close();
         File(path).copySync(target.path);
         File('${root.path}/preferences.json').writeAsStringSync(

@@ -42,7 +42,7 @@ class CatalogRecoveryTests(unittest.TestCase):
 
     def test_application_catalog_and_full_unknown_fields_roundtrip_cold(self):
         before = recovery.database_audit(self.database)
-        self.assertIn(before['version'], (3, 4))
+        self.assertIn(before['version'], (3, 4, 5))
         self.assertEqual(before['tables']['cheki_groups']['count'], 1)
         self.assertEqual(before['tables']['cheki_sizes']['count'], 3)
         self.assertEqual(before['tables']['cheki_catalog_operations']['count'], 5)
@@ -125,7 +125,7 @@ class CatalogRecoveryTests(unittest.TestCase):
         with closing(sqlite3.connect(self.database)) as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
         with closing(sqlite3.connect(self.database)) as db, db:
-            db.execute('PRAGMA user_version=5')
+            db.execute('PRAGMA user_version=6')
         with self.assertRaises(ValueError): recovery.database_audit(self.database)
         with closing(sqlite3.connect(self.database)) as db, db:
             db.execute(f'PRAGMA user_version={version}')

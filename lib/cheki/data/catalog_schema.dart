@@ -127,7 +127,7 @@ abstract final class CatalogSchema {
         final key = '$kind:$entityId';
         final previous = last[key];
         if (request['kind'] != kind ||
-            request['name'] != entity.name ||
+            request['name'] != entity.knownName ||
             request['active'] != entity.active ||
             entity.id != entityId ||
             !sameSqlRow(after, result) ||

@@ -39,7 +39,7 @@ class IdentityRecoveryTests(unittest.TestCase):
 
     def test_full_identity_fields_settings_attachment_rebackup_and_new_process(self):
         before = recovery.database_audit(self.database)
-        self.assertEqual(before['version'], 4)
+        self.assertIn(before['version'], (4, 5))
         for table, count in [('cheki_persons', 1), ('cheki_members', 3), ('cheki_identity_operations', 6), ('cheki_identity_history', 6)]:
             self.assertEqual(before['tables'][table]['count'], count)
         root = self.root()
@@ -127,10 +127,11 @@ class IdentityRecoveryTests(unittest.TestCase):
 
     def test_missing_identity_table_and_future_version_refused(self):
         with closing(sqlite3.connect(self.database)) as db, db:
-            db.execute('PRAGMA user_version=5')
+            version = db.execute('PRAGMA user_version').fetchone()[0]
+            db.execute('PRAGMA user_version=6')
         with self.assertRaises(ValueError): recovery.database_audit(self.database)
         with closing(sqlite3.connect(self.database)) as db, db:
-            db.execute('PRAGMA user_version=4')
+            db.execute(f'PRAGMA user_version={version}')
             db.execute('DROP TABLE cheki_identity_history')
         with self.assertRaises(ValueError): recovery.database_audit(self.database)
 

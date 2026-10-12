@@ -70,8 +70,7 @@ class CatalogStore {
     required String operationId,
     CatalogEntity? original,
   }) async {
-    final cleaned = name.trim();
-    if (cleaned.isEmpty) throw CatalogException('请输入${kind.label}名称');
+    final cleaned = name.trim().isEmpty ? null : name.trim();
     if (operationId.trim().isEmpty) {
       throw const CatalogException('操作标识缺失，请重新打开表单');
     }
@@ -102,6 +101,17 @@ class CatalogStore {
         "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
         [IdentitySchema.operations],
       );
+      final recordTables = await tx.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cheki_record_operations'",
+      );
+      if (recordTables.isNotEmpty &&
+          (await tx.query(
+            'cheki_record_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('此操作已用于其他修改，请重新核对');
+      }
       if (identityTables.isNotEmpty &&
           (await tx.query(
             IdentitySchema.operations,

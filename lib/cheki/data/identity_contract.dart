@@ -15,21 +15,25 @@ class IdentityEntity {
     CatalogEntity.fromRow(row);
     if (row['source'] != 'user') throw const FormatException('身份来源无效');
     if (kind == IdentityKind.member &&
-        (row['group_id'] is! String ||
-            (row['group_id'] as String).trim().isEmpty ||
+        ((row['group_id'] != null &&
+                (row['group_id'] is! String ||
+                    (row['group_id'] as String).trim().isEmpty)) ||
             (row['person_id'] != null &&
                 (row['person_id'] is! String ||
                     (row['person_id'] as String).trim().isEmpty)) ||
-            row['color_rgb'] is! int ||
-            (row['color_rgb'] as int) < 0 ||
-            (row['color_rgb'] as int) > 0xffffff)) {
+            (row['color_rgb'] != null &&
+                (row['color_rgb'] is! int ||
+                    (row['color_rgb'] as int) < 0 ||
+                    (row['color_rgb'] as int) > 0xffffff)))) {
       throw const FormatException('成员归属或颜色无效');
     }
   }
   final IdentityKind kind;
   final Map<String, Object?> _raw;
   String get id => _raw['id'] as String;
-  String get name => _raw['name'] as String;
+  String? get knownName => _raw['name'] as String?;
+  String get name =>
+      knownName == null || knownName!.trim().isEmpty ? '未填写名称' : knownName!;
   bool get active => _raw['active'] == 1;
   int get revision => _raw['revision'] as int;
   String get createdAt => _raw['created_at'] as String;

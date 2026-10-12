@@ -65,7 +65,7 @@ class IdentityStore {
     required String operationId,
   }) => _write(
     IdentityKind.person,
-    fields: {'name': name.trim(), 'active': 1},
+    fields: {'name': _optionalName(name), 'active': 1},
     operationId: operationId,
   );
 
@@ -76,21 +76,21 @@ class IdentityStore {
     required String operationId,
   }) => _write(
     IdentityKind.person,
-    fields: {'name': name.trim(), 'active': active ? 1 : 0},
+    fields: {'name': _optionalName(name), 'active': active ? 1 : 0},
     original: original,
     operationId: operationId,
   );
 
   Future<IdentityEntity> createMember({
     required String name,
-    required String groupId,
-    required int colorRgb,
+    String? groupId,
+    int? colorRgb,
     String? personId,
     required String operationId,
   }) => _write(
     IdentityKind.member,
     fields: {
-      'name': name.trim(),
+      'name': _optionalName(name),
       'active': 1,
       'group_id': groupId,
       'person_id': personId,
@@ -102,14 +102,16 @@ class IdentityStore {
   Future<IdentityEntity> editMember({
     required IdentityEntity original,
     required String name,
-    required int colorRgb,
+    required int? colorRgb,
+    String? fillGroupId,
     required String? personId,
     required bool active,
     required String operationId,
   }) => _write(
     IdentityKind.member,
     fields: {
-      'name': name.trim(),
+      'name': _optionalName(name),
+      'group_id': ?fillGroupId,
       'active': active ? 1 : 0,
       'person_id': personId,
       'color_rgb': colorRgb,
@@ -133,7 +135,7 @@ class IdentityStore {
     return _write(
       IdentityKind.member,
       fields: {
-        'name': name.trim(),
+        'name': _optionalName(name),
         'active': 1,
         'group_id': groupId,
         'person_id': original.personId,
@@ -160,8 +162,8 @@ class IdentityStore {
     List<String> ids, {
     Set<String> retainedIds = const {},
   }) async {
-    if (ids.isEmpty || ids.toSet().length != ids.length) {
-      throw const CatalogException('请选择成员，且不能重复');
+    if (ids.toSet().length != ids.length) {
+      throw const CatalogException('成员不能重复');
     }
     final persons = <String>{};
     final result = <IdentityEntity>[];
@@ -173,14 +175,17 @@ class IdentityStore {
       );
       if (rows.isEmpty) throw const CatalogException('成员信息已变化，请重新选择');
       final member = IdentityEntity.fromRow(IdentityKind.member, rows.single);
-      final groups = await tx.query(
-        CatalogKind.group.table,
-        where: 'id=?',
-        whereArgs: [member.groupId],
-      );
-      if (groups.isEmpty ||
+      final groups = member.groupId == null
+          ? <Map<String, Object?>>[]
+          : await tx.query(
+              CatalogKind.group.table,
+              where: 'id=?',
+              whereArgs: [member.groupId],
+            );
+      if ((member.groupId != null && groups.isEmpty) ||
           (!retainedIds.contains(id) &&
-              (!member.active || groups.single['active'] != 1))) {
+              (!member.active ||
+                  (groups.isNotEmpty && groups.single['active'] != 1)))) {
         throw const CatalogException('成员或团体已停用，请重新选择');
       }
       if (member.personId != null && !persons.add(member.personId!)) {
@@ -198,9 +203,6 @@ class IdentityStore {
     IdentityEntity? original,
     IdentityEntity? transfer,
   }) async {
-    if ((fields['name'] as String).isEmpty) {
-      throw const CatalogException('请输入名称');
-    }
     if (operationId.trim().isEmpty) {
       throw const CatalogException('操作标识缺失，请重新打开表单');
     }
@@ -208,6 +210,7 @@ class IdentityStore {
       throw const CatalogException('身份类型不匹配');
     }
     if (kind == IdentityKind.member &&
+        fields['color_rgb'] != null &&
         (fields['color_rgb'] is! int ||
             (fields['color_rgb'] as int) < 0 ||
             (fields['color_rgb'] as int) > 0xffffff)) {
@@ -245,6 +248,17 @@ class IdentityStore {
       )).isNotEmpty) {
         throw const CatalogException('此操作已用于其他修改，请重新核对');
       }
+      final recordTables = await tx.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cheki_record_operations'",
+      );
+      if (recordTables.isNotEmpty &&
+          (await tx.query(
+            'cheki_record_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('此操作已用于其他修改，请重新核对');
+      }
       Map<String, Object?>? before;
       if (original != null) {
         final rows = await tx.query(
@@ -258,14 +272,24 @@ class IdentityStore {
         before = rows.single;
       }
       if (kind == IdentityKind.member) {
-        final groupId = before?['group_id'] ?? fields['group_id'];
-        final groups = await tx.query(
-          CatalogKind.group.table,
-          where: 'id=?',
-          whereArgs: [groupId],
-        );
-        if (groups.isEmpty ||
-            (before == null && groups.single['active'] != 1)) {
+        if (before != null &&
+            fields.containsKey('group_id') &&
+            before['group_id'] != null) {
+          throw const CatalogException('已知团体变更请使用转团新增身份');
+        }
+        final groupId = fields['group_id'] ?? before?['group_id'];
+        final groups = groupId == null
+            ? <Map<String, Object?>>[]
+            : await tx.query(
+                CatalogKind.group.table,
+                where: 'id=?',
+                whereArgs: [groupId],
+              );
+        if ((groupId != null && groups.isEmpty) ||
+            (transfer != null && groupId == null) ||
+            (before == null &&
+                groups.isNotEmpty &&
+                groups.single['active'] != 1)) {
           throw const CatalogException('请选择有效团体');
         }
         final personId = fields['person_id'];
@@ -279,6 +303,27 @@ class IdentityStore {
               (persons.single['active'] != 1 &&
                   (before == null || personId != before['person_id']))) {
             throw const CatalogException('请选择有效的同人关联');
+          }
+        }
+        if (before != null &&
+            personId != null &&
+            personId != before['person_id'] &&
+            recordTables.isNotEmpty) {
+          for (final record in await tx.query('cheki_records')) {
+            final info =
+                jsonDecode(record['information_json'] as String) as Map;
+            final ids = (info['member_ids'] as List?) ?? [];
+            if (!ids.contains(before['id'])) continue;
+            for (final id in ids.where((id) => id != before!['id'])) {
+              final peers = await tx.query(
+                kind.table,
+                where: 'id=?',
+                whereArgs: [id],
+              );
+              if (peers.isNotEmpty && peers.single['person_id'] == personId) {
+                throw const CatalogException('已有合影包含此人的另一身份，请先核对记录');
+              }
+            }
           }
         }
         if (transfer != null) {
@@ -368,4 +413,7 @@ class IdentityStore {
       return IdentityEntity.fromRow(kind, row);
     });
   }
+
+  static String? _optionalName(String value) =>
+      value.trim().isEmpty ? null : value.trim();
 }

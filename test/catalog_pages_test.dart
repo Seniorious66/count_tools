@@ -98,41 +98,34 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
-  testWidgets(
-    'blank save and cancelled back preserve input; discard never writes',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: chekiTheme(),
-          home: CatalogManagementPage(store: store),
-        ),
-      );
-      await tester.tap(find.text('团体'));
-      await settleIo(tester);
-      await tester.tap(find.byTooltip('新增团体'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('保存'));
-      await tester.pumpAndSettle();
-      expect(find.text('请输入团体名称'), findsOneWidget);
-      await tester.enterText(find.byType(TextField), '未保存内容');
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(find.text('放弃修改？'), findsOneWidget);
-      await tester.tap(find.text('继续编辑'));
-      await tester.pumpAndSettle();
-      expect(find.widgetWithText(TextField, '未保存内容'), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('放弃'));
-      await tester.pumpAndSettle();
-      expect(find.text('还没有团体'), findsOneWidget);
-      expect(
-        await tester.runAsync(() => store.list(CatalogKind.group)),
-        isEmpty,
-      );
-      await tester.pumpWidget(const SizedBox());
-    },
-  );
+  testWidgets('cancelled back preserves input; discard never writes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: chekiTheme(),
+        home: CatalogManagementPage(store: store),
+      ),
+    );
+    await tester.tap(find.text('团体'));
+    await settleIo(tester);
+    await tester.tap(find.byTooltip('新增团体'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '未保存内容');
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('放弃修改？'), findsOneWidget);
+    await tester.tap(find.text('继续编辑'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, '未保存内容'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('放弃'));
+    await tester.pumpAndSettle();
+    expect(find.text('还没有团体'), findsOneWidget);
+    expect(await tester.runAsync(() => store.list(CatalogKind.group)), isEmpty);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'stale edit retains form and refuses to overwrite newer content',
     (tester) async {

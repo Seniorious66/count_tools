@@ -19,7 +19,7 @@ def action_stamp(value):
 
 
 def entity(row):
-    if not set(ENTITY_FIELDS) <= row.keys() or any(not isinstance(row[k], str) or not row[k].strip() for k in ('id', 'name')):
+    if not set(ENTITY_FIELDS) <= row.keys() or not isinstance(row['id'], str) or not row['id'].strip() or (row['name'] is not None and not isinstance(row['name'], str)):
         raise ValueError('Catalog identity/name invalid')
     if type(row['active']) is not int or row['active'] not in (0, 1) or type(row['revision']) is not int or row['revision'] < 1:
         raise ValueError('Catalog state/revision invalid')

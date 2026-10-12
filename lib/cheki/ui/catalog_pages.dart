@@ -4,6 +4,8 @@ import '../data/catalog_contract.dart';
 import '../data/catalog_store.dart';
 import '../data/identity_contract.dart';
 import '../data/identity_store.dart';
+import '../data/record_store.dart';
+import 'record_pages.dart';
 import 'identity_pages.dart';
 import 'components.dart';
 import 'theme.dart';
@@ -22,6 +24,25 @@ class CatalogManagementPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ChekiCard(
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Cheki记录'),
+                  subtitle: const Text('记录与旧信息补录'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RecordListPage(
+                        store: RecordStore(store.database, clock: store.clock),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
             for (final kind in IdentityKind.values.reversed)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -207,13 +228,15 @@ class CatalogEditPage extends StatefulWidget {
 }
 
 class _CatalogEditPageState extends State<CatalogEditPage> {
-  late final _name = TextEditingController(text: widget.original?.name ?? '');
+  late final _name = TextEditingController(
+    text: widget.original?.knownName ?? '',
+  );
   late bool _active = widget.original?.active ?? true;
   final _operationId = newOperationId();
   String? _error;
   bool _saving = false, _discarded = false;
   bool get _dirty =>
-      _name.text != (widget.original?.name ?? '') ||
+      _name.text != (widget.original?.knownName ?? '') ||
       _active != (widget.original?.active ?? true);
   @override
   void initState() {
@@ -269,10 +292,6 @@ class _CatalogEditPageState extends State<CatalogEditPage> {
 
   Future<void> _save() async {
     if (_saving) return;
-    if (_name.text.trim().isEmpty) {
-      setState(() => _error = '请输入${widget.kind.label}名称');
-      return;
-    }
     setState(() {
       _saving = true;
       _error = null;
