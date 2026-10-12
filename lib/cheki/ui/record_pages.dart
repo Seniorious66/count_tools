@@ -12,6 +12,7 @@ import 'identity_pages.dart' show identityActionLabel;
 import 'member_inputs.dart';
 import 'theme.dart';
 import 'receipt_edit.dart';
+import 'record_names.dart';
 import 'record_browse.dart' show recordAppBar;
 export 'record_browse.dart'
     show RecordListPage, RecordHomePage, RecordDetailPage;
@@ -57,6 +58,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
   );
   late final _note = TextEditingController(text: _initial.note ?? '');
   late List<String> _members = _initial.memberIds?.toList() ?? [];
+  late final _names = RecordNamesController(_initial);
   late String? _size = _initial.sizeId;
   late SignatureKind? _signature = _initial.signature;
   late bool? _back = _initial.backSigned;
@@ -115,6 +117,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
           'back_signed': _back,
         },
       ...receiptChanges,
+      ..._names.patch(_members),
       if (_note.text != (_initial.note ?? ''))
         'note': _note.text.isEmpty ? null : _note.text,
     });
@@ -162,8 +165,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
         _signature != _initial.signature ||
         _back != _initial.backSigned ||
         _receipts.changed;
+    final namesChanged = _names.patch(_members).isNotEmpty;
     final leave =
-        !changed ||
+        !(changed || namesChanged) ||
         await showDialog<bool>(
               context: context,
               builder: (ctx) => AlertDialog(
@@ -296,7 +300,26 @@ class _RecordEditPageState extends State<RecordEditPage> {
                                 )
                                 .toList(),
                             selectedIds: _members,
-                            onChanged: (ids) => setState(() => _members = ids),
+                            onChanged: (ids) => setState(() {
+                              _members = ids;
+                              _names.select(
+                                ids,
+                                directory,
+                                captureNew:
+                                    widget.original == null &&
+                                    !widget.historical,
+                              );
+                            }),
+                          ),
+                          RecordNamesEditor(
+                            controller: _names,
+                            memberIds: _members,
+                            currentLabels: {
+                              for (final m in directory.members)
+                                m.id:
+                                    '${groups[m.groupId]?.name ?? '未填写团体'} · ${m.name}',
+                            },
+                            onChanged: () => setState(() {}),
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
@@ -574,7 +597,7 @@ class _RecordInformationViewState extends State<RecordInformationView> {
                   '尺寸：${info.sizeId == null ? '未填写' : labels.sizes[info.sizeId]?.name ?? '尺寸信息不可用'}',
                 ),
                 Text(
-                  '参与成员：${info.memberIds == null || info.memberIds!.isEmpty ? '未填写' : info.memberIds!.map(labels.memberLabel).join('、')}',
+                  '参与成员：${info.memberIds == null || info.memberIds!.isEmpty ? '未填写' : info.memberIds!.map((id) => labels.recordMemberLabel(info, id)).join('、')}',
                 ),
               ],
             );
@@ -641,7 +664,15 @@ class _RecordChangeViewState extends State<RecordChangeView> {
         'member_ids' =>
           (info.memberIds ?? []).isEmpty
               ? '未填写'
-              : info.memberIds!.map(m.memberLabel).join('、'),
+              : info.memberIds!
+                    .map((id) => m.recordMemberLabel(info, id))
+                    .join('、'),
+        'member_snapshots' =>
+          (info.memberIds ?? []).isEmpty
+              ? '未填写'
+              : info.memberIds!
+                    .map((id) => m.recordMemberLabel(info, id))
+                    .join('、'),
         'attributes' =>
           info.signature == SignatureKind.signed
               ? '有签 · 背签${info.backSigned == null
@@ -674,6 +705,7 @@ class _RecordChangeViewState extends State<RecordChangeView> {
         'quantity': '张数',
         'size_id': '尺寸',
         'member_ids': '参与成员',
+        'member_snapshots': '记录名称',
         'attributes': '属性',
         'receipt_batches': '领取批次',
         'receipt_status_hint': '领取状态',

@@ -20,6 +20,14 @@ def information(raw):
     ids=data.get('member_ids')
     if ids is not None and (not isinstance(ids,list) or any(not isinstance(i,str) or not i.strip() for i in ids) or len(set(ids))!=len(ids)):raise ValueError('Record members invalid')
     attributes=data.get('attributes')
+    snapshots=data.get('member_snapshots')
+    if snapshots is not None:
+        if not isinstance(snapshots,list):raise ValueError('Record snapshots invalid')
+        seen=set()
+        for s in snapshots:
+            if not isinstance(s,dict) or not isinstance(s.get('member_id'),str) or s['member_id'] not in (ids or []) or s['member_id'] in seen or any(s.get(k) is not None and not isinstance(s[k],str) for k in ('member_name','group_name','group_id')) or (isinstance(s.get('group_id'),str) and not s['group_id'].strip()) or (s.get('origin') is not None and s['origin'] not in ('entry','manual')):raise ValueError('Record snapshot binding or value invalid')
+            if any(s.get(k) is not None and s[k] not in ('entry','manual') for k in ('member_name_origin','group_name_origin')):raise ValueError('Record snapshot source invalid')
+            seen.add(s['member_id'])
     if attributes is not None:
         if not isinstance(attributes,dict) or (attributes.get('kind') is not None and attributes['kind'] not in ('unsigned','signed','homework')) or (attributes.get('back_signed') is not None and type(attributes['back_signed']) is not bool) or (attributes.get('back_signed') is True and attributes.get('kind')!='signed'):raise ValueError('Record attributes invalid')
     hint=data.get('receipt_status_hint')
@@ -61,9 +69,11 @@ def verify_records(db):
         if set(op_map)&{r[0] for r in db.execute(f'SELECT id FROM {table}')}:raise ValueError('Record operation ID reused')
     member_rows=table_rows(db,'cheki_members',('id','person_id'))
     members={r['id']:r for r in member_rows};sizes={r[0] for r in db.execute('SELECT id FROM cheki_sizes')}
+    groups={r[0] for r in db.execute('SELECT id FROM cheki_groups')}
     def refs(info,current=False):
         ids=info.get('member_ids') or []
         if not set(ids)<=members.keys() or (info.get('size_id') is not None and info['size_id'] not in sizes):raise ValueError('Record dangling reference')
+        if any(s.get('group_id') is not None and s['group_id'] not in groups for s in info.get('member_snapshots') or []):raise ValueError('Record snapshot group reference missing')
         if current:
             linked=[members[i]['person_id'] for i in ids if members[i]['person_id'] is not None]
             if len(linked)!=len(set(linked)):raise ValueError('Record same Person duplicate')

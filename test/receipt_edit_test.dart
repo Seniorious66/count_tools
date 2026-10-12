@@ -356,14 +356,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Finder lastQuantity() => find
-      .byWidgetPredicate(
-        (w) =>
-            w is TextField &&
-            (w.key is ValueKey<String>) &&
-            (w.key as ValueKey<String>).value.startsWith('receipt-quantity-'),
-      )
-      .last;
+  Finder lastQuantity() => find.byWidgetPredicate(
+    (w) =>
+        w is TextField &&
+        (w.key is ValueKey<String>) &&
+        (w.key as ValueKey<String>).value.startsWith('receipt-quantity-'),
+  );
   testWidgets(
     'real multi-batch edit review/back/save and deletion preserve other batches raw original IDs and audit',
     (tester) async {

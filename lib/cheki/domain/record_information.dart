@@ -31,6 +31,31 @@ final class RecordInformation {
       throw const FormatException('成员标识无效或重复');
     }
     final a = _raw['attributes'];
+    final snapshots = _raw['member_snapshots'];
+    if (snapshots != null) {
+      if (snapshots is! List) throw const FormatException('名称快照格式无效');
+      final seen = <String>{};
+      for (final s in snapshots) {
+        if (s is! Map ||
+            s['member_id'] is! String ||
+            !(memberIds ?? []).contains(s['member_id']) ||
+            !seen.add(s['member_id'] as String) ||
+            [
+              'member_name',
+              'group_name',
+              'group_id',
+            ].any((k) => s[k] != null && s[k] is! String) ||
+            (s['group_id'] is String &&
+                (s['group_id'] as String).trim().isEmpty) ||
+            [
+              'origin',
+              'member_name_origin',
+              'group_name_origin',
+            ].any((k) => s[k] != null && !['entry', 'manual'].contains(s[k]))) {
+          throw const FormatException('名称快照与参与成员不匹配或字段无效');
+        }
+      }
+    }
     if (a != null) {
       if (a is! Map ||
           (a['kind'] != null &&
@@ -139,6 +164,15 @@ final class RecordInformation {
       ? null
       : List<String>.unmodifiable((_raw['member_ids'] as List).cast<String>());
   String? get note => _raw['note'] as String?;
+  Map<String, Object?>? memberSnapshot(String id) {
+    for (final s in _raw['member_snapshots'] as List? ?? []) {
+      if ((s as Map)['member_id'] == id) {
+        return _clone(Map<String, Object?>.from(s));
+      }
+    }
+    return null;
+  }
+
   SignatureKind? get signature =>
       _raw['attributes'] is! Map || (_raw['attributes'] as Map)['kind'] == null
       ? null

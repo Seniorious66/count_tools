@@ -132,6 +132,23 @@ final class RecordReadModel {
         : '${groups[m.groupId]?.name ?? '未填写团体'} · ${m.name}';
   }
 
+  String recordMemberLabel(RecordInformation info, String id) {
+    final s = info.memberSnapshot(id);
+    if (s == null) return '${memberLabel(id)}（当前名称，当时名称未填写）';
+    final group = s['group_name'] as String?;
+    final member = s['member_name'] as String?;
+    String source(Object? origin) => origin == 'entry'
+        ? '录入时'
+        : origin == 'manual'
+        ? '当时'
+        : '记录中';
+    final gs = source(s['group_name_origin'] ?? s['origin']),
+        ms = source(s['member_name_origin'] ?? s['origin']);
+    final g = group == null || group.trim().isEmpty ? '团体名称未填写' : group;
+    final m = member == null || member.trim().isEmpty ? '成员名称未填写' : member;
+    return gs == ms ? '$g · $m（$gs）' : '$g（$gs） · $m（$ms）';
+  }
+
   List<StoredRecord> select(RecordFilter filter) => records
       .where((r) => filter.matches(r.information))
       .toList(growable: false);

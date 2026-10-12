@@ -247,6 +247,17 @@ class RecordStore {
         throw const CatalogException('尺寸已变化，请重新选择');
       }
     }
+    for (final s in info.toMap()['member_snapshots'] as List? ?? []) {
+      final groupId = (s as Map)['group_id'];
+      if (groupId != null &&
+          (await tx.query(
+            CatalogKind.group.table,
+            where: 'id=?',
+            whereArgs: [groupId],
+          )).isEmpty) {
+        throw const CatalogException('记录名称引用的团体不存在');
+      }
+    }
     if (info.toMap()['cost_reference'] != null) {
       throw const CatalogException('M1尚未接入券成本，请保留原档案并仅记录');
     }

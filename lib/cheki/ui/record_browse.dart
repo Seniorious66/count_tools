@@ -419,7 +419,7 @@ class _RecordTile extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(model.memberLabel(id))),
+                        Expanded(child: Text(model.recordMemberLabel(i, id))),
                       ],
                     ),
                 Text(
