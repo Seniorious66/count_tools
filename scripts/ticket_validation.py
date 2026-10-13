@@ -60,6 +60,8 @@ def verify_tickets(db):
             d=info(defs[v['definition_id']]['information_json'])
             if d.get('group_id') is None or d.get('scope') is None or (d['scope']=='personal' and d.get('member_id') is None):raise ValueError('Posted ticket definition incomplete')
     balance={};incoming={}
+    inherited={r['ticket_id']: None if r['unit_cost'] is None else Fraction(r['unit_cost']) for r in table_rows(db,'cheki_transfer_lots',('ticket_id','unit_cost'))} if db.execute('PRAGMA user_version').fetchone()[0]>=8 else {}
+    units={r['id']:inherited.get(r['id'],cost(parsed[r['id']][0])) for r in rows}
     for r in sorted((r for r in rows if r['posted']),key=lambda r:(parsed[r['id']][0]['occurred_on'],r['seq'])):
         v,a=parsed[r['id']];q=v['quantity']
         if q>0:balance[r['id']]=q;incoming[r['id']]=v
@@ -67,7 +69,7 @@ def verify_tickets(db):
             total=0
             for x in a:
                 n=x.get('quantity');s=incoming.get(x.get('source_id'))
-                if type(n) is not int or n<=0 or s is None or any(s.get(k)!=v.get(k) for k in ('definition_id','pool','expires_on')) or balance[x['source_id']]<n or x.get('cost')!=(None if cost(s) is None else str(cost(s)*n)):raise ValueError('Ticket inventory/cost allocation inconsistent')
+                if type(n) is not int or n<=0 or s is None or any(s.get(k)!=v.get(k) for k in ('definition_id','pool','expires_on')) or balance[x['source_id']]<n or x.get('cost')!=(None if units[x['source_id']] is None else str(units[x['source_id']]*n)):raise ValueError('Ticket inventory/cost allocation inconsistent')
                 balance[x['source_id']]-=n;total+=n
             if total!=-q:raise ValueError('Ticket outgoing quantity inconsistent')
     operation={r['id']:r for r in ops};seen=set();latest={}

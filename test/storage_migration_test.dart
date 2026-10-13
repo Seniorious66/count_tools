@@ -103,9 +103,12 @@ void main() {
       'unknownPreference': ['keep'],
     });
     await tester.pumpWidget(const App());
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 100)),
-    );
+    for (var i = 0; i < 30; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 15)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
     await tester.pumpAndSettle();
     final prefs = await tester.runAsync(() => SharedPreferences.getInstance());
     expect(prefs!.getInt('projectInfoRowNum'), 3);
@@ -365,9 +368,12 @@ void main() {
       ))!.single;
       Future<void> show(Widget page) async {
         await tester.pumpWidget(MaterialApp(home: page));
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 80)),
-        );
+        for (var i = 0; i < 30; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 15)),
+          );
+          await tester.pump(const Duration(milliseconds: 20));
+        }
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       }
@@ -377,9 +383,12 @@ void main() {
       await tester.tap(find.byTooltip('打开管理'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('旧版项目'));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 80)),
-      );
+      for (var i = 0; i < 30; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 15)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
       await tester.pumpAndSettle();
       expect(find.text('合成项目'), findsOneWidget);
       await show(ProjectInfoPage(parentData: project));
@@ -394,9 +403,12 @@ void main() {
       await tester.tap(find.byTooltip('打开管理'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('旧版项目'));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 80)),
-      );
+      for (var i = 0; i < 30; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 15)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
       await tester.pumpAndSettle();
       expect(find.text('合成项目'), findsOneWidget);
     },
@@ -413,9 +425,12 @@ void main() {
         'unknownPreference': ['keep'],
       });
       await tester.pumpWidget(const App());
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 80)),
-      );
+      for (var i = 0; i < 30; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 15)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
       await tester.pumpAndSettle();
       expect(find.textContaining('数据校验未通过'), findsOneWidget);
       expect(tester.takeException(), isNull);

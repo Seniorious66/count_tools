@@ -410,4 +410,4 @@ void main() {
 
 // Keep the database future inside the real-IO zone in widget tests.
 Future<void> validateRecords(RecordStore s) async =>
-    StorageSchema.validate(await s.database(), 7);
+    StorageSchema.validate(await s.database(), StorageSchema.version);

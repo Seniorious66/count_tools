@@ -4,6 +4,16 @@ import 'record_contract.dart';
 /// Exact source amounts. No rounding policy or zero for an unknown amount.
 class TicketMoney {
   TicketMoney(this.numerator, this.denominator);
+  factory TicketMoney.fromExact(String value) {
+    if (!RegExp(r'^\d+(?:/[1-9]\d*)?$').hasMatch(value) || value.length > 200) {
+      throw const FormatException('成本比例无效');
+    }
+    final parts = value.split('/');
+    return TicketMoney(
+      BigInt.parse(parts[0]),
+      parts.length == 1 ? BigInt.one : BigInt.parse(parts[1]),
+    );
+  }
   factory TicketMoney.parse(String text) {
     if (!RegExp(r'^\d+(?:\.\d+)?$').hasMatch(text) || text.length > 80) {
       throw const FormatException('金额请填写非负十进制数');

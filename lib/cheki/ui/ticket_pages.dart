@@ -8,6 +8,8 @@ import '../domain/record_contract.dart';
 import 'components.dart';
 import 'theme.dart';
 import 'record_browse.dart' show recordAppBar;
+import '../data/transfer_store.dart';
+import 'transfer_pages.dart';
 
 class TicketOverview extends StatelessWidget {
   const TicketOverview({required this.child, this.store, super.key});
@@ -361,9 +363,9 @@ String entrySummary(TicketObject e) {
   return '${i.day ?? '日期未填写'} · ${i.quantity == null ? '张数未填写' : '${i.quantity} 张'}'
       '${i.expiry == null ? '' : ' · ${i.expiry} 截止'} · ${i.costConflict
           ? '金额待核对'
-          : i.unitCost == null
+          : e.unitCost == null
           ? '成本未知'
-          : '每张成本 ¥${i.unitCost!.exact}'}'
+          : '每张成本 ¥${e.unitCost!.exact}'}'
       '${e.posted ? '' : ' · 未入账'}';
 }
 
@@ -417,11 +419,32 @@ class _TicketDetailPageState extends State<TicketDetailPage>
                   onPressed: () => edit('adjustment', definitionId: d.id),
                   child: const Text('调整库存'),
                 ),
+                for (final kind in ['exchange', 'gift'])
+                  TextButton(
+                    onPressed: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TransferEditPage(
+                          store: TransferStore(
+                            store.database,
+                            clock: store.clock,
+                          ),
+                          kind: kind,
+                          sourceDefinition: d.id,
+                        ),
+                      ),
+                    ),
+                    child: Text(kind == 'exchange' ? '换券' : '送券'),
+                  ),
               ],
             ),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Text('购入与库存流水'),
+            ),
+            TransferListPart(
+              store: TransferStore(store.database, clock: store.clock),
+              definitionId: d.id,
             ),
             for (final e
                 in m.objects
@@ -450,8 +473,43 @@ class _TicketDetailPageState extends State<TicketDetailPage>
                     Wrap(
                       children: [
                         TextButton(
-                          onPressed: () => edit(e.kind, original: e),
+                          onPressed: () async {
+                            final transfers = TransferStore(
+                              store.database,
+                              clock: store.clock,
+                            );
+                            final transfer = await transfers.forTicket(e.id);
+                            if (!context.mounted) return;
+                            if (transfer != null) {
+                              await Navigator.push<void>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TransferDetailPage(
+                                    store: transfers,
+                                    id: transfer.id,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              await edit(e.kind, original: e);
+                            }
+                          },
                           child: const Text('修改 / 撤销入账'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.push<void>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TicketDependenciesPage(
+                                store: TransferStore(
+                                  store.database,
+                                  clock: store.clock,
+                                ),
+                                sourceIds: [e.id],
+                              ),
+                            ),
+                          ),
+                          child: const Text('关联依赖'),
                         ),
                         TextButton(
                           onPressed: () => showTicketHistory(context, store, e),

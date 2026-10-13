@@ -113,6 +113,8 @@ void main() {
         -160,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.ensureVisible(find.text('旧版项目'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('旧版项目'));
       await settleIo(tester);
       expect(find.text('合成项目'), findsOneWidget);

@@ -12,10 +12,12 @@ class DatabaseHelper {
   static Database? _database;
   static Future<Database>? _opening;
   static Future<String> Function()? pathResolver;
+  static bool maintenance = false;
 
   DatabaseHelper._internal();
 
   Future<Database> get database async {
+    if (maintenance) throw StateError('账本正在备份或恢复，请稍后重试');
     if (_database != null) return _database!;
     return _opening ??= _initDB()
         .then((db) => _database = db)

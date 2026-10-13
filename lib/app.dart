@@ -6,6 +6,7 @@ import 'package:count_tools/utils/setting_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'cheki/data/backup_store.dart';
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -22,10 +23,26 @@ class AppState extends State<App> {
     super.initState();
     registerSourceLicense();
     _ready = _initApp();
+    backupEpoch.addListener(_restored);
+  }
+
+  void _restored() {
+    if (mounted) {
+      setState(() {
+        _ready = _initApp();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    backupEpoch.removeListener(_restored);
+    super.dispose();
   }
 
   Future<void> _initApp() async {
     // Validate/migrate before any screen or preference initialization can write.
+    await (await BackupStore.app()).recoverPending();
     await DatabaseHelper().database;
     if (!await SettingUtils.isNotFirstEnter()) {
       final prefs = await SharedPreferences.getInstance();
@@ -47,6 +64,7 @@ class AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    key: ValueKey(backupEpoch.value),
     title: 'Cheki账本',
     locale: const Locale('zh', 'CN'),
     supportedLocales: const [Locale('zh', 'CN')],

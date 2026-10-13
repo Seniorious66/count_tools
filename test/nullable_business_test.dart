@@ -206,7 +206,8 @@ void main() {
               (r) =>
                   !(r as Map)['name'].toString().contains('cheki_record') &&
                   !r['name'].toString().contains('cheki_ticket') &&
-                  !r['name'].toString().contains('cheki_entry'),
+                  !r['name'].toString().contains('cheki_entry') &&
+                  !r['name'].toString().contains('cheki_transfer'),
             )
             .toList(),
         untouched,

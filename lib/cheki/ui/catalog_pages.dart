@@ -8,6 +8,7 @@ import '../data/identity_store.dart';
 import '../data/record_store.dart';
 import '../data/ticket_store.dart';
 import 'ticket_pages.dart';
+import 'backup_page.dart';
 import 'record_pages.dart';
 import 'identity_pages.dart';
 import 'components.dart';
@@ -128,6 +129,18 @@ class CatalogManagementPage extends StatelessWidget {
                   ),
                 ),
               ),
+            ChekiCard(
+              child: ListTile(
+                title: const Text('备份与恢复'),
+                subtitle: const Text('完整账本、设置和附件'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const BackupPage()),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),

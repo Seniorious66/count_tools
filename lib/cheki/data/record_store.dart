@@ -335,6 +335,16 @@ class RecordStore {
         throw const CatalogException('操作已用于其他修改');
       }
       if ((await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_transfer_operations'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_transfer_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('操作标识已用于交换赠送');
+      }
+      if ((await tx.rawQuery(
             "SELECT name FROM sqlite_master WHERE name='cheki_entry_operations'",
           )).isNotEmpty &&
           (await tx.query(

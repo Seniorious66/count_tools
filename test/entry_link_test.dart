@@ -137,7 +137,7 @@ void main() {
     await temp.delete(recursive: true);
   });
   Future<void> valid() async =>
-      StorageSchema.validate(await records.database(), 7);
+      StorageSchema.validate(await records.database(), StorageSchema.version);
   test(
     'one Cheki multiple coupons and member participation only actual record quantity',
     () async {

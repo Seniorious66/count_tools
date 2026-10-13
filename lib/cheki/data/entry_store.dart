@@ -422,8 +422,7 @@ class EntryStore {
         }
         return frozen;
       }
-      final objects = (await tx.query(TicketSchema.objects, orderBy: 'seq'))
-          .map(TicketObject.fromRow)
+      final objects = (await loadTicketObjects(tx))
           .map(
             (e) => previous?.children.contains(e.id) == true
                 ? TicketObject.fromRow({
@@ -471,7 +470,7 @@ class EntryStore {
               out.add({
                 'definition_id': line['definition_id'],
                 'quantity': n,
-                'cost': source.information.unitCost?.times(n).exact,
+                'cost': source.unitCost?.times(n).exact,
                 'preserved': false,
               });
             }
@@ -512,6 +511,16 @@ class EntryStore {
         }
         final old = jsonDecode(previous.single['result_json'] as String) as Map;
         return StoredRecord.fromRow(decodeSqlRow(old['record_json'] as String));
+      }
+      if ((await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_transfer_operations'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_transfer_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('操作标识已用于交换赠送');
       }
       for (final table in [
         'cheki_catalog_operations',

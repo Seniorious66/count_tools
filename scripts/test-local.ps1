@@ -53,9 +53,14 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Current linked entries complete recovery checks failed' }
     }
     if ($BuildDebug) {
+        # Debug builds are optional and never installed by this runner.
         & flutter build apk --debug
         if ($LASTEXITCODE -ne 0) { throw 'Android debug compilation failed' }
         Write-Output 'Debug APK only; no release signing or installation.'
+    }
+    if ($env:COUNT_TOOLS_TRANSFER_ACCEPTANCE) {
+        & $Python (Join-Path $repoRoot 'scripts/test-transfer-recovery.py') --source $env:COUNT_TOOLS_TRANSFER_ACCEPTANCE
+        if ($LASTEXITCODE -ne 0) { throw 'Current transfer complete recovery checks failed' }
     }
     Write-Output 'Requested local checks passed; no device acceptance.'
 } finally { Pop-Location }

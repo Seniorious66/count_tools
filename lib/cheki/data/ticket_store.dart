@@ -7,7 +7,11 @@ import 'catalog_contract.dart';
 import 'catalog_store.dart';
 
 class TicketObject {
-  TicketObject.fromRow(Map<String, Object?> row) : raw = copySqlRow(row) {
+  TicketObject.fromRow(
+    Map<String, Object?> row, {
+    this.inheritedBasis = false,
+    this.inheritedUnitCost,
+  }) : raw = copySqlRow(row) {
     if (row['id'] is! String ||
         (row['id'] as String).isEmpty ||
         row['seq'] is! int ||
@@ -31,6 +35,10 @@ class TicketObject {
     allocations;
   }
   final Map<String, Object?> raw;
+  final bool inheritedBasis;
+  final TicketMoney? inheritedUnitCost;
+  TicketMoney? get unitCost =>
+      inheritedBasis ? inheritedUnitCost : information.unitCost;
   String get id => raw['id'] as String;
   int get seq => raw['seq'] as int;
   int get revision => raw['revision'] as int;
@@ -149,7 +157,7 @@ Map<String, int> remainingLots(List<TicketObject> objects, String day) {
             source.information.text('pool') != e.information.text('pool') ||
             source.information.expiry != e.information.expiry ||
             (result[id] ?? 0) < n ||
-            a['cost'] != source.information.unitCost?.times(n).exact) {
+            a['cost'] != source.unitCost?.times(n).exact) {
           throw const FormatException('库存或成本分配不一致');
         }
         result[id] = result[id]! - n;
@@ -253,9 +261,7 @@ abstract final class TicketSchema {
         throw StateError('券关联无效');
       }
     }
-    final entities = (await db.query(
-      objects,
-    )).map(TicketObject.fromRow).toList();
+    final entities = await loadTicketObjects(db);
     for (final e in entities) {
       await references(db, e);
     }
@@ -322,11 +328,13 @@ class TicketStore {
     DateTime Function()? clock,
     this.afterWrite,
     this.managedEntry = false,
+    this.managedTransfer = false,
   }) : clock = clock ?? DateTime.now;
   final Future<Database> Function() database;
   final DateTime Function() clock;
   final Future<void> Function()? afterWrite;
   final bool managedEntry;
+  final bool managedTransfer;
   static final _changes = StreamController<void>.broadcast(sync: true);
   static Stream<void> get changes => _changes.stream;
   static void invalidateReads() => _changes.add(null);
@@ -338,10 +346,7 @@ class TicketStore {
           r['id'] as String: (r['name'] as String?) ?? '名称未填写',
       };
       return TicketModel(
-        (await tx.query(
-          TicketSchema.objects,
-          orderBy: 'seq',
-        )).map(TicketObject.fromRow).toList(),
+        await loadTicketObjects(tx),
         await names('cheki_groups'),
         await names('cheki_members'),
         await names('cheki_sizes'),
@@ -423,10 +428,29 @@ class TicketStore {
           throw const FormatException('操作标识已占用');
         }
       }
-      final all = (await tx.query(
-        TicketSchema.objects,
-        orderBy: 'seq',
-      )).map(TicketObject.fromRow).toList();
+      final all = await loadTicketObjects(tx);
+      if (!managedTransfer &&
+          original != null &&
+          (await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_transfer_bindings'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_transfer_bindings',
+            where: 'ticket_id=?',
+            whereArgs: [original.id],
+          )).isNotEmpty) {
+        throw const CatalogException('此流水属于交换或赠送，请从整笔操作修改');
+      }
+      if ((await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_transfer_operations'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_transfer_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('操作标识已用于交换赠送');
+      }
       if (!managedEntry &&
           original != null &&
           (await tx.rawQuery(
@@ -549,7 +573,7 @@ class TicketStore {
             allocations.add({
               'source_id': s.id,
               'quantity': n,
-              'cost': s.information.unitCost?.times(n).exact,
+              'cost': s.unitCost?.times(n).exact,
             });
           }
           left -= n;
@@ -594,7 +618,29 @@ class TicketStore {
       changed = true;
       return entity;
     });
-    if (changed && !managedEntry) invalidateReads();
+    if (changed && !managedEntry && !managedTransfer) invalidateReads();
     return saved;
   }
+}
+
+/// Cost basis lives in its own schema8 table; old/unknown JSON keys are never reinterpreted.
+Future<List<TicketObject>> loadTicketObjects(DatabaseExecutor db) async {
+  final bases = <Object?, Map<String, Object?>>{};
+  if ((await db.rawQuery(
+    "SELECT name FROM sqlite_master WHERE name='cheki_transfer_lots'",
+  )).isNotEmpty) {
+    for (final r in await db.query('cheki_transfer_lots')) {
+      bases[r['ticket_id']] = r;
+    }
+  }
+  return (await db.query(TicketSchema.objects, orderBy: 'seq')).map((r) {
+    final b = bases[r['id']];
+    return TicketObject.fromRow(
+      r,
+      inheritedBasis: b != null,
+      inheritedUnitCost: b?['unit_cost'] == null
+          ? null
+          : TicketMoney.fromExact(b!['unit_cost'] as String),
+    );
+  }).toList();
 }
