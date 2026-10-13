@@ -9,6 +9,7 @@ import 'identity_schema.dart';
 import 'identity_store.dart';
 import 'identity_contract.dart';
 import 'record_query.dart';
+import 'entry_store.dart';
 
 class StoredRecord {
   StoredRecord.fromRow(Map<String, Object?> row) : _raw = copySqlRow(row) {
@@ -181,11 +182,16 @@ abstract final class RecordSchema {
 }
 
 class RecordStore {
-  RecordStore(this.database, {DateTime Function()? clock, this.afterWrite})
-    : clock = clock ?? DateTime.now;
+  RecordStore(
+    this.database, {
+    DateTime Function()? clock,
+    this.afterWrite,
+    this.managedEntry = false,
+  }) : clock = clock ?? DateTime.now;
   final Future<Database> Function() database;
   final DateTime Function() clock;
   final Future<void> Function()? afterWrite;
+  final bool managedEntry;
   static final _changes = StreamController<void>.broadcast();
   static Stream<void> get changes => _changes.stream;
 
@@ -271,6 +277,22 @@ class RecordStore {
     if (operationId.trim().isEmpty) {
       throw const CatalogException('操作标识缺失');
     }
+    if (!managedEntry && original != null) {
+      final entries = EntryStore(
+        database,
+        clock: clock,
+        afterRecord: afterWrite,
+      );
+      final state = await entries.state(original.id);
+      if (state != null) {
+        return entries.save(
+          info,
+          plan: state.plan,
+          original: original,
+          operationId: operationId,
+        );
+      }
+    }
     final request = jsonEncode({
       'id': original?.id,
       'revision': original?.revision,
@@ -311,6 +333,16 @@ class RecordStore {
             whereArgs: [operationId],
           )).isNotEmpty) {
         throw const CatalogException('操作已用于其他修改');
+      }
+      if ((await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_entry_operations'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_entry_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('此操作标识已用于关联记录');
       }
       Map<String, Object?>? before;
       if (original != null) {
@@ -385,7 +417,7 @@ class RecordStore {
       if (afterWrite != null) await afterWrite!();
       return StoredRecord.fromRow(row);
     });
-    invalidateReads();
+    if (!managedEntry) invalidateReads();
     return saved;
   }
 }

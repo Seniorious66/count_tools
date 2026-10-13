@@ -317,11 +317,16 @@ abstract final class TicketSchema {
 }
 
 class TicketStore {
-  TicketStore(this.database, {DateTime Function()? clock, this.afterWrite})
-    : clock = clock ?? DateTime.now;
+  TicketStore(
+    this.database, {
+    DateTime Function()? clock,
+    this.afterWrite,
+    this.managedEntry = false,
+  }) : clock = clock ?? DateTime.now;
   final Future<Database> Function() database;
   final DateTime Function() clock;
   final Future<void> Function()? afterWrite;
+  final bool managedEntry;
   static final _changes = StreamController<void>.broadcast(sync: true);
   static Stream<void> get changes => _changes.stream;
   static void invalidateReads() => _changes.add(null);
@@ -422,6 +427,28 @@ class TicketStore {
         TicketSchema.objects,
         orderBy: 'seq',
       )).map(TicketObject.fromRow).toList();
+      if (!managedEntry &&
+          original != null &&
+          (await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_entry_ticket_bindings'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_entry_ticket_bindings',
+            where: 'ticket_id=?',
+            whereArgs: [original.id],
+          )).isNotEmpty) {
+        throw const CatalogException('此消费关联Cheki，请从记录修改并核对，不能单边改变库存');
+      }
+      if ((await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_entry_operations'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_entry_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('此操作标识已用于关联记录');
+      }
       Map<String, Object?>? before;
       if (original != null) {
         final matches = all.where((e) => e.id == original.id).toList();
@@ -567,7 +594,7 @@ class TicketStore {
       changed = true;
       return entity;
     });
-    if (changed) invalidateReads();
+    if (changed && !managedEntry) invalidateReads();
     return saved;
   }
 }

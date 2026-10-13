@@ -562,7 +562,10 @@ void main() {
       expect(find.text('打开购券'), findsOneWidget);
       await t.runAsync(() async {
         expect((await store.readModel()).available, 2);
-        await StorageSchema.validate(await store.database(), 6);
+        await StorageSchema.validate(
+          await store.database(),
+          StorageSchema.version,
+        );
       });
       t.view.resetPhysicalSize();
       t.view.resetDevicePixelRatio();
@@ -760,7 +763,10 @@ void main() {
         ).create(CatalogKind.group, name: '不能重复', operationId: 'definition'),
         throwsA(isA<CatalogException>()),
       );
-      await StorageSchema.validate(await store.database(), 6);
+      await StorageSchema.validate(
+        await store.database(),
+        StorageSchema.version,
+      );
     },
   );
   test('current schema6 full synthetic export for complete recovery', () async {

@@ -391,6 +391,14 @@ void main() {
       await tester.tap(find.byKey(ValueKey('member-option-$id')));
       await tester.tap(find.text('确定'));
       await tester.pumpAndSettle();
+      // This name-snapshot test intentionally records without coupon inventory.
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('use-record-only')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.byKey(const ValueKey('use-record-only')));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('核对'));
       await settleIo(tester);
       expect(find.textContaining('旧团 · 旧名（录入时）'), findsOneWidget);

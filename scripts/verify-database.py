@@ -4,6 +4,7 @@ import json
 import sqlite3
 from record_validation import verify_records
 from ticket_validation import verify_tickets
+from entry_validation import verify_entries
 from catalog_validation import verify_catalog
 from identity_validation import verify_identity
 from contextlib import closing
@@ -21,7 +22,7 @@ def verify(path):
         if not required <= tables:
             raise ValueError('Required tables missing')
         schema = db.execute('PRAGMA user_version').fetchone()[0]
-        if schema not in (1, 2, 3, 4, 5, 6):
+        if schema not in (1, 2, 3, 4, 5, 6, 7):
             raise ValueError('Unsupported storage version')
         columns = {
             'users': ('id', 'username', 'user_key', 'ext'),
@@ -44,7 +45,7 @@ def verify(path):
                     if not isinstance(count, str) or not re.fullmatch(r'\d+', count):
                         raise ValueError('Invalid legacy count')
         if schema >= 2:
-            expected = [(2, 'preserve_legacy_v1')] + ([(3, 'catalog_base_v1')] if schema >= 3 else []) + ([(4, 'identity_base_v1')] if schema >= 4 else []) + ([(5, 'nullable_business_v1')] if schema >= 5 else []) + ([(6, 'ticket_inventory_v1')] if schema >= 6 else [])
+            expected = [(2, 'preserve_legacy_v1')] + ([(3, 'catalog_base_v1')] if schema >= 3 else []) + ([(4, 'identity_base_v1')] if schema >= 4 else []) + ([(5, 'nullable_business_v1')] if schema >= 5 else []) + ([(6, 'ticket_inventory_v1')] if schema >= 6 else []) + ([(7, 'cheki_coupon_link_v1')] if schema >= 7 else [])
             if 'count_tools_migrations' not in tables or db.execute(
                 'SELECT version,migration FROM count_tools_migrations ORDER BY version').fetchall() != expected:
                 raise ValueError('Storage migration ledger is invalid')
@@ -57,6 +58,8 @@ def verify(path):
             counts.update(verify_records(db))
         if schema >= 6:
             counts.update(verify_tickets(db))
+        if schema >= 7:
+            counts.update(verify_entries(db))
         queries = {
             'orphan_subprojects': 'SELECT COUNT(*) FROM sub_project_data s LEFT JOIN project_data p ON s.parentId=p.id WHERE p.id IS NULL',
             'orphan_items': 'SELECT COUNT(*) FROM item_data i LEFT JOIN sub_project_data s ON i.parentId=s.id LEFT JOIN project_data p ON i.projectId=p.id WHERE s.id IS NULL OR p.id IS NULL OR CAST(i.projectId AS TEXT) != CAST(s.parentId AS TEXT)',

@@ -5,6 +5,9 @@ import '../data/catalog_store.dart';
 import '../data/identity_store.dart';
 import '../data/record_store.dart';
 import '../data/record_query.dart';
+import '../data/entry_store.dart';
+import '../domain/coupon_plan.dart';
+import 'coupon_entry.dart';
 import '../domain/record_contract.dart';
 import '../domain/record_information.dart';
 import 'components.dart';
@@ -66,6 +69,13 @@ class _RecordEditPageState extends State<RecordEditPage> {
     _initial,
     clock: widget.store.clock,
   );
+  late final _coupons = CouponEntryController(
+    store: EntryStore(widget.store.database, clock: widget.store.clock),
+    initialMode: widget.original != null || widget.historical
+        ? 'record_only'
+        : 'consume',
+    recordId: widget.original?.id,
+  );
   bool _saving = false, _leaving = false;
   String? _error;
   final _operationId = newOperationId();
@@ -80,6 +90,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
     _quantity.addListener(
       () => _receipts.updateTotal(int.tryParse(_quantity.text.trim())),
     );
+    _day.addListener(_inputsChanged);
+    _quantity.addListener(_inputsChanged);
+    _coupons.load(_couponInformation());
     if (widget.addReceipt) _receipts.add();
   }
 
@@ -89,7 +102,27 @@ class _RecordEditPageState extends State<RecordEditPage> {
       c.dispose();
     }
     _receipts.dispose();
+    _coupons.dispose();
     super.dispose();
+  }
+
+  void _inputsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  RecordInformation _couponInformation() {
+    String? day;
+    try {
+      day = OccurredOn.parse(_day.text.trim()).value;
+    } catch (_) {}
+    final q = int.tryParse(_quantity.text.trim());
+    return RecordInformation.fromMap({
+      'occurred_on': day,
+      'quantity': q != null && q > 0 ? q : null,
+      'member_ids': _members,
+      'size_id': _size,
+      'attributes': {'kind': _signature?.name, 'back_signed': _back},
+    });
   }
 
   int? _number(String s) => s.trim().isEmpty
@@ -127,6 +160,10 @@ class _RecordEditPageState extends State<RecordEditPage> {
     if (_saving) return;
     try {
       final info = _information();
+      setState(() => _saving = true);
+      await _coupons.sync(_couponInformation());
+      final plan = await _coupons.checked(info);
+      if (!mounted) return;
       setState(() {
         _error = null;
         _saving = true;
@@ -139,6 +176,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
             information: info,
             original: widget.original,
             operationId: _operationId,
+            couponPlan: plan,
           ),
         ),
       );
@@ -150,7 +188,26 @@ class _RecordEditPageState extends State<RecordEditPage> {
         });
       }
     } on FormatException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = e.message;
+        });
+      }
+    } on CatalogException catch (e) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = e.message;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = '读取或核对失败，请重试；输入已保留';
+        });
+      }
     }
   }
 
@@ -164,7 +221,8 @@ class _RecordEditPageState extends State<RecordEditPage> {
         _members.join('\u0000') != (_initial.memberIds ?? []).join('\u0000') ||
         _signature != _initial.signature ||
         _back != _initial.backSigned ||
-        _receipts.changed;
+        _receipts.changed ||
+        _coupons.changed;
     final namesChanged = _names.patch(_members).isNotEmpty;
     final leave =
         !(changed || namesChanged) ||
@@ -386,6 +444,11 @@ class _RecordEditPageState extends State<RecordEditPage> {
                     existing: widget.original != null,
                   ),
                   const SizedBox(height: 16),
+                  CouponEntryEditor(
+                    controller: _coupons,
+                    info: _couponInformation(),
+                  ),
+                  const SizedBox(height: 16),
                   TextField(
                     key: const ValueKey('record-note'),
                     controller: _note,
@@ -452,12 +515,14 @@ class RecordReviewPage extends StatefulWidget {
     required this.information,
     required this.operationId,
     this.original,
+    this.couponPlan,
     super.key,
   });
   final RecordStore store;
   final RecordInformation information;
   final String operationId;
   final StoredRecord? original;
+  final CouponPlan? couponPlan;
   @override
   State<RecordReviewPage> createState() => _RecordReviewPageState();
 }
@@ -472,11 +537,22 @@ class _RecordReviewPageState extends State<RecordReviewPage> {
       _error = null;
     });
     try {
-      final r = await widget.store.save(
-        widget.information,
-        original: widget.original,
-        operationId: widget.operationId,
-      );
+      final r = widget.couponPlan == null
+          ? await widget.store.save(
+              widget.information,
+              original: widget.original,
+              operationId: widget.operationId,
+            )
+          : await EntryStore(
+              widget.store.database,
+              clock: widget.store.clock,
+              afterRecord: widget.store.afterWrite,
+            ).save(
+              widget.information,
+              plan: widget.couponPlan!,
+              original: widget.original,
+              operationId: widget.operationId,
+            );
       if (mounted) {
         setState(() => _leaving = true);
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -518,6 +594,27 @@ class _RecordReviewPageState extends State<RecordReviewPage> {
                     info: widget.information,
                     store: widget.store,
                   ),
+                  if (widget.couponPlan != null) ...[
+                    const SizedBox(height: 16),
+                    CouponPlanView(
+                      plan: widget.couponPlan!,
+                      store: EntryStore(
+                        widget.store.database,
+                        clock: widget.store.clock,
+                      ),
+                      originalId: widget.original?.id,
+                    ),
+                  ],
+                  if (widget.couponPlan != null)
+                    CouponCostPreview(
+                      info: widget.information,
+                      plan: widget.couponPlan!,
+                      store: EntryStore(
+                        widget.store.database,
+                        clock: widget.store.clock,
+                      ),
+                      recordId: widget.original?.id,
+                    ),
                   if (widget.information.missingFields.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),

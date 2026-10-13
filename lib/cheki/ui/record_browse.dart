@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../data/record_query.dart';
 import '../data/record_store.dart';
 import '../data/ticket_store.dart';
+import '../data/entry_store.dart';
+import 'coupon_entry.dart';
 import 'ticket_pages.dart';
 import '../domain/record_contract.dart';
 import 'components.dart';
@@ -602,6 +604,12 @@ class _RecordDetailPageState extends State<RecordDetailPage>
           padding: const EdgeInsets.all(16),
           children: [
             RecordInformationView(info: r.information, store: store),
+            const SizedBox(height: 16),
+            RecordCouponView(
+              recordId: r.id,
+              info: r.information,
+              store: EntryStore(store.database, clock: store.clock),
+            ),
             const SizedBox(height: 16),
             Text('录入时间：${identityActionLabel(r.createdAt)}'),
             Text('修改时间：${identityActionLabel(r.updatedAt)}'),

@@ -48,6 +48,10 @@ try {
         & $Python (Join-Path $repoRoot 'scripts/test-ticket-recovery.py') --source $env:COUNT_TOOLS_TICKET_ACCEPTANCE
         if ($LASTEXITCODE -ne 0) { throw 'Current ticket complete recovery checks failed' }
     }
+    if ($env:COUNT_TOOLS_ENTRY_ACCEPTANCE) {
+        & $Python (Join-Path $repoRoot 'scripts/test-entry-recovery.py') --source $env:COUNT_TOOLS_ENTRY_ACCEPTANCE
+        if ($LASTEXITCODE -ne 0) { throw 'Current linked entries complete recovery checks failed' }
+    }
     if ($BuildDebug) {
         & flutter build apk --debug
         if ($LASTEXITCODE -ne 0) { throw 'Android debug compilation failed' }

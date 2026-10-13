@@ -269,6 +269,16 @@ class IdentityStore {
           )).isNotEmpty) {
         throw const CatalogException('操作已用于其他修改');
       }
+      if ((await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_entry_operations'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_entry_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('此操作标识已用于关联记录');
+      }
       Map<String, Object?>? before;
       if (original != null) {
         final rows = await tx.query(
