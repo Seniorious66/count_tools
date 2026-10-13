@@ -6,6 +6,8 @@ import '../data/catalog_store.dart';
 import '../data/identity_contract.dart';
 import '../data/identity_store.dart';
 import '../data/record_store.dart';
+import '../data/ticket_store.dart';
+import 'ticket_pages.dart';
 import 'record_pages.dart';
 import 'identity_pages.dart';
 import 'components.dart';
@@ -60,6 +62,22 @@ class CatalogManagementPage extends StatelessWidget {
                 ),
               ),
             ),
+            ChekiCard(
+              child: ListTile(
+                title: const Text('券种管理'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TicketLibraryPage(
+                      store: TicketStore(store.database, clock: store.clock),
+                      definitionsOnly: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             for (final kind in IdentityKind.values.reversed)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),

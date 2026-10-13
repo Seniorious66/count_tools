@@ -203,7 +203,9 @@ void main() {
       expect(
         afterUntouched
             .where(
-              (r) => !(r as Map)['name'].toString().contains('cheki_record'),
+              (r) =>
+                  !(r as Map)['name'].toString().contains('cheki_record') &&
+                  !r['name'].toString().contains('cheki_ticket'),
             )
             .toList(),
         untouched,

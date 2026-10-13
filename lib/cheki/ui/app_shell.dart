@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../data/database/data_base.dart';
 import '../data/record_store.dart';
+import '../data/ticket_store.dart';
+import 'ticket_pages.dart';
 import '../../value/info.dart';
 import 'catalog_pages.dart';
 import 'components.dart';
@@ -12,13 +14,14 @@ class ChekiAppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = RecordStore(() => DatabaseHelper().database);
+    final tickets = TicketStore(() => DatabaseHelper().database);
     return ChekiShell(
       destinations: [
         ChekiDestination(
           id: 'home',
           label: '首页',
           icon: Icons.home_outlined,
-          page: RecordHomePage(store: store),
+          page: RecordHomePage(store: store, ticketStore: tickets),
         ),
         ChekiDestination(
           id: 'records',
@@ -26,12 +29,19 @@ class ChekiAppShell extends StatelessWidget {
           icon: Icons.notes,
           page: RecordListPage(store: store, embedded: true),
         ),
+        ChekiDestination(
+          id: 'tickets',
+          label: '券库',
+          icon: Icons.confirmation_number_outlined,
+          page: TicketLibraryPage(store: tickets, embedded: true),
+        ),
       ],
       onManage: () async {
         await Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => CatalogManagementPage()),
         );
         RecordStore.invalidateReads();
+        TicketStore.invalidateReads();
       },
       actions: [
         IconButton(

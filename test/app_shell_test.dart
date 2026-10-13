@@ -84,7 +84,7 @@ void main() {
       expect(find.text('合成项目'), findsNothing);
       expect(find.byType(AppBar), findsOneWidget);
       expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.text('券库'), findsNothing);
+      expect(find.text('券库'), findsWidgets);
       expect(find.text('统计'), findsNothing);
       final context = tester.element(find.byType(ChekiShell));
       expect(Theme.of(context).colorScheme.primaryContainer, ChekiColors.blue);
@@ -96,6 +96,11 @@ void main() {
       await tester.runAsync(checkPreferences);
       await tester.tap(find.byTooltip('打开管理'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('团体'),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('团体'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('尺寸'),

@@ -120,6 +120,16 @@ class CatalogStore {
           )).isNotEmpty) {
         throw const CatalogException('此操作已用于其他修改，请重新核对');
       }
+      if ((await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='cheki_ticket_operations'",
+          )).isNotEmpty &&
+          (await tx.query(
+            'cheki_ticket_operations',
+            where: 'id=?',
+            whereArgs: [operationId],
+          )).isNotEmpty) {
+        throw const CatalogException('操作已用于其他修改');
+      }
       Map<String, Object?>? before;
       if (original != null) {
         final rows = await tx.query(

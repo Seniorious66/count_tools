@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/record_query.dart';
 import '../data/record_store.dart';
+import '../data/ticket_store.dart';
+import 'ticket_pages.dart';
 import '../domain/record_contract.dart';
 import 'components.dart';
 import 'identity_pages.dart' show identityActionLabel;
@@ -84,8 +86,9 @@ mixin _RecordReader<T extends StatefulWidget> on State<T> {
 }
 
 class RecordHomePage extends StatefulWidget {
-  const RecordHomePage({required this.store, super.key});
+  const RecordHomePage({required this.store, this.ticketStore, super.key});
   final RecordStore store;
+  final TicketStore? ticketStore;
   @override
   State<RecordHomePage> createState() => _RecordHomePageState();
 }
@@ -119,8 +122,8 @@ class _RecordHomePageState extends State<RecordHomePage>
         padding: const EdgeInsets.all(16),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          ChekiCard(
-            color: ChekiColors.blue,
+          TicketOverview(
+            store: widget.ticketStore,
             child: InkWell(
               key: const ValueKey('home-month'),
               onTap: () => _list(month),

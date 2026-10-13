@@ -54,6 +54,11 @@ void main() {
       await settleIo(tester);
       await tester.tap(find.byTooltip('打开管理'));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('团体'),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.text('团体'));
       await settleIo(tester);
       expect(find.text('还没有团体'), findsOneWidget);
@@ -85,6 +90,11 @@ void main() {
           home: CatalogManagementPage(store: store),
         ),
       );
+      await tester.scrollUntilVisible(
+        find.text('团体'),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.text('团体'));
       await settleIo(tester);
       expect(find.text('改名团体'), findsOneWidget);
@@ -106,6 +116,11 @@ void main() {
         theme: chekiTheme(),
         home: CatalogManagementPage(store: store),
       ),
+    );
+    await tester.scrollUntilVisible(
+      find.text('团体'),
+      160,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.text('团体'));
     await settleIo(tester);
@@ -238,6 +253,11 @@ void main() {
         theme: chekiTheme(),
         home: CatalogManagementPage(store: slow),
       ),
+    );
+    await tester.scrollUntilVisible(
+      find.text('团体'),
+      160,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.text('团体'));
     await settleIo(tester);

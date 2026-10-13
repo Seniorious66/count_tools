@@ -529,7 +529,7 @@ void main() {
           find.byKey(const ValueKey('home-month')).hitTestable(),
           findsOneWidget,
         );
-        expect(find.text('券库'), findsNothing);
+        expect(find.text('券库'), findsWidgets);
         expect(find.text('统计'), findsNothing);
         await tester.tap(find.byIcon(Icons.notes));
         await settleIo(tester);

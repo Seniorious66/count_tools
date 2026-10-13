@@ -42,3 +42,6 @@ python scripts/recovery.py recover --root '<隔离根目录>'
 当前开发源码的 schema 4 增加身份/颜色/同人关联和操作历史，完整工程恢复随同搬运并校验，仍不提供 App 内用户恢复页面。`test-identity-recovery.py` 必须读取带项目/合成身份标记的 Dart 实际导出，验证所有当前对象及设置/附件往返和进程故障。设置沿用 Android 实际支持的值类型，包括字符串列表；不能用含 null 的列表绕过类型检查。独立备份 JSON 本身不会把未知设置值变成已完成 Android 写回证据。
 
 2026-10-13 M1 交付使用 schema 5 和工程格式 1，新增记录、领取、名称快照、原档与审计也属于完整代，不只搬旧四表。`COUNT_TOOLS_M1_ACCEPTANCE` 指向新的项目标记合成目录，真实 Dart 服务输出 A3/B2/AB2 与空信息的综合库；`test-m1-recovery.py` 校验完整往返及故障恢复。再通过上述 snapshot/preview/restore 应用到新合成隔离根，`COUNT_TOOLS_M1_RESTORED` 指向其 `current`，新 Flutter 进程执行只读全库校验与真实页面读回。报告见 [M1 交付材料](acceptance/M1_HANDOFF_20261013.md)。App 内备份恢复页面仍为 M2 范围，真实导入/恢复和设备均未执行。
+
+
+2026-10-13 schema6券库存已扩展工程恢复：定义/草稿/购入/调整/来源分配/精确或未知成本/临期设置/操作与修订及原有对象全部携带。`test-ticket-recovery.py --source <明确合成目录>`执行全对象/设置/附件/再备份、新进程、损坏拒绝及实际退出回滚。App内备份恢复入口仍属后续M2闭环包，当前不是设备恢复功能。真实导入/恢复写入仍须明确范围授权。
