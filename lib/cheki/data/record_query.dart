@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../domain/record_contract.dart';
 import '../domain/record_information.dart';
 import 'catalog_contract.dart';
@@ -111,6 +112,99 @@ final class RecordDay {
   final RecordSummary summary;
 }
 
+int compareRecordOccurrence(StoredRecord a, StoredRecord b) {
+  final ad = a.information.occurredOn?.value;
+  final bd = b.information.occurredOn?.value;
+  final date = ad == null
+      ? (bd == null ? 0 : 1)
+      : bd == null
+      ? -1
+      : bd.compareTo(ad);
+  if (date != 0) return date;
+  final action = b.createdAt.compareTo(a.createdAt);
+  return action != 0 ? action : a.id.compareTo(b.id);
+}
+
+/// A reversible display group, never a replacement database record.
+final class RecordBundle {
+  RecordBundle(Iterable<StoredRecord> rows) : records = List.unmodifiable(rows);
+  final List<StoredRecord> records;
+  StoredRecord get representative => records.first;
+  int? get quantity => records.any((r) => r.information.quantity == null)
+      ? null
+      : records.fold<int>(0, (n, r) => n + r.information.quantity!);
+}
+
+Object? _canonical(Object? value) {
+  if (value is Map) {
+    final keys = value.keys.cast<String>().toList()..sort();
+    return {for (final key in keys) key: _canonical(value[key])};
+  }
+  if (value is List) return value.map(_canonical).toList();
+  return value;
+}
+
+List<RecordBundle> bundleRecords(Iterable<StoredRecord> records) {
+  final buckets = <String, List<StoredRecord>>{};
+  for (final r in records) {
+    final i = r.information;
+    final members = i.memberIds;
+    if (i.occurredOn == null ||
+        i.quantity == null ||
+        i.sizeId == null ||
+        members == null ||
+        members.isEmpty ||
+        i.signature == null ||
+        (i.signature == SignatureKind.signed && i.backSigned == null) ||
+        i.receiptStatus == null ||
+        i.receiptStatus == ReceiptStatus.partial) {
+      buckets['single:${r.id}'] = [r];
+      continue;
+    }
+    final raw = i.toMap();
+    final ids = [...members]..sort();
+    final snapshots = (raw['member_snapshots'] as List?)?.toList()
+      ?..sort(
+        (a, b) => (a as Map)['member_id'].toString().compareTo(
+          (b as Map)['member_id'].toString(),
+        ),
+      );
+    final key = jsonEncode(
+      _canonical({
+        for (final e in raw.entries)
+          if (![
+            'quantity',
+            'member_ids',
+            'member_snapshots',
+            'receipt_batches',
+            'legacy_raw',
+            'legacy_source',
+          ].contains(e.key))
+            e.key: e.value,
+        'member_ids': ids,
+        if (raw.containsKey('member_snapshots')) 'member_snapshots': snapshots,
+        'receipt_status': i.receiptStatus!.name,
+        'receipt_batches': [
+          for (final b in raw['receipt_batches'] as List? ?? [])
+            {
+              for (final e in (b as Map).entries)
+                if (e.key != 'quantity') e.key as String: e.value,
+            },
+        ],
+      }),
+    );
+    buckets.putIfAbsent('bundle:$key', () => []).add(r);
+  }
+  final result = [
+    for (final rows in buckets.values)
+      RecordBundle(rows..sort(compareRecordOccurrence)),
+  ];
+  result.sort(
+    (a, b) => compareRecordOccurrence(a.representative, b.representative),
+  );
+  return List.unmodifiable(result);
+}
+
 /// Record rows and names are read in one database transaction by RecordStore.
 final class RecordReadModel {
   RecordReadModel({
@@ -118,7 +212,9 @@ final class RecordReadModel {
     required Iterable<CatalogEntity> groups,
     required Iterable<IdentityEntity> members,
     required Iterable<CatalogEntity> sizes,
-  }) : records = List.unmodifiable(records),
+  }) : records = List.unmodifiable(
+         records.toList()..sort(compareRecordOccurrence),
+       ),
        groups = Map.unmodifiable({for (final g in groups) g.id: g}),
        members = Map.unmodifiable({for (final m in members) m.id: m}),
        sizes = Map.unmodifiable({for (final s in sizes) s.id: s});
@@ -144,6 +240,11 @@ final class RecordReadModel {
         : '记录中';
     final gs = source(s['group_name_origin'] ?? s['origin']),
         ms = source(s['member_name_origin'] ?? s['origin']);
+    final currentGroup = groups[members[id]?.groupId]?.knownName;
+    if ((group == null || group.trim().isEmpty) && currentGroup != null) {
+      // Current affiliation is a label, never backfilled into the old snapshot.
+      return '$currentGroup（当前团体） · ${member == null || member.trim().isEmpty ? '成员名称未填写' : member}（$ms）';
+    }
     final g = group == null || group.trim().isEmpty ? '团体名称未填写' : group;
     final m = member == null || member.trim().isEmpty ? '成员名称未填写' : member;
     return gs == ms ? '$g · $m（$gs）' : '$g（$gs） · $m（$ms）';

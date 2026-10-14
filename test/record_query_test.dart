@@ -613,6 +613,12 @@ void main() {
           }
         }
         final rows = (await tester.runAsync(fixture))!;
+        await tester.runAsync(
+          () => store.save(
+            rows.first.information.patch({'quantity': 1}),
+            operationId: 'visual-repeat',
+          ),
+        );
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         for (final (name, width, page) in <(String, double, Widget)>[

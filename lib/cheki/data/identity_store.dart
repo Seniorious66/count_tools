@@ -5,6 +5,7 @@ import 'catalog_schema.dart';
 import 'catalog_store.dart';
 import 'identity_contract.dart';
 import 'identity_schema.dart';
+import 'legacy_member_colors.dart';
 
 class IdentityDirectory {
   IdentityDirectory({
@@ -36,21 +37,27 @@ class IdentityStore {
         IdentityKind.person.table,
         orderBy: 'created_at,id',
       )).map((r) => IdentityEntity.fromRow(IdentityKind.person, r)).toList(),
-      members: (await tx.query(
-        IdentityKind.member.table,
-        orderBy: 'created_at,id',
-      )).map((r) => IdentityEntity.fromRow(IdentityKind.member, r)).toList(),
+      members: await readMembersWithLegacyColors(tx),
     ),
   );
 
   Future<List<IdentityEntity>> list(
     IdentityKind kind, {
     bool includeInactive = true,
-  }) async => (await (await database()).query(
-    kind.table,
-    where: includeInactive ? null : 'active=1',
-    orderBy: 'created_at,id',
-  )).map((r) => IdentityEntity.fromRow(kind, r)).toList();
+  }) async {
+    final db = await database();
+    if (kind == IdentityKind.member) {
+      return db.transaction(
+        (tx) =>
+            readMembersWithLegacyColors(tx, includeInactive: includeInactive),
+      );
+    }
+    return (await db.query(
+      kind.table,
+      where: includeInactive ? null : 'active=1',
+      orderBy: 'created_at,id',
+    )).map((r) => IdentityEntity.fromRow(kind, r)).toList();
+  }
 
   Future<List<Map<String, Object?>>> history(IdentityEntity entity) async =>
       (await database()).query(
@@ -107,6 +114,7 @@ class IdentityStore {
     required String? personId,
     required bool active,
     required String operationId,
+    bool clearColorFallback = false,
   }) => _write(
     IdentityKind.member,
     fields: {
@@ -118,6 +126,7 @@ class IdentityStore {
     },
     original: original,
     operationId: operationId,
+    clearColorFallback: clearColorFallback,
   );
 
   Future<IdentityEntity> transferMember({
@@ -139,10 +148,13 @@ class IdentityStore {
         'active': 1,
         'group_id': groupId,
         'person_id': original.personId,
-        'color_rgb': original.colorRgb,
+        'color_rgb': original.toRow()['color_rgb'],
       },
       operationId: operationId,
       transfer: original,
+      inheritedColorRgb: original.toRow()['color_rgb'] == null
+          ? original.colorRgb
+          : null,
     );
   }
 
@@ -202,12 +214,20 @@ class IdentityStore {
     required String operationId,
     IdentityEntity? original,
     IdentityEntity? transfer,
+    bool clearColorFallback = false,
+    int? inheritedColorRgb,
   }) async {
     if (operationId.trim().isEmpty) {
       throw const CatalogException('操作标识缺失，请重新打开表单');
     }
     if (original != null && original.kind != kind) {
       throw const CatalogException('身份类型不匹配');
+    }
+    if (clearColorFallback &&
+        (kind != IdentityKind.member ||
+            original == null ||
+            fields['color_rgb'] != null)) {
+      throw const CatalogException('清空颜色标识与输入不一致');
     }
     if (kind == IdentityKind.member &&
         fields['color_rgb'] != null &&
@@ -222,6 +242,8 @@ class IdentityStore {
       'id': original?.id,
       'revision': original?.revision,
       'fields': fields,
+      if (clearColorFallback) 'color_fallback_cleared': true,
+      'inherited_color_rgb': ?inheritedColorRgb,
       'transfer': transfer == null
           ? null
           : {'id': transfer.id, 'revision': transfer.revision},
@@ -239,6 +261,7 @@ class IdentityStore {
         return IdentityEntity.fromRow(
           kind,
           decodeSqlRow(old.single['result_json'] as String),
+          fallbackColorRgb: inheritedColorRgb,
         );
       }
       if ((await tx.query(
@@ -440,7 +463,11 @@ class IdentityStore {
         'created_at': stamp,
       });
       if (afterWrite != null) await afterWrite!();
-      return IdentityEntity.fromRow(kind, row);
+      return IdentityEntity.fromRow(
+        kind,
+        row,
+        fallbackColorRgb: inheritedColorRgb,
+      );
     });
   }
 

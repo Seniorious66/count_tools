@@ -3,6 +3,8 @@ import '../data/catalog_contract.dart';
 import '../data/catalog_store.dart';
 import '../data/identity_contract.dart';
 import '../data/identity_store.dart';
+import '../data/record_store.dart';
+import '../data/ticket_store.dart';
 import 'catalog_pages.dart';
 import 'components.dart';
 import 'member_inputs.dart';
@@ -207,7 +209,7 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
   late bool _active = widget.original?.active ?? true;
   late Future<IdentityDirectory> _directory = widget.store.directory();
   final _operationId = newOperationId();
-  bool _saving = false, _discarded = false;
+  bool _saving = false, _discarded = false, _clearColorFallback = false;
   String? _error;
   bool get _dirty =>
       _name.text != (_initial?.knownName ?? '') ||
@@ -340,8 +342,11 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
           personId: _personId,
           active: _active,
           operationId: _operationId,
+          clearColorFallback: _clearColorFallback && _color == null,
         );
       }
+      RecordStore.invalidateReads();
+      TicketStore.invalidateReads();
       if (mounted) _leave(result);
     } on CatalogException catch (error) {
       if (mounted) {
@@ -578,7 +583,10 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                               TextButton(
                                 onPressed: _saving || _color == null
                                     ? null
-                                    : () => setState(() => _color = null),
+                                    : () => setState(() {
+                                        _color = null;
+                                        _clearColorFallback = true;
+                                      }),
                                 child: Text(_color == null ? '颜色未填写' : '清空颜色'),
                               ),
                             ] else

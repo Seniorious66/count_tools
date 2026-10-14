@@ -85,6 +85,19 @@ mixin _RecordReader<T extends StatefulWidget> on State<T> {
       ),
     );
   }
+
+  Future<void> bundleDetail(RecordBundle bundle) async {
+    if (bundle.records.length == 1) return detail(bundle.representative);
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _RecordBundlePage(
+          store: store,
+          ids: bundle.records.map((r) => r.id).toSet(),
+        ),
+      ),
+    );
+  }
 }
 
 class RecordHomePage extends StatefulWidget {
@@ -193,8 +206,13 @@ class _RecordHomePageState extends State<RecordHomePage>
           Text('最近记录', style: Theme.of(context).textTheme.titleMedium),
           if (m.records.isEmpty)
             const Padding(padding: EdgeInsets.all(24), child: Text('还没有记录')),
-          for (final r in m.records.take(5))
-            _RecordTile(record: r, model: m, onTap: () => detail(r)),
+          for (final b in bundleRecords(m.records).take(5))
+            _RecordTile(
+              record: b.representative,
+              bundle: b,
+              model: m,
+              onTap: () => bundleDetail(b),
+            ),
         ],
       ),
     );
@@ -220,6 +238,7 @@ class _RecordListPageState extends State<RecordListPage>
   @override
   RecordStore get store => widget.store;
   late RecordFilter _filter = widget.initialFilter ?? RecordFilter();
+  bool _merged = true;
   List<Widget> get _actions => [
     IconButton(
       tooltip: '补录旧信息',
@@ -289,6 +308,11 @@ class _RecordListPageState extends State<RecordListPage>
                   avatar: const Icon(Icons.filter_list),
                   onPressed: () => _filters(m),
                 ),
+                FilterChip(
+                  label: const Text('合并显示'),
+                  selected: _merged,
+                  onSelected: (value) => setState(() => _merged = value),
+                ),
               ],
             ),
             if (_filter.memberId != null)
@@ -343,8 +367,16 @@ class _RecordListPageState extends State<RecordListPage>
                       )
                       .join(' · '),
                 ),
-              for (final r in group.records)
-                _RecordTile(record: r, model: m, onTap: () => detail(r)),
+              for (final b
+                  in _merged
+                      ? bundleRecords(group.records)
+                      : group.records.map((r) => RecordBundle([r])))
+                _RecordTile(
+                  record: b.representative,
+                  bundle: b,
+                  model: m,
+                  onTap: () => bundleDetail(b),
+                ),
             ],
           ],
         ),
@@ -385,13 +417,16 @@ class _RecordTile extends StatelessWidget {
     required this.record,
     required this.model,
     required this.onTap,
+    this.bundle,
   });
   final StoredRecord record;
   final RecordReadModel model;
   final VoidCallback onTap;
+  final RecordBundle? bundle;
   @override
   Widget build(BuildContext context) {
     final i = record.information;
+    final quantity = bundle?.quantity ?? i.quantity;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: ChekiCard(
@@ -428,8 +463,13 @@ class _RecordTile extends StatelessWidget {
                       ],
                     ),
                 Text(
-                  '${i.quantity == null ? '张数未填写' : '${i.quantity} 张'} · ${i.sizeId == null ? '尺寸未填写' : model.sizes[i.sizeId]?.name ?? '尺寸信息不可用'}',
+                  '${quantity == null ? '张数未填写' : '$quantity 张'} · ${i.sizeId == null ? '尺寸未填写' : model.sizes[i.sizeId]?.name ?? '尺寸信息不可用'}',
                 ),
+                if ((bundle?.records.length ?? 1) > 1)
+                  Text(
+                    '${bundle!.records.length} 条记录',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 Text(
                   '${i.signature?.label ?? '属性未填写'}${i.backSigned == true ? ' · 背签' : ''} · ${i.receiptStatus?.label ?? '领取信息未填写'}',
                 ),
@@ -442,6 +482,40 @@ class _RecordTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RecordBundlePage extends StatefulWidget {
+  const _RecordBundlePage({required this.store, required this.ids});
+  final RecordStore store;
+  final Set<String> ids;
+  @override
+  State<_RecordBundlePage> createState() => _RecordBundlePageState();
+}
+
+class _RecordBundlePageState extends State<_RecordBundlePage>
+    with _RecordReader<_RecordBundlePage> {
+  @override
+  RecordStore get store => widget.store;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: recordAppBar(context, '原始记录'),
+    body: SafeArea(
+      top: false,
+      child: readBody((m) {
+        final rows = m.records.where((r) => widget.ids.contains(r.id)).toList();
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              '共 ${RecordSummary(rows).quantityLabel} 张 · ${rows.length} 条记录',
+            ),
+            for (final r in rows)
+              _RecordTile(record: r, model: m, onTap: () => detail(r)),
+          ],
+        );
+      }),
+    ),
+  );
 }
 
 class _RecordFilters extends StatefulWidget {

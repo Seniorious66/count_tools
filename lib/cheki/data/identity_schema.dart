@@ -123,6 +123,22 @@ abstract final class IdentitySchema {
         }
         final request = jsonDecode(op['request_json'] as String) as Map;
         final fields = (request['fields'] as Map).cast<String, Object?>();
+        if (request.containsKey('color_fallback_cleared') &&
+            (request['color_fallback_cleared'] != true ||
+                kind != IdentityKind.member ||
+                request['action'] != 'edit' ||
+                fields['color_rgb'] != null)) {
+          throw StateError('Invalid explicit color clear');
+        }
+        if (request.containsKey('inherited_color_rgb') &&
+            (request['inherited_color_rgb'] is! int ||
+                (request['inherited_color_rgb'] as int) < 0 ||
+                (request['inherited_color_rgb'] as int) > 0xffffff ||
+                kind != IdentityKind.member ||
+                request['transfer'] is! Map ||
+                fields['color_rgb'] != null)) {
+          throw StateError('Invalid inherited color snapshot');
+        }
         final after = decodeSqlRow(h['after_json'] as String);
         final entity = IdentityEntity.fromRow(kind, after);
         final result = decodeSqlRow(op['result_json'] as String);

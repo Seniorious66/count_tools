@@ -7,9 +7,9 @@ import 'catalog_schema.dart';
 import 'catalog_store.dart';
 import 'identity_schema.dart';
 import 'identity_store.dart';
-import 'identity_contract.dart';
 import 'record_query.dart';
 import 'entry_store.dart';
+import 'legacy_member_colors.dart';
 
 class StoredRecord {
   StoredRecord.fromRow(Map<String, Object?> row) : _raw = copySqlRow(row) {
@@ -206,9 +206,7 @@ class RecordStore {
       groups: (await tx.query(
         CatalogKind.group.table,
       )).map(CatalogEntity.fromRow),
-      members: (await tx.query(
-        IdentityKind.member.table,
-      )).map((r) => IdentityEntity.fromRow(IdentityKind.member, r)),
+      members: await readMembersWithLegacyColors(tx),
       sizes: (await tx.query(
         CatalogKind.size.table,
       )).map(CatalogEntity.fromRow),

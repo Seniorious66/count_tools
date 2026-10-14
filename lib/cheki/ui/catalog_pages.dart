@@ -361,6 +361,8 @@ class _CatalogEditPageState extends State<CatalogEditPage> {
           operationId: _operationId,
         );
       }
+      RecordStore.invalidateReads();
+      TicketStore.invalidateReads();
       if (mounted) {
         setState(() {
           _saving = false;

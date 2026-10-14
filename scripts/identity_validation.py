@@ -46,6 +46,10 @@ def verify_identity(db):
         linked.add(op['id'])
         request = decode_json(op['request_json'])
         fields = request.get('fields')
+        if 'color_fallback_cleared' in request and (request['color_fallback_cleared'] is not True or kind != 'member' or request.get('action') != 'edit' or not isinstance(fields, dict) or fields.get('color_rgb') is not None):
+            raise ValueError('Invalid explicit color clear')
+        if 'inherited_color_rgb' in request and (type(request['inherited_color_rgb']) is not int or not 0 <= request['inherited_color_rgb'] <= 0xffffff or kind != 'member' or not isinstance(request.get('transfer'), dict) or not isinstance(fields, dict) or fields.get('color_rgb') is not None):
+            raise ValueError('Invalid inherited color snapshot')
         after, result = decode_row(h['after_json']), decode_row(op['result_json'])
         before = None if h['before_json'] is None else decode_row(h['before_json'])
         identity(kind, after)

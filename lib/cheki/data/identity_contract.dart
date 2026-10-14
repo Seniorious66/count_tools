@@ -10,8 +10,11 @@ enum IdentityKind {
 }
 
 class IdentityEntity {
-  IdentityEntity.fromRow(this.kind, Map<String, Object?> row)
-    : _raw = copySqlRow(row) {
+  IdentityEntity.fromRow(
+    this.kind,
+    Map<String, Object?> row, {
+    this.fallbackColorRgb,
+  }) : _raw = copySqlRow(row) {
     CatalogEntity.fromRow(row);
     if (row['source'] != 'user') throw const FormatException('身份来源无效');
     if (kind == IdentityKind.member &&
@@ -30,6 +33,7 @@ class IdentityEntity {
   }
   final IdentityKind kind;
   final Map<String, Object?> _raw;
+  final int? fallbackColorRgb;
   String get id => _raw['id'] as String;
   String? get knownName => _raw['name'] as String?;
   String get name =>
@@ -40,6 +44,6 @@ class IdentityEntity {
   String get updatedAt => _raw['updated_at'] as String;
   String? get groupId => _raw['group_id'] as String?;
   String? get personId => _raw['person_id'] as String?;
-  int? get colorRgb => _raw['color_rgb'] as int?;
+  int? get colorRgb => (_raw['color_rgb'] as int?) ?? fallbackColorRgb;
   Map<String, Object?> toRow() => copySqlRow(_raw);
 }
