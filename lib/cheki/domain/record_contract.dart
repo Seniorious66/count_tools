@@ -45,7 +45,7 @@ final class OccurredOn implements Comparable<OccurredOn> {
 
 enum SignatureKind {
   unsigned('无签'),
-  signed('有签'),
+  signed('带签'),
   homework('宿题');
 
   const SignatureKind(this.label);
@@ -55,7 +55,7 @@ enum SignatureKind {
 final class ChekiAttributes {
   ChekiAttributes({this.kind = SignatureKind.signed, this.backSigned = false}) {
     if (kind != SignatureKind.signed && backSigned) {
-      throw ArgumentError('背签仅有签时可用');
+      throw ArgumentError('背签仅带签时可用');
     }
   }
   final SignatureKind kind;

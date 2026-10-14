@@ -81,7 +81,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.text('有签'));
+      await tester.tap(find.text('带签'));
       await tester.tap(find.text('背签'));
       await tester.pump();
       expect(value.backSigned, isTrue);
@@ -98,7 +98,7 @@ void main() {
         await tester.tap(find.text('背签'));
         await tester.pump();
         expect(value.backSigned, isFalse);
-        await tester.tap(find.text('有签'));
+        await tester.tap(find.text('带签'));
         await tester.pump();
         expect(value.backSigned, isFalse);
       }
@@ -133,11 +133,11 @@ void main() {
         );
         if (scale == 1) {
           final y = tester.getTopLeft(find.text('无签')).dy;
-          for (final label in ['有签', '宿题', '背签']) {
+          for (final label in ['带签', '宿题', '背签']) {
             expect(tester.getTopLeft(find.text(label)).dy, y);
           }
         }
-        for (final label in ['无签', '有签', '宿题', '背签']) {
+        for (final label in ['无签', '带签', '宿题', '背签']) {
           final ink = find.ancestor(
             of: find.text(label),
             matching: find.byType(InkWell),

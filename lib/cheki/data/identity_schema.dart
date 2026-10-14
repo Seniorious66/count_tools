@@ -145,6 +145,16 @@ abstract final class IdentitySchema {
         final before = h['before_json'] == null
             ? null
             : decodeSqlRow(h['before_json'] as String);
+        if (request.containsKey('group_correction') &&
+            (request['group_correction'] != true ||
+                kind != IdentityKind.member ||
+                request['action'] != 'edit' ||
+                before == null ||
+                request['transfer'] != null ||
+                !fields.containsKey('group_id') ||
+                before['group_id'] == after['group_id'])) {
+          throw StateError('Invalid group correction');
+        }
         final key = '${kind.name}:${entity.id}';
         final previous = last[key];
         final allowed = {
@@ -203,7 +213,8 @@ abstract final class IdentitySchema {
           IdentityEntity.fromRow(kind, before);
           final changed = {...mutableFields(kind), 'updated_at', 'revision'};
           if (kind == IdentityKind.member && fields.containsKey('group_id')) {
-            if (before['group_id'] != null || after['group_id'] == null) {
+            if (request['group_correction'] != true &&
+                (before['group_id'] != null || after['group_id'] == null)) {
               throw StateError('Only unknown group may be completed in place');
             }
             changed.add('group_id');

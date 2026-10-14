@@ -25,7 +25,7 @@ class TicketOverview extends StatelessWidget {
       child: Padding(padding: const EdgeInsets.all(16), child: child),
     );
     final pink = TicketSummaryPanel(store: store!);
-    return ClipRRect(
+    final metrics = ClipRRect(
       borderRadius: BorderRadius.circular(18),
       child: MediaQuery.textScalerOf(context).scale(16) > 24
           ? Column(
@@ -42,7 +42,64 @@ class TicketOverview extends StatelessWidget {
               ),
             ),
     );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        metrics,
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TicketEditPage(store: store!, kind: 'purchase'),
+              ),
+            ),
+            child: const Text('购券'),
+          ),
+        ),
+      ],
+    );
   }
+}
+
+class OverviewMetric extends StatelessWidget {
+  const OverviewMetric({
+    required this.title,
+    required this.value,
+    required this.onTap,
+    super.key,
+  });
+  final String title, value;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13),
+        ),
+        const SizedBox(height: 8),
+        Text.rich(
+          TextSpan(
+            text: value,
+            children: const [
+              TextSpan(
+                text: ' 张',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.normal),
+              ),
+            ],
+          ),
+          style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
+  );
 }
 
 mixin TicketReader<T extends StatefulWidget> on State<T> {
@@ -153,24 +210,21 @@ class _TicketSummaryPanelState extends State<TicketSummaryPanel>
         (m) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            InkWell(
+            OverviewMetric(
+              title: '可用券',
+              value: '${m.available}',
               onTap: () => Navigator.push<void>(
                 context,
                 MaterialPageRoute(
                   builder: (_) => TicketLibraryPage(store: store),
                 ),
               ),
-              child: Column(
+            ),
+            if (m.drafts.isNotEmpty ||
+                m.allPools.any((p) => p.near(m.day, m.reminderDays)))
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('可用券'),
-                  Text(
-                    '${m.available}',
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
                   if (m.drafts.isNotEmpty) Text('待补录 ${m.drafts.length} 条'),
                   for (final p in m.allPools.where(
                     (p) => p.near(m.day, m.reminderDays),
@@ -180,11 +234,6 @@ class _TicketSummaryPanelState extends State<TicketSummaryPanel>
                     ),
                 ],
               ),
-            ),
-            TextButton(
-              onPressed: () => edit('purchase'),
-              child: const Text('购券'),
-            ),
           ],
         ),
       ),
@@ -245,6 +294,7 @@ class _TicketLibraryPageState extends State<TicketLibraryPage>
                 ),
               ],
             ),
+            const SizedBox(height: 24),
             if (!widget.definitionsOnly)
               ChekiCard(
                 color: ChekiColors.pink,
@@ -607,6 +657,8 @@ class _TicketEditPageState extends State<TicketEditPage> {
   };
   late bool posted = widget.original?.posted ?? false;
   bool expired = false, review = false, busy = false;
+  bool _sizeDefaultPending = false;
+  TicketModel? _directory;
   String? error;
   final operation = newOperationId();
   bool get definition => widget.kind == 'definition';
@@ -614,6 +666,14 @@ class _TicketEditPageState extends State<TicketEditPage> {
   @override
   void initState() {
     super.initState();
+    if (definition && widget.original == null) {
+      selections.addAll({
+        'scope': 'personal',
+        'signature': 'signed',
+        'active': 'yes',
+      });
+      _sizeDefaultPending = true;
+    }
     for (final key in [
       'name',
       'quantity',
@@ -644,7 +704,7 @@ class _TicketEditPageState extends State<TicketEditPage> {
     final fields = setting
         ? ['reminder_days']
         : definition
-        ? ['name', 'note']
+        ? ['note']
         : [
             'quantity',
             'occurred_on',
@@ -705,14 +765,21 @@ class _TicketEditPageState extends State<TicketEditPage> {
     String label,
     Map<String, String> options,
   ) => Padding(
+    key: ValueKey('ticket-$key'),
     padding: const EdgeInsets.only(bottom: 16),
     child: DropdownButtonFormField<String>(
-      key: ValueKey('ticket-$key'),
+      key: ValueKey('ticket-$key-${selections[key]}'),
       initialValue: selections[key] as String?,
       isExpanded: true,
       decoration: InputDecoration(labelText: label),
       items: [
         const DropdownMenuItem<String>(value: null, child: Text('未填写')),
+        if (selections[key] != null && !options.containsKey(selections[key]))
+          DropdownMenuItem<String>(
+            value: selections[key] as String,
+            enabled: false,
+            child: Text(key == 'member_id' ? '原成员不属于所选团体，请重新选择' : '原选择已不可用'),
+          ),
         for (final e in options.entries)
           DropdownMenuItem(
             value: e.key,
@@ -723,6 +790,17 @@ class _TicketEditPageState extends State<TicketEditPage> {
           ? null
           : (v) => setState(() {
               selections[key] = v;
+              if (key == 'group_id' &&
+                  selections['member_id'] != null &&
+                  _directory?.memberGroups[selections['member_id']] != v) {
+                selections['member_id'] = null;
+                error = '已清空不属于该团体的成员，请重新选择';
+              }
+              if (key == 'member_id' &&
+                  v != null &&
+                  selections['group_id'] == null) {
+                selections['group_id'] = _directory?.memberGroups[v];
+              }
               if (key == 'scope' && v == 'group') {
                 selections['member_id'] = null;
               }
@@ -799,6 +877,13 @@ class _TicketEditPageState extends State<TicketEditPage> {
               return const Center(child: CircularProgressIndicator());
             }
             final m = s.data!;
+            _directory = m;
+            if (_sizeDefaultPending) {
+              _sizeDefaultPending = false;
+              if (m.sizes.containsKey('size-3inch')) {
+                selections['size_id'] = 'size-3inch';
+              }
+            }
             return Column(
               children: [
                 Expanded(
@@ -839,18 +924,23 @@ class _TicketEditPageState extends State<TicketEditPage> {
                         const Text('正库存进入提醒天数时显示临期提示；留空使用7天。'),
                         field('reminder_days', '提醒天数（0–365，可空）', numeric: true),
                       ] else if (definition) ...[
-                        field('name', '券种名称（可空）'),
                         select('group_id', '团体', m.groups),
                         select('scope', '适用范围', {
                           'personal': '个人券',
                           'group': '团体通用券',
                         }),
                         if (selections['scope'] != 'group')
-                          select('member_id', '指定成员', m.members),
+                          select('member_id', '指定成员', {
+                            for (final e in m.members.entries)
+                              if (selections['group_id'] == null ||
+                                  m.memberGroups[e.key] ==
+                                      selections['group_id'])
+                                e.key: e.value,
+                          }),
                         select('size_id', '默认关联尺寸', m.sizes),
                         select('signature', '默认关联属性', {
                           'unsigned': '无签',
-                          'signed': '有签',
+                          'signed': '带签',
                           'homework': '宿题',
                         }),
                         select('active', '启用状态', {'yes': '启用', 'no': '停用'}),
@@ -970,13 +1060,13 @@ String ticketSimpleValue(Object? v) => v == null
             'long': '长期有效',
             'dated': '限时券',
             'unsigned': '无签',
-            'signed': '有签',
+            'signed': '带签',
             'homework': '宿题',
           }[v] ??
           '$v';
 List<Widget> ticketInformationWidgets(TicketModel m, TicketInformation i) => [
   for (final e in i.toMap().entries.where(
-    (e) => ticketLabels.containsKey(e.key),
+    (e) => ticketLabels.containsKey(e.key) && e.key != 'name',
   ))
     Text(
       '${ticketLabels[e.key]}：${e.key == 'definition_id'

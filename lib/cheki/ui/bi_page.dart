@@ -220,7 +220,7 @@ class _BiPageState extends State<BiPage> {
               }, (v) => setState(() => size = v)),
               _filterField('属性', signature, {
                 'unsigned': '无签',
-                'signed': '有签',
+                'signed': '带签',
                 'homework': '宿题',
                 '@unknown': '属性未填写',
               }, (v) => setState(() => signature = v)),
@@ -402,9 +402,9 @@ class _BiPageState extends State<BiPage> {
                 denominator: report.summary.knownQuantity,
                 color: ChekiColors.blueInk,
               ),
-            Text('有签中的背签 ${report.backSigned} 张'),
+            Text('带签中的背签 ${report.backSigned} 张'),
             if (report.backUnknown > 0)
-              Text('有签中 ${report.backUnknown} 张背签情况未填写'),
+              Text('带签中 ${report.backUnknown} 张背签情况未填写'),
           ]),
           _section(context, '领取', [
             for (final e in report.receipts.entries)
@@ -601,7 +601,7 @@ class _BiDateDialogState extends State<_BiDateDialog> {
 }
 
 String _signature(String? s) => switch (s) {
-  'signed' => '有签',
+  'signed' => '带签',
   'unsigned' => '无签',
   'homework' => '宿题',
   _ => '未填写属性',
@@ -1075,10 +1075,7 @@ class _FlowPage extends StatelessWidget {
                 Text(
                   report.source.tickets
                       .where((d) => d.id == t.information.text('definition_id'))
-                      .map(
-                        (d) =>
-                            '${report.source.records.groups[d.information.text('group_id')]?.name ?? '团体未填写'} · ${d.information.text('name') ?? '券名未填写'}',
-                      )
+                      .map((d) => report.definitionLabel(d.id))
                       .join(),
                 ),
                 if (t.information.quantity! > 0)

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../data/catalog_contract.dart';
 import '../data/entry_store.dart';
+import '../data/record_cost.dart';
 import '../data/identity_store.dart';
 import '../data/ticket_store.dart';
 import '../domain/coupon_plan.dart';
@@ -608,7 +609,7 @@ class CouponPlanView extends StatelessWidget {
                 for (final p in CouponPlan.pools(l))
                   if ((p['quantity'] as int? ?? 0) > 0) ...[
                     Text(
-                      '${l['group_name'] ?? m.groups[m.definitions.where((d) => d.id == l['definition_id']).firstOrNull?.information.text('group_id')] ?? '团体未填写'} · ${l['definition_name'] ?? m.definitions.where((d) => d.id == l['definition_id']).firstOrNull?.information.text('name') ?? '券名未填写'} · ${p['quantity']} 张${p['expires_on'] == null ? '' : ' · ${p['expires_on']} 截止'}',
+                      '${m.definitions.where((d) => d.id == l['definition_id']).map(m.label).firstOrNull ?? '券种信息不可用'} · ${p['quantity']} 张${p['expires_on'] == null ? '' : ' · ${p['expires_on']} 截止'}',
                     ),
                     if (p['allow_expired'] == true) const Text('已确认使用过期库存'),
                   ],
@@ -758,12 +759,15 @@ class _CouponCostPreviewState extends State<CouponCostPreview> {
         );
       }
       if (!s.hasData) return const LinearProgressIndicator();
+      final amount = RecordCost()..linkedRecords = 1;
+      amount.addAllocations(s.data!);
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('成本预检'),
+            Text('预计${amount.label}'),
+            const Text('扣券成本明细'),
             for (final p in s.data!)
               Text(
                 '${p['quantity']} 张 · ${p['cost'] == null ? '成本未知' : '成本 ¥${p['cost']}'}${p['preserved'] == true ? ' · 保留原分配' : ''}',

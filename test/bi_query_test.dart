@@ -58,7 +58,7 @@ void main() {
       expect(group.members.keys, [f.a]);
       expect(r.sortedMembers().first.colorRgb, 0x123456);
       expect(r.memberRows({f.a}, day: '2026-10-11').length, 2);
-      expect(r.csv(), contains('"member","${f.a}","晨星 · A","","5","9"'));
+      expect(r.csv(), contains('"member","${f.a}","晨星-A","","5","9"'));
     },
   );
   test(
@@ -124,7 +124,7 @@ void main() {
       expect(all.receipts, {null: 4});
       expect(all.members[f.b]!.quantity, 0);
       expect(all.members[f.b]!.unknownRecords, 1);
-      expect(all.csv(), contains('"member","${f.b}","夜航 · B","","","4"'));
+      expect(all.csv(), contains('"member","${f.b}","夜航-B","","","4"'));
       final month = (await f.bi.read()).report(
         BiPeriod(BiScope.month, '2026-10-14'),
       );
@@ -187,7 +187,7 @@ void main() {
       expect(r.summary.knownQuantity, 2);
       expect(r.backSigned, 2);
       expect(r.members[f.a]!.colorRgb, 0xabcdef);
-      expect(r.members[f.a]!.label, '晨星 · A改名');
+      expect(r.members[f.a]!.label, '晨星-A改名');
       expect(r.rows.single.createdAt, row.createdAt);
     },
   );
@@ -218,7 +218,7 @@ void main() {
       expect(r.consumedRecordCost.label, '30');
       expect(
         r.csv(),
-        contains('"stock","${f.source}","晨星 · 基础","2026-10-14","2","","40"'),
+        contains('"stock","${f.source}","晨星","2026-10-14","2","","40"'),
       );
       await StorageSchema.validate(await f.records.database(), 8);
     },

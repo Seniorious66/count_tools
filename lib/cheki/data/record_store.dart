@@ -10,6 +10,7 @@ import 'identity_store.dart';
 import 'record_query.dart';
 import 'entry_store.dart';
 import 'legacy_member_colors.dart';
+import 'record_cost.dart';
 
 class StoredRecord {
   StoredRecord.fromRow(Map<String, Object?> row) : _raw = copySqlRow(row) {
@@ -210,6 +211,7 @@ class RecordStore {
       sizes: (await tx.query(
         CatalogKind.size.table,
       )).map(CatalogEntity.fromRow),
+      costs: await recordCostsIn(tx),
     ),
   );
   Future<List<StoredRecord>> list() async => (await (await database()).query(

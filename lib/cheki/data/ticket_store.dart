@@ -64,12 +64,32 @@ class TicketPool {
       DateTime.parse(expiry!).difference(DateTime.parse(day)).inDays <= days;
 }
 
+String ticketDefinitionLabel(
+  TicketInformation info,
+  Map<String, String> groups,
+  Map<String, String> members,
+) {
+  final parts = [
+    groups[info.text('group_id')],
+    if (info.text('scope') == 'personal') members[info.text('member_id')],
+  ].whereType<String>().where((s) => s.trim().isNotEmpty && s != '名称未填写');
+  return parts.isEmpty ? '归属未填写' : parts.join('-');
+}
+
 class TicketModel {
-  TicketModel(this.objects, this.groups, this.members, this.sizes, this.day) {
+  TicketModel(
+    this.objects,
+    this.groups,
+    this.members,
+    this.sizes,
+    this.day, {
+    this.memberGroups = const {},
+  }) {
     validateLedger(objects);
   }
   final List<TicketObject> objects;
   final Map<String, String> groups, members, sizes;
+  final Map<String, String?> memberGroups;
   final String day;
   List<TicketObject> get definitions =>
       objects.where((e) => e.kind == 'definition').toList();
@@ -80,16 +100,20 @@ class TicketModel {
         : (settings.last.information.toMap()['reminder_days'] as int? ?? 7);
   }
 
-  String label(TicketObject d) {
-    final i = d.information;
-    return '${groups[i.text('group_id')] ?? '团体未填写'} · ${i.text('name') ?? '券名未填写'}';
-  }
+  String label(TicketObject d) =>
+      ticketDefinitionLabel(d.information, groups, members);
 
-  String scopeLabel(TicketObject d) => d.information.text('scope') == 'personal'
-      ? '个人券 · ${members[d.information.text('member_id')] ?? '成员未填写'}'
-      : d.information.text('scope') == 'group'
-      ? '团体通用券'
-      : '范围未填写';
+  String scopeLabel(TicketObject d) => [
+    switch (d.information.text('scope')) {
+      'personal' => '个人券',
+      'group' => '团体券',
+      _ => '范围未填写',
+    },
+    ?sizes[d.information.text('size_id')],
+    ?{'unsigned': '无签', 'signed': '带签', 'homework': '宿题'}[d.information.text(
+      'signature',
+    )],
+  ].join(' · ');
   Map<String, int> get remaining => remainingLots(objects, day);
   List<TicketPool> pools(String id) {
     final result = <String?, int>{};
@@ -351,6 +375,10 @@ class TicketStore {
         await names('cheki_members'),
         await names('cheki_sizes'),
         day ?? OccurredOn.shanghaiDay(clock()).value,
+        memberGroups: {
+          for (final r in await tx.query('cheki_members'))
+            r['id'] as String: r['group_id'] as String?,
+        },
       );
     });
   }

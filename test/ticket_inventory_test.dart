@@ -382,7 +382,7 @@ void main() {
       await settleIo(t);
       expect(find.text('长期 4 张'), findsNothing);
       expect(find.textContaining('限时 0'), findsNothing);
-      expect(find.text('晨星 · 通用券'), findsOneWidget);
+      expect(find.text('晨星'), findsOneWidget);
       expect(find.textContaining('已过期'), findsWidgets);
       await t.runAsync(() => purchase(1, expiry: '2026-10-15'));
       await settleIo(t);
@@ -712,7 +712,7 @@ void main() {
           ),
         );
         await settleIo(t);
-        expect(find.text('晨星 · 通用券'), findsOneWidget);
+        expect(find.text('晨星'), findsOneWidget);
         await t.pumpWidget(const SizedBox());
         await t.runAsync(db.close);
       },

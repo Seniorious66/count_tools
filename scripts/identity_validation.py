@@ -52,6 +52,8 @@ def verify_identity(db):
             raise ValueError('Invalid inherited color snapshot')
         after, result = decode_row(h['after_json']), decode_row(op['result_json'])
         before = None if h['before_json'] is None else decode_row(h['before_json'])
+        if 'group_correction' in request and (request['group_correction'] is not True or kind != 'member' or request.get('action') != 'edit' or before is None or request.get('transfer') is not None or not isinstance(fields, dict) or 'group_id' not in fields or before['group_id'] == after['group_id']):
+            raise ValueError('Invalid group correction')
         identity(kind, after)
         key = kind, entity_id
         previous = last.get(key)
@@ -75,7 +77,7 @@ def verify_identity(db):
         else:
             identity(kind, before)
             if kind == 'member' and 'group_id' in fields:
-                if before['group_id'] is not None or after['group_id'] is None:
+                if request.get('group_correction') is not True and (before['group_id'] is not None or after['group_id'] is None):
                     raise ValueError('Only unknown group may be completed in place')
                 mutable.add('group_id')
             preserved = set(before) - mutable - {'updated_at', 'revision'}

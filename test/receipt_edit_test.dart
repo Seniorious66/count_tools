@@ -346,6 +346,19 @@ void main() {
     },
   );
 
+  Future<void> openSavedDetails(WidgetTester tester) async {
+    if (find.byType(RecordDetailPage).evaluate().isNotEmpty) return;
+    final r = (await tester.runAsync(store.list))!.single;
+    final tile = find.byKey(ValueKey('record-${r.id}'));
+    await tester.scrollUntilVisible(
+      tile,
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(tile);
+    await settleIo(tester);
+  }
+
   Future<void> reach(WidgetTester tester, Finder finder) async {
     await tester.scrollUntilVisible(
       finder,
@@ -397,6 +410,7 @@ void main() {
       expect((batches[1] as Map).containsKey('origin'), isFalse);
       expect(saved.id, original.id);
       expect(saved.createdAt, original.createdAt);
+      await openSavedDetails(tester);
       await tester.ensureVisible(find.text('修改记录'));
       await tester.tap(find.text('修改记录'));
       await settleIo(tester);
@@ -455,7 +469,8 @@ void main() {
       await tester.tap(find.text('保存'));
       await settleIo(tester);
       clock = DateTime.utc(2026, 10, 13, 2);
-      await tester.ensureVisible(find.text('补领'));
+      await openSavedDetails(tester);
+      await reach(tester, find.text('补领'));
       await tester.tap(find.text('补领'));
       await settleIo(tester);
       await reach(tester, lastQuantity());
@@ -464,7 +479,8 @@ void main() {
       await settleIo(tester);
       await tester.tap(find.text('保存'));
       await settleIo(tester);
-      expect(find.text('领取：已领取'), findsOneWidget);
+      expect(find.byType(RecordDetailPage), findsNothing);
+      expect(find.textContaining('已领取'), findsWidgets);
       final saved = (await tester.runAsync(store.list))!.single;
       expect(saved.information.receivedQuantity, 3);
       expect(saved.createdAt, original.createdAt);

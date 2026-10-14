@@ -9,6 +9,7 @@ import 'catalog_pages.dart';
 import 'components.dart';
 import 'member_inputs.dart';
 import 'theme.dart';
+import 'entity_grid.dart';
 
 String identityActionLabel(String utc) => DateTime.parse(utc)
     .add(const Duration(hours: 8))
@@ -100,6 +101,30 @@ class _IdentityListPageState extends State<IdentityListPage> {
                   ],
                 ),
               ),
+            );
+          }
+          if (widget.kind == IdentityKind.member) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                CompactEntityGrid(
+                  items: [
+                    for (final item in items)
+                      EntityGridItem(
+                        id: 'identity-${item.id}',
+                        name: item.name,
+                        subtitle: groupMap[item.groupId]?.knownName,
+                        color: item.colorRgb == null
+                            ? ChekiColors.inputBorder
+                            : Color(0xff000000 | item.colorRgb!),
+                        inactive:
+                            !item.active ||
+                            groupMap[item.groupId]?.active == false,
+                        onTap: () => _edit(item),
+                      ),
+                  ],
+                ),
+              ],
             );
           }
           return ListView(
@@ -337,7 +362,8 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
         result = await widget.store.editMember(
           original: original,
           name: _name.text,
-          fillGroupId: original.groupId == null ? _groupId : null,
+          correctGroup: _groupId != original.groupId,
+          correctedGroupId: _groupId,
           colorRgb: _color,
           personId: _personId,
           active: _active,
@@ -472,14 +498,11 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                           );
                         }
                         final directory = snapshot.data!;
-                        final groupName = directory.groups
-                            .where((g) => g.id == _groupId)
-                            .firstOrNull
-                            ?.name;
                         final groups = directory.groups
                             .where(
                               (g) =>
-                                  g.active &&
+                                  (g.active ||
+                                      g.id == widget.original?.groupId) &&
                                   g.id != widget.transferFrom?.groupId,
                             )
                             .toList();
@@ -490,54 +513,49 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const SizedBox(height: 16),
-                            if (widget.original?.groupId != null)
-                              InputDecorator(
-                                decoration: const InputDecoration(
-                                  labelText: '团体',
-                                ),
-                                child: Text(groupName ?? '团体信息不可用'),
-                              )
-                            else ...[
-                              DropdownButtonFormField<String>(
-                                key: ValueKey('identity-group-$_groupId'),
-                                initialValue:
-                                    groups.any((g) => g.id == _groupId)
-                                    ? _groupId
-                                    : null,
-                                isExpanded: true,
-                                decoration: const InputDecoration(
-                                  labelText: '团体',
-                                ),
-                                items: [
-                                  if (widget.transferFrom == null)
-                                    const DropdownMenuItem<String>(
-                                      value: '',
-                                      child: Text('未填写'),
-                                    ),
-                                  ...groups.map(
-                                    (g) => DropdownMenuItem(
-                                      value: g.id,
-                                      child: Text(
-                                        g.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                            DropdownButtonFormField<String>(
+                              key: ValueKey('identity-group-$_groupId'),
+                              initialValue: groups.any((g) => g.id == _groupId)
+                                  ? _groupId
+                                  : null,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                labelText: widget.original == null
+                                    ? '团体'
+                                    : '团体（纠正填写）',
+                              ),
+                              items: [
+                                if (widget.transferFrom == null)
+                                  const DropdownMenuItem<String>(
+                                    value: '',
+                                    child: Text('未填写'),
+                                  ),
+                                ...groups.map(
+                                  (g) => DropdownMenuItem(
+                                    value: g.id,
+                                    child: Text(
+                                      '${g.name}${g.active ? '' : '（已停用）'}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                ],
-                                onChanged: _saving
-                                    ? null
-                                    : (id) => setState(
-                                        () => _groupId = id == '' ? null : id,
-                                      ),
+                                ),
+                              ],
+                              onChanged: _saving
+                                  ? null
+                                  : (id) => setState(
+                                      () => _groupId = id == '' ? null : id,
+                                    ),
+                            ),
+                            if (widget.original != null)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: Text('填错团体可在此纠正。真实转团请使用右上角转团入口，历史保留。'),
                               ),
-                              TextButton(
-                                onPressed: _saving
-                                    ? null
-                                    : () => _related(true),
-                                child: const Text('管理团体'),
-                              ),
-                            ],
+                            TextButton(
+                              onPressed: _saving ? null : () => _related(true),
+                              child: const Text('管理团体'),
+                            ),
                             const SizedBox(height: 16),
                             if (widget.transferFrom == null) ...[
                               DropdownButtonFormField<String?>(
@@ -734,6 +752,8 @@ class _IdentityHistoryItem extends StatelessWidget {
                   ),
                 ],
               ),
+            if (before != null && before['group_id'] != after['group_id'])
+              const Text('团体填写已纠正，原归属保留在历史中'),
             if (before != null && before['person_id'] != after['person_id'])
               const Text('同人关联已变更'),
             const SizedBox(height: 8),

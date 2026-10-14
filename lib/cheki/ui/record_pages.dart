@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/catalog_contract.dart';
 import '../data/catalog_store.dart';
@@ -260,11 +261,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
     child: Scaffold(
       appBar: recordAppBar(
         context,
-        widget.original != null
-            ? '修改记录'
-            : widget.historical
-            ? '补录旧信息'
-            : '记录',
+        widget.original != null ? '修改记录' : '记录',
         actions: [
           if (widget.original != null)
             IconButton(
@@ -368,16 +365,6 @@ class _RecordEditPageState extends State<RecordEditPage> {
                                     !widget.historical,
                               );
                             }),
-                          ),
-                          RecordNamesEditor(
-                            controller: _names,
-                            memberIds: _members,
-                            currentLabels: {
-                              for (final m in directory.members)
-                                m.id:
-                                    '${groups[m.groupId]?.name ?? '未填写团体'} · ${m.name}',
-                            },
-                            onChanged: () => setState(() {}),
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
@@ -495,16 +482,19 @@ class _RecordEditPageState extends State<RecordEditPage> {
   Widget _check(String label, bool value, ValueChanged<bool>? changed) =>
       SizedBox(
         width: MediaQuery.textScalerOf(context).scale(14) > 20 ? 130 : 72,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Checkbox(
-              value: value,
-              onChanged: changed == null ? null : (v) => changed(v!),
-              semanticLabel: label,
-            ),
-            Text(label),
-          ],
+        child: InkWell(
+          onTap: changed == null ? null : () => changed(!value),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Checkbox(
+                value: value,
+                onChanged: changed == null ? null : (v) => changed(v!),
+                semanticLabel: label,
+              ),
+              Text(label),
+            ],
+          ),
         ),
       );
 }
@@ -615,13 +605,6 @@ class _RecordReviewPageState extends State<RecordReviewPage> {
                       ),
                       recordId: widget.original?.id,
                     ),
-                  if (widget.information.missingFields.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: Text(
-                        '保存后可补录：${widget.information.missingFields.join('、')}',
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -657,8 +640,10 @@ class RecordInformationView extends StatefulWidget {
   const RecordInformationView({
     required this.info,
     required this.store,
+    this.historical = false,
     super.key,
   });
+  final bool historical;
   final RecordInformation info;
   final RecordStore store;
   @override
@@ -668,6 +653,25 @@ class RecordInformationView extends StatefulWidget {
 class _RecordInformationViewState extends State<RecordInformationView> {
   RecordInformation get info => widget.info;
   late Future<RecordReadModel> _labels = widget.store.readModel();
+  StreamSubscription<void>? _subscription;
+  @override
+  void initState() {
+    super.initState();
+    _subscription = RecordStore.changes.listen((_) {
+      if (mounted) {
+        setState(() {
+          _labels = widget.store.readModel();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => ChekiCard(
     child: Column(
@@ -694,7 +698,7 @@ class _RecordInformationViewState extends State<RecordInformationView> {
                   '尺寸：${info.sizeId == null ? '未填写' : labels.sizes[info.sizeId]?.name ?? '尺寸信息不可用'}',
                 ),
                 Text(
-                  '参与成员：${info.memberIds == null || info.memberIds!.isEmpty ? '未填写' : info.memberIds!.map((id) => labels.recordMemberLabel(info, id)).join('、')}',
+                  '参与成员：${info.memberIds == null || info.memberIds!.isEmpty ? '未填写' : info.memberIds!.map((id) => widget.historical ? labels.historicalMemberLabel(info, id) : labels.recordMemberLabel(info, id)).join('、')}',
                 ),
               ],
             );
@@ -768,11 +772,11 @@ class _RecordChangeViewState extends State<RecordChangeView> {
           (info.memberIds ?? []).isEmpty
               ? '未填写'
               : info.memberIds!
-                    .map((id) => m.recordMemberLabel(info, id))
+                    .map((id) => m.historicalMemberLabel(info, id))
                     .join('、'),
         'attributes' =>
           info.signature == SignatureKind.signed
-              ? '有签 · 背签${info.backSigned == null
+              ? '带签 · 背签${info.backSigned == null
                     ? '未填写'
                     : info.backSigned!
                     ? '是'
@@ -896,6 +900,7 @@ class _RecordHistoryPageState extends State<RecordHistoryPage> {
                         ).information,
                       ),
                     RecordInformationView(
+                      historical: true,
                       store: widget.store,
                       info: StoredRecord.fromRow(
                         decodeSqlRow(h['after_json'] as String),

@@ -164,7 +164,7 @@ void main() {
       );
       await t.tap(find.text('核对'));
       await settleIo(t);
-      expect(find.text('成本预检'), findsOneWidget);
+      expect(find.text('扣券成本明细'), findsOneWidget);
       expect(find.text('2 张 · 成本 ¥60'), findsOneWidget);
       expect(find.text('3 张 · 成本 ¥60'), findsOneWidget);
       expect(find.text('保存'), findsOneWidget);
@@ -389,7 +389,7 @@ void main() {
         expect(costs.map((c) => c['cost']), ['30', null]);
         expect(costs.every((c) => c['preserved'] == true), true);
         await host(t, RecordDetailPage(store: s, record: r));
-        await reach(t, find.text('成本预检'));
+        await reach(t, find.text('扣券成本明细'));
         expect(find.textContaining('保留原分配'), findsWidgets);
         expect(
           jsonDecode(

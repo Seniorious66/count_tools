@@ -131,11 +131,11 @@ void main() {
       await settleIo(t);
       expect(find.text('7 张'), findsWidgets);
       await t.scrollUntilVisible(
-        find.text('晨星 · A'),
+        find.text('晨星-A'),
         150,
         scrollable: find.byType(Scrollable).first,
       );
-      await t.tap(find.text('晨星 · A'));
+      await t.tap(find.text('晨星-A'));
       await settleIo(t);
       expect(find.byType(BiMemberPage), findsOneWidget);
       expect(find.text('5 张'), findsOneWidget);
@@ -220,11 +220,11 @@ void main() {
         await t.pumpWidget(page(scale: 2));
         await settleIo(t);
         await t.scrollUntilVisible(
-          find.text('晨星 · A'),
+          find.text('晨星-A'),
           160,
           scrollable: find.byType(Scrollable).first,
         );
-        await t.tap(find.text('晨星 · A'));
+        await t.tap(find.text('晨星-A'));
         await settleIo(t);
         await t.tap(find.text('选择日期查看'));
         await t.pumpAndSettle();
@@ -387,11 +387,11 @@ void main() {
       );
     });
     await t.scrollUntilVisible(
-      find.text('晨星 · A'),
+      find.text('晨星-A'),
       140,
       scrollable: find.byType(Scrollable).first,
     );
-    await t.tap(find.text('晨星 · A'));
+    await t.tap(find.text('晨星-A'));
     await settleIo(t);
     await capture('member-month');
     await t.pageBack();

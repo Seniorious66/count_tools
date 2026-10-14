@@ -10,6 +10,7 @@ import 'record_store.dart';
 import 'ticket_store.dart';
 import 'entry_store.dart';
 import 'transfer_store.dart';
+import 'record_cost.dart';
 
 enum BiScope {
   day('日'),
@@ -67,24 +68,8 @@ class BiPeriod {
   }
 }
 
-class BiAmount {
-  TicketMoney known = TicketMoney(BigInt.zero, BigInt.one);
-  int knownQuantity = 0, unknownQuantity = 0;
-  void add(TicketMoney? amount, int quantity) {
-    if (amount == null) {
-      unknownQuantity += quantity;
-    } else {
-      known = TicketMoney(
-        known.numerator * amount.denominator +
-            amount.numerator * known.denominator,
-        known.denominator * amount.denominator,
-      );
-      // Reduce at every addition to avoid growth with large ledgers.
-      known = TicketMoney.fromExact(known.exact);
-      knownQuantity += quantity;
-    }
-  }
-
+class BiAmount extends RecordCost {
+  @override
   String get label => knownQuantity == 0 && unknownQuantity > 0
       ? '未知'
       : '${known.exact}${unknownQuantity > 0 ? '（另有$unknownQuantity张成本未知）' : ''}';
@@ -414,7 +399,11 @@ class BiReport {
   final purchases = <String, BiAmount>{};
   String definitionLabel(String id) {
     final d = source.tickets.singleWhere((t) => t.id == id);
-    return '${source.records.groups[d.information.text('group_id')]?.name ?? '团体未填写'} · ${d.information.text('name') ?? '券名未填写'}';
+    return ticketDefinitionLabel(
+      d.information,
+      {for (final g in source.records.groups.values) g.id: g.knownName ?? ''},
+      {for (final m in source.records.members.values) m.id: m.knownName ?? ''},
+    );
   }
 
   String get memberQuantityLabel =>
@@ -622,7 +611,7 @@ class BiReport {
     row(
       'back_signed',
       'signed_subset',
-      '有签中的背签',
+      '带签中的背签',
       null,
       backSigned,
       denominator: signatures['signed'] ?? 0,

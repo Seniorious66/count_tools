@@ -313,8 +313,9 @@ void main() {
       );
       await tester.tap(find.text('Cheki记录'));
       await settleIo(tester);
-      await tester.tap(find.byTooltip('补录旧信息'));
+      await tester.tap(find.byTooltip('新增记录'));
       await settleIo(tester);
+      await clearNewShortcuts(tester);
       for (final key in ['record-day', 'record-quantity']) {
         expect(
           tester.widget<TextField>(find.byKey(ValueKey(key))).controller!.text,
@@ -348,9 +349,7 @@ void main() {
       await settleIo(tester);
       await tester.tap(find.text('保存'));
       await settleIo(tester);
-      await tester.binding.handlePopRoute();
-      await settleIo(tester);
-      expect(find.text('已知张数 3'), findsOneWidget);
+      expect(find.text('3 张'), findsOneWidget);
       expect(find.text('张数未填写 1 条'), findsNothing);
       rows = (await tester.runAsync(store.list))!;
       expect(rows.single.id, id);
@@ -366,7 +365,7 @@ void main() {
         ),
       );
       await settleIo(tester);
-      expect(find.text('已知张数 3'), findsOneWidget);
+      expect(find.text('3 张'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
@@ -391,8 +390,9 @@ void main() {
         ),
       );
       await settleIo(tester);
-      await tester.tap(find.byTooltip('补录旧信息'));
+      await tester.tap(find.byTooltip('新增记录'));
       await settleIo(tester);
+      await clearNewShortcuts(tester);
       await tester.enterText(
         find.byKey(const ValueKey('record-quantity')),
         '-1',
@@ -627,4 +627,44 @@ void main() {
       },
     );
   }
+}
+
+Future<void> clearNewShortcuts(WidgetTester tester) async {
+  await tester.enterText(find.byKey(const ValueKey('record-day')), '');
+  await tester.enterText(find.byKey(const ValueKey('record-quantity')), '');
+  await tester.scrollUntilVisible(
+    find.text('带签'),
+    160,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(find.text('带签'));
+  await tester.pumpAndSettle();
+  final status = find.byWidgetPredicate(
+    (w) =>
+        w is DropdownButtonFormField<String> &&
+        w.key is ValueKey<String> &&
+        (w.key as ValueKey<String>).value.startsWith('record-receipt-'),
+  );
+  await tester.scrollUntilVisible(
+    status,
+    160,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(status);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('未填写').last);
+  await tester.pumpAndSettle();
+  final mode = find.byKey(const ValueKey('use-record-only'));
+  await tester.scrollUntilVisible(
+    mode,
+    160,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(mode);
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(
+    find.byKey(const ValueKey('record-day')),
+    -200,
+    scrollable: find.byType(Scrollable).first,
+  );
 }

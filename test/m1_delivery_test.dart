@@ -50,7 +50,7 @@ void checkModel(RecordReadModel m) {
   );
   expect(joint.information.receivedQuantity, 2);
   expect(joint.information.occurredOn?.value, '2026-10-11');
-  expect(m.recordMemberLabel(joint.information, a), '晨星 · A（录入时）');
+  expect(m.historicalMemberLabel(joint.information, a), '晨星 · A（录入时）');
   final batches = joint.information.toMap()['receipt_batches'] as List;
   expect(batches.length, 2);
   expect((batches.first as Map)['received_at'], '2026-10-12T01:00:00.123456Z');
@@ -126,10 +126,10 @@ void main() {
           ),
         );
         await settleIo(tester);
-        expect(find.text('7'), findsOneWidget);
+        expect(find.text('7 张'), findsOneWidget);
         await tester.tap(find.byKey(const ValueKey('home-month')));
         await settleIo(tester);
-        expect(find.text('已知张数 7'), findsOneWidget);
+        expect(find.text('7 张'), findsOneWidget);
         expect(find.text('成员张数 9'), findsOneWidget);
         await tester.pumpWidget(const SizedBox());
         await tester.runAsync(() => db!.close());

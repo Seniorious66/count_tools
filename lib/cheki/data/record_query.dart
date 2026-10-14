@@ -4,6 +4,7 @@ import '../domain/record_information.dart';
 import 'catalog_contract.dart';
 import 'identity_contract.dart';
 import 'record_store.dart';
+import 'record_cost.dart';
 
 enum RecordSelection { all, awaitingReceipt, incomplete, undated }
 
@@ -212,23 +213,44 @@ final class RecordReadModel {
     required Iterable<CatalogEntity> groups,
     required Iterable<IdentityEntity> members,
     required Iterable<CatalogEntity> sizes,
+    Map<String, RecordCost> costs = const {},
   }) : records = List.unmodifiable(
          records.toList()..sort(compareRecordOccurrence),
        ),
        groups = Map.unmodifiable({for (final g in groups) g.id: g}),
        members = Map.unmodifiable({for (final m in members) m.id: m}),
-       sizes = Map.unmodifiable({for (final s in sizes) s.id: s});
+       sizes = Map.unmodifiable({for (final s in sizes) s.id: s}),
+       costs = Map.unmodifiable(costs);
   final List<StoredRecord> records;
   final Map<String, CatalogEntity> groups, sizes;
   final Map<String, IdentityEntity> members;
-  String memberLabel(String id) {
-    final m = members[id];
-    return m == null
-        ? '成员信息不可用'
-        : '${groups[m.groupId]?.name ?? '未填写团体'} · ${m.name}';
+  final Map<String, RecordCost> costs;
+  RecordCost costFor(Iterable<String> recordIds) {
+    final total = RecordCost();
+    for (final id in recordIds.toSet()) {
+      final cost = costs[id];
+      if (cost == null) {
+        total.unlinkedRecords++;
+      } else {
+        total.combine(cost);
+      }
+    }
+    return total;
   }
 
-  String recordMemberLabel(RecordInformation info, String id) {
+  String memberLabel(String id) {
+    final m = members[id];
+    final parts = [
+      groups[m?.groupId]?.knownName,
+      m?.knownName,
+    ].whereType<String>().where((s) => s.trim().isNotEmpty).toList();
+    return parts.isEmpty ? '成员信息未填写' : parts.join('-');
+  }
+
+  String recordMemberLabel(RecordInformation info, String id) =>
+      memberLabel(id);
+
+  String historicalMemberLabel(RecordInformation info, String id) {
     final s = info.memberSnapshot(id);
     if (s == null) return '${memberLabel(id)}（当前名称，当时名称未填写）';
     final group = s['group_name'] as String?;

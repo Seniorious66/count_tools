@@ -343,7 +343,7 @@ void main() {
         operationId: 'stop-a',
       );
       final m = await store.readModel();
-      expect(m.memberLabel(a), '晨星 · 新A');
+      expect(m.memberLabel(a), '晨星-新A');
       expect(m.members[a]?.colorRgb, 0x123456);
       expect(m.summarize(RecordFilter(memberId: a)).knownQuantity, 5);
       expect(m.summarize(RecordFilter(memberId: other.id)).knownQuantity, 4);
@@ -403,25 +403,25 @@ void main() {
         ),
       );
       await settleIo(tester);
-      expect(find.text('7'), findsOneWidget);
-      expect(find.text('4 张已知待领'), findsOneWidget);
+      expect(find.text('7 张'), findsOneWidget);
+      expect(find.text('4 张'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('home-pending')));
       await settleIo(tester);
-      expect(find.text('已知张数 5'), findsOneWidget);
+      expect(find.text('5 张'), findsOneWidget);
       expect(find.byKey(ValueKey('record-${rows[1].id}')), findsNothing);
       await tester.tap(find.text('全部').first);
       await settleIo(tester);
-      expect(find.text('已知张数 7'), findsOneWidget);
+      expect(find.text('7 张'), findsOneWidget);
       expect(find.text('成员张数 9'), findsOneWidget);
       await tester.tap(find.byType(ActionChip));
       await tester.pumpAndSettle();
       await tester.tap(find.byType(DropdownButtonFormField<String>).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('晨星 · A').last);
+      await tester.tap(find.text('晨星-A').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('应用'));
       await settleIo(tester);
-      expect(find.text('已知张数 5'), findsOneWidget);
+      expect(find.text('5 张'), findsOneWidget);
       expect(find.text('成员张数 5'), findsOneWidget);
       final tile = find.byKey(ValueKey('record-${rows[2].id}'));
       await tester.scrollUntilVisible(
@@ -447,16 +447,15 @@ void main() {
       expect(find.text('修改后：2026-09-30'), findsOneWidget);
       await tester.tap(find.text('保存'));
       await settleIo(tester);
-      expect(find.text('发生日期：2026-09-30'), findsOneWidget);
+      expect(find.byType(RecordDetailPage), findsNothing);
       final updated = (await tester.runAsync(
         store.list,
       ))!.singleWhere((r) => r.id == rows[2].id);
       expect(updated.createdAt, rows[2].createdAt);
+      expect(updated.information.occurredOn!.value, '2026-09-30');
       await tester.binding.handlePopRoute();
       await settleIo(tester);
-      await tester.binding.handlePopRoute();
-      await settleIo(tester);
-      expect(find.text('5'), findsOneWidget);
+      expect(find.text('5 张'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
     },
   );
@@ -479,11 +478,11 @@ void main() {
       );
       await settleIo(tester);
       expect(find.text('读取失败，点击重试'), findsOneWidget);
-      expect(find.text('已知张数 0'), findsNothing);
+      expect(find.text('0 张'), findsNothing);
       unavailable = false;
       await tester.tap(find.text('读取失败，点击重试'));
       await settleIo(tester);
-      expect(find.text('已知张数 未填写'), findsOneWidget);
+      expect(find.text('未填写 张'), findsOneWidget);
       await tester.tap(find.text('无日期'));
       await settleIo(tester);
       expect(find.byKey(ValueKey('record-${blank!.id}')), findsOneWidget);
@@ -533,7 +532,7 @@ void main() {
         expect(find.text('统计'), findsOneWidget);
         await tester.tap(find.byIcon(Icons.notes));
         await settleIo(tester);
-        expect(find.text('已知张数 7'), findsOneWidget);
+        expect(find.text('7 张'), findsOneWidget);
         await tester.tap(find.byTooltip('打开管理'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('旧版项目'));

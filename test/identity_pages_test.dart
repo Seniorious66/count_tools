@@ -132,8 +132,8 @@ void main() {
       final a = (await store.list(IdentityKind.member)).single;
       expect(a.personId, person.id);
       expect(a.colorRgb, 0xabcdef);
-      expect(find.text('晨星 · A'), findsOneWidget);
-      await tester.tap(find.text('晨星 · A'));
+      expect(find.text('A'), findsOneWidget);
+      await tester.tap(find.text('A'));
       await settleIo(tester);
       await tester.enterText(
         find.byKey(const ValueKey('identity-name')),
@@ -141,7 +141,7 @@ void main() {
       );
       await tester.tap(find.text('保存'));
       await settleIo(tester);
-      await tester.tap(find.text('晨星 · A改名'));
+      await tester.tap(find.text('A改名'));
       await settleIo(tester);
       await tester.tap(find.byTooltip('修改历史'));
       await settleIo(tester);
@@ -157,11 +157,12 @@ void main() {
       );
       await tester.tap(find.text('保存'));
       await settleIo(tester);
-      expect(find.text('晨星 · A改名'), findsOneWidget);
-      expect(find.text('夜航 · 新团艺名'), findsOneWidget);
-      await tester.tap(find.text('晨星 · A改名'));
+      expect(find.text('A改名'), findsOneWidget);
+      expect(find.text('新团艺名'), findsOneWidget);
+      await tester.tap(find.text('A改名'));
       await settleIo(tester);
       await tester.ensureVisible(find.byType(SwitchListTile));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(SwitchListTile));
       await tester.tap(find.text('保存'));
       await settleIo(tester);
@@ -179,8 +180,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('成员'));
       await settleIo(tester);
-      expect(find.text('晨星 · A改名'), findsOneWidget);
-      expect(find.text('夜航 · 新团艺名'), findsOneWidget);
+      expect(find.text('A改名'), findsOneWidget);
+      expect(find.text('新团艺名'), findsOneWidget);
       expect(
         (await SharedPreferences.getInstance()).getStringList(
           'unknown_setting',
@@ -198,7 +199,7 @@ void main() {
         host(IdentityListPage(kind: IdentityKind.member, store: store)),
       );
       await settleIo(tester);
-      await tester.tap(find.text('晨星 · A'));
+      await tester.tap(find.text('A'));
       await settleIo(tester);
       await tester.enterText(
         find.byKey(const ValueKey('identity-name')),
@@ -236,7 +237,7 @@ void main() {
         host(IdentityListPage(kind: IdentityKind.member, store: failing)),
       );
       await settleIo(tester);
-      await tester.tap(find.text('晨星 · A'));
+      await tester.tap(find.text('A'));
       await settleIo(tester);
       await tester.enterText(
         find.byKey(const ValueKey('identity-name')),
@@ -325,7 +326,7 @@ void main() {
           host(IdentityListPage(kind: IdentityKind.member, store: busy)),
         );
         await settleIo(tester);
-        await tester.tap(find.text('晨星 · A'));
+        await tester.tap(find.text('A'));
         await settleIo(tester);
         await tester.enterText(
           find.byKey(const ValueKey('identity-name')),

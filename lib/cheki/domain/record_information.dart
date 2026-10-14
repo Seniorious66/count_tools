@@ -64,7 +64,7 @@ final class RecordInformation {
         throw const FormatException('属性格式无效');
       }
       if (a['back_signed'] == true && a['kind'] != 'signed') {
-        throw const FormatException('背签需明确有签；旧冲突留原始档案待补录');
+        throw const FormatException('背签需明确带签；旧冲突留原始档案待补录');
       }
     }
     final batches = _raw['receipt_batches'];

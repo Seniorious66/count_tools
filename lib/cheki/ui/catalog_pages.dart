@@ -13,6 +13,7 @@ import 'record_pages.dart';
 import 'identity_pages.dart';
 import 'components.dart';
 import 'theme.dart';
+import 'entity_grid.dart';
 
 class CatalogManagementPage extends StatelessWidget {
   CatalogManagementPage({CatalogStore? store, super.key})
@@ -50,7 +51,7 @@ class CatalogManagementPage extends StatelessWidget {
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Cheki记录'),
-                  subtitle: const Text('记录与旧信息补录'),
+                  subtitle: const Text('查看和修改记录'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push<void>(
                     context,
@@ -239,19 +240,32 @@ class _CatalogListPageState extends State<CatalogListPage> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
-                for (final item in items)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: ChekiCard(
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(item.name),
-                        subtitle: Text(item.active ? '使用中' : '已停用'),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _edit(item),
+                if (widget.kind == CatalogKind.group)
+                  CompactEntityGrid(
+                    items: [
+                      for (final item in items)
+                        EntityGridItem(
+                          id: 'group-${item.id}',
+                          name: item.name,
+                          inactive: !item.active,
+                          onTap: () => _edit(item),
+                        ),
+                    ],
+                  )
+                else
+                  for (final item in items)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ChekiCard(
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(item.name),
+                          subtitle: Text(item.active ? '使用中' : '已停用'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _edit(item),
+                        ),
                       ),
                     ),
-                  ),
               ],
             ),
           );
@@ -450,7 +464,11 @@ class _CatalogEditPageState extends State<CatalogEditPage> {
                           contentPadding: EdgeInsets.zero,
                           value: _active,
                           title: const Text('使用中'),
-                          subtitle: const Text('停用后保留历史记录'),
+                          subtitle: Text(
+                            widget.kind == CatalogKind.group
+                                ? '停用后不能在新记录中选择该团体，也不能为它新增成员。历史、颜色和库存保留，不会自动停用旗下券种。'
+                                : '停用后保留历史记录',
+                          ),
                           onChanged: _saving
                               ? null
                               : (value) => setState(() => _active = value),

@@ -64,14 +64,19 @@ mixin _RecordReader<T extends StatefulWidget> on State<T> {
           return build(s.data!);
         },
       );
-  Future<void> edit({StoredRecord? original, bool historical = false}) async {
-    await Navigator.push<StoredRecord>(
+  Future<StoredRecord?> edit({
+    StoredRecord? original,
+    bool historical = false,
+    bool addReceipt = false,
+  }) async {
+    return Navigator.push<StoredRecord>(
       context,
       MaterialPageRoute(
         builder: (_) => RecordEditPage(
           store: store,
           original: original,
           historical: historical,
+          addReceipt: addReceipt,
         ),
       ),
     );
@@ -139,26 +144,18 @@ class _RecordHomePageState extends State<RecordHomePage>
         children: [
           TicketOverview(
             store: widget.ticketStore,
-            child: InkWell(
-              key: const ValueKey('home-month'),
-              onTap: () => _list(month),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${day.value.substring(0, 7)} · Cheki'),
-                  const SizedBox(height: 8),
-                  Text(
-                    monthly.quantityLabel,
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Text('已知张数'),
-                  if (monthly.unknownQuantityRecords > 0)
-                    Text('张数未填写 ${monthly.unknownQuantityRecords} 条'),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                OverviewMetric(
+                  key: const ValueKey('home-month'),
+                  title: '${day.value.substring(0, 7)} · Cheki',
+                  value: monthly.quantityLabel,
+                  onTap: () => _list(month),
+                ),
+                if (monthly.unknownQuantityRecords > 0)
+                  Text('张数未填写 ${monthly.unknownQuantityRecords} 条'),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -175,7 +172,7 @@ class _RecordHomePageState extends State<RecordHomePage>
                     pending.knownReceiptQuantityRecords == 0 &&
                             pending.recordCount > 0
                         ? '待领取张数未填写'
-                        : '${pending.knownAwaitingQuantity} 张已知待领',
+                        : '${pending.knownAwaitingQuantity} 张',
                   ),
                   if (pending.unknownReceiptQuantityRecords > 0)
                     Text('另 ${pending.unknownReceiptQuantityRecords} 条待补领取张数'),
@@ -198,10 +195,7 @@ class _RecordHomePageState extends State<RecordHomePage>
             icon: const Icon(Icons.add),
             label: const Text('记一笔'),
           ),
-          TextButton(
-            onPressed: () => edit(historical: true),
-            child: const Text('补录旧信息'),
-          ),
+
           const SizedBox(height: 16),
           Text('最近记录', style: Theme.of(context).textTheme.titleMedium),
           if (m.records.isEmpty)
@@ -240,11 +234,6 @@ class _RecordListPageState extends State<RecordListPage>
   late RecordFilter _filter = widget.initialFilter ?? RecordFilter();
   bool _merged = true;
   List<Widget> get _actions => [
-    IconButton(
-      tooltip: '补录旧信息',
-      onPressed: () => edit(historical: true),
-      icon: const Icon(Icons.post_add),
-    ),
     IconButton(
       tooltip: '新增记录',
       onPressed: () => edit(),
@@ -356,7 +345,7 @@ class _RecordListPageState extends State<RecordListPage>
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               Text(
-                '已知张数 ${group.summary.quantityLabel} · 成员张数 ${group.summary.memberQuantityLabel}',
+                '${group.summary.quantityLabel} 张 · 成员 ${group.summary.memberQuantityLabel} 张',
               ),
               if (group.summary.bySize.isNotEmpty)
                 Text(
@@ -398,7 +387,7 @@ class _SummaryView extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text('已知张数 ${summary.quantityLabel}'),
+      Text('${summary.quantityLabel} 张'),
       Text('成员张数 ${summary.memberQuantityLabel}'),
       if (summary.unknownQuantityRecords > 0)
         Text('张数未填写 ${summary.unknownQuantityRecords} 条'),
@@ -473,8 +462,11 @@ class _RecordTile extends StatelessWidget {
                 Text(
                   '${i.signature?.label ?? '属性未填写'}${i.backSigned == true ? ' · 背签' : ''} · ${i.receiptStatus?.label ?? '领取信息未填写'}',
                 ),
-                if (i.missingFields.isNotEmpty)
-                  Text('待补录：${i.missingFields.join('、')}'),
+                Text(
+                  model
+                      .costFor(bundle?.records.map((r) => r.id) ?? [record.id])
+                      .label,
+                ),
               ],
             ),
           ),
@@ -659,6 +651,19 @@ class _RecordDetailPageState extends State<RecordDetailPage>
     with _RecordReader<RecordDetailPage> {
   @override
   RecordStore get store => widget.store;
+  Future<void> _editAndLeave(StoredRecord r, {bool receipt = false}) async {
+    final saved = await edit(original: r, addReceipt: receipt);
+    if (!mounted || saved == null) return;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute<void>(builder: (_) => RecordListPage(store: store)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: recordAppBar(context, '记录详情'),
@@ -678,6 +683,7 @@ class _RecordDetailPageState extends State<RecordDetailPage>
           padding: const EdgeInsets.all(16),
           children: [
             RecordInformationView(info: r.information, store: store),
+            Text(m.costFor([r.id]).label),
             const SizedBox(height: 16),
             RecordCouponView(
               recordId: r.id,
@@ -691,21 +697,12 @@ class _RecordDetailPageState extends State<RecordDetailPage>
               Text('待补录：${r.information.missingFields.join('、')}'),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: () => edit(original: r),
+              onPressed: () => _editAndLeave(r),
               child: const Text('修改记录'),
             ),
             if (r.information.receiptStatus != ReceiptStatus.received)
               OutlinedButton(
-                onPressed: () => Navigator.push<StoredRecord>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RecordEditPage(
-                      store: store,
-                      original: r,
-                      addReceipt: true,
-                    ),
-                  ),
-                ),
+                onPressed: () => _editAndLeave(r, receipt: true),
                 child: Text(
                   r.information.receiptStatus == null ? '补录领取' : '补领',
                 ),

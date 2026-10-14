@@ -111,6 +111,8 @@ class IdentityStore {
     required String name,
     required int? colorRgb,
     String? fillGroupId,
+    bool correctGroup = false,
+    String? correctedGroupId,
     required String? personId,
     required bool active,
     required String operationId,
@@ -119,7 +121,10 @@ class IdentityStore {
     IdentityKind.member,
     fields: {
       'name': _optionalName(name),
-      'group_id': ?fillGroupId,
+      if (correctGroup)
+        'group_id': correctedGroupId
+      else
+        'group_id': ?fillGroupId,
       'active': active ? 1 : 0,
       'person_id': personId,
       'color_rgb': colorRgb,
@@ -127,6 +132,7 @@ class IdentityStore {
     original: original,
     operationId: operationId,
     clearColorFallback: clearColorFallback,
+    correctGroup: correctGroup,
   );
 
   Future<IdentityEntity> transferMember({
@@ -216,12 +222,21 @@ class IdentityStore {
     IdentityEntity? transfer,
     bool clearColorFallback = false,
     int? inheritedColorRgb,
+    bool correctGroup = false,
   }) async {
     if (operationId.trim().isEmpty) {
       throw const CatalogException('操作标识缺失，请重新打开表单');
     }
     if (original != null && original.kind != kind) {
       throw const CatalogException('身份类型不匹配');
+    }
+    if (correctGroup &&
+        (kind != IdentityKind.member ||
+            original == null ||
+            transfer != null ||
+            !fields.containsKey('group_id') ||
+            fields['group_id'] == original.groupId)) {
+      throw const CatalogException('请选择需要纠正的团体');
     }
     if (clearColorFallback &&
         (kind != IdentityKind.member ||
@@ -243,6 +258,7 @@ class IdentityStore {
       'revision': original?.revision,
       'fields': fields,
       if (clearColorFallback) 'color_fallback_cleared': true,
+      if (correctGroup) 'group_correction': true,
       'inherited_color_rgb': ?inheritedColorRgb,
       'transfer': transfer == null
           ? null
@@ -327,10 +343,13 @@ class IdentityStore {
       if (kind == IdentityKind.member) {
         if (before != null &&
             fields.containsKey('group_id') &&
-            before['group_id'] != null) {
+            before['group_id'] != null &&
+            !correctGroup) {
           throw const CatalogException('已知团体变更请使用转团新增身份');
         }
-        final groupId = fields['group_id'] ?? before?['group_id'];
+        final groupId = fields.containsKey('group_id')
+            ? fields['group_id']
+            : before?['group_id'];
         final groups = groupId == null
             ? <Map<String, Object?>>[]
             : await tx.query(
@@ -340,10 +359,20 @@ class IdentityStore {
               );
         if ((groupId != null && groups.isEmpty) ||
             (transfer != null && groupId == null) ||
-            (before == null &&
+            ((before == null || correctGroup) &&
                 groups.isNotEmpty &&
                 groups.single['active'] != 1)) {
           throw const CatalogException('请选择有效团体');
+        }
+        if (correctGroup) {
+          final conflicts = await groupCorrectionConflictsIn(
+            tx,
+            original!.id,
+            groupId as String?,
+          );
+          if (conflicts.isNotEmpty) {
+            throw CatalogException('团体纠正影响以下关联，请先核对：\n${conflicts.join('\n')}');
+          }
         }
         final personId = fields['person_id'];
         if (personId != null) {
@@ -473,4 +502,52 @@ class IdentityStore {
 
   static String? _optionalName(String value) =>
       value.trim().isEmpty ? null : value.trim();
+
+  /// A correction changes only current affiliation. Immutable record snapshots,
+  /// ticket definitions and consumed allocations are never rewritten here.
+  static Future<List<String>> groupCorrectionConflictsIn(
+    DatabaseExecutor tx,
+    String memberId,
+    String? groupId,
+  ) async {
+    if ((await tx.rawQuery(
+      "SELECT name FROM sqlite_master WHERE name='cheki_ticket_objects'",
+    )).isEmpty) {
+      return const [];
+    }
+    final conflicts = <String>[];
+    final definitions = <String, Map>{};
+    for (final row in await tx.query(
+      'cheki_ticket_objects',
+      where: 'kind=?',
+      whereArgs: ['definition'],
+    )) {
+      final info = jsonDecode(row['information_json'] as String) as Map;
+      definitions[row['id'] as String] = info;
+      if (info['member_id'] == memberId &&
+          info['group_id'] != null &&
+          info['group_id'] != groupId) {
+        conflicts.add('个人券 #${row['seq']} 的团体不一致');
+      }
+    }
+    if ((await tx.rawQuery(
+      "SELECT name FROM sqlite_master WHERE name='cheki_entry_states'",
+    )).isNotEmpty) {
+      for (final state in await tx.query('cheki_entry_states')) {
+        final plan = jsonDecode(state['plan_json'] as String) as Map;
+        for (final line in plan['lines'] as List? ?? []) {
+          final item = line as Map;
+          final def = definitions[item['definition_id']];
+          if (item['member_id'] == memberId &&
+              def != null &&
+              def['group_id'] != null &&
+              def['group_id'] != groupId) {
+            conflicts.add('记录 ${state['record_id']} 的用券团体不一致');
+            break;
+          }
+        }
+      }
+    }
+    return List.unmodifiable(conflicts);
+  }
 }

@@ -191,7 +191,7 @@ void main() {
       );
       await settleIo(t);
       await pick(t, 'transfer-source-pool-null', '可用');
-      await pick(t, 'transfer-target-null', '晨星 · 目标券 · 团体通用券');
+      await pick(t, 'transfer-target-null', '晨星 · 团体券');
       await pick(t, 'transfer-target-pool-null', '不限期限');
       await reach(t, find.byKey(const ValueKey('transfer-quantity')));
       await t.enterText(find.byKey(const ValueKey('transfer-quantity')), '2');

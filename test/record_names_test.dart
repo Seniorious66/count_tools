@@ -134,7 +134,7 @@ void main() {
       quick.change(id, 'group_name', '史料团');
       final partial = old.patch(quick.patch([id]));
       expect(
-        (await store.readModel()).recordMemberLabel(partial, id),
+        (await store.readModel()).historicalMemberLabel(partial, id),
         '史料团（当时） · 旧名（录入时）',
       );
       expect(partial.memberSnapshot(id)?['member_name_origin'], isNull);
@@ -222,7 +222,7 @@ void main() {
       await DatabaseHelper().close();
       final model = await store.readModel();
       expect(
-        model.recordMemberLabel(model.records.single.information, id),
+        model.historicalMemberLabel(model.records.single.information, id),
         '旧团 · 旧名（录入时）',
       );
       expect(model.members[id]?.colorRgb, 0x123456);
@@ -290,7 +290,7 @@ void main() {
     },
   );
   testWidgets(
-    'real old record manual name entry review back cancel save and history narrow large text keyboard',
+    'old names remain in history while ordinary note edit review cancel save uses current labels',
     (tester) async {
       final id = (await tester.runAsync(member))!;
       final original = (await tester.runAsync(
@@ -313,7 +313,8 @@ void main() {
           ),
         );
         await settleIo(tester);
-        expect(find.textContaining('当时名称未填写'), findsOneWidget);
+        expect(find.textContaining('当时名称未填写'), findsNothing);
+        expect(find.textContaining('旧团-旧名'), findsOneWidget);
         await tester.scrollUntilVisible(
           find.text('修改记录'),
           220,
@@ -321,28 +322,26 @@ void main() {
         );
         await tester.tap(find.text('修改记录'));
         await settleIo(tester);
-        await tester.ensureVisible(find.text('记录名称'));
-        await tester.tap(find.text('记录名称'));
+        expect(find.text('记录名称'), findsNothing);
+        final f = find.byKey(const ValueKey('record-note'));
+        await tester.scrollUntilVisible(
+          f,
+          180,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.pumpAndSettle();
-        final f = find.byKey(ValueKey('snapshot-member-$id'));
-        await tester.ensureVisible(f);
-        await tester.pumpAndSettle();
-        await tester.enterText(f, '史料名');
+        await tester.enterText(f, '补充备注');
         await tester.tap(find.text('核对'));
         await settleIo(tester);
-        expect(find.textContaining('史料名'), findsWidgets);
+        expect(find.textContaining('补充备注'), findsWidgets);
         await tester.binding.handlePopRoute();
         await settleIo(tester);
-        await tester.ensureVisible(f);
-        expect(
-          tester
-              .widget<TextField>(
-                find.descendant(of: f, matching: find.byType(TextField)),
-              )
-              .controller!
-              .text,
-          '史料名',
+        await tester.scrollUntilVisible(
+          f,
+          180,
+          scrollable: find.byType(Scrollable).first,
         );
+        expect(tester.widget<TextField>(f).controller!.text, '补充备注');
         if (width == 320) {
           await tester.binding.handlePopRoute();
           await tester.pumpAndSettle();
@@ -360,7 +359,8 @@ void main() {
           await tester.tap(find.text('保存'));
           await settleIo(tester);
           final saved = (await tester.runAsync(store.list))!.single;
-          expect(saved.information.memberSnapshot(id)?['member_name'], '史料名');
+          expect(saved.information.memberSnapshot(id), isNull);
+          expect(saved.information.note, '补充备注');
           expect(saved.id, original.id);
           expect(saved.createdAt, original.createdAt);
           expect(
@@ -401,7 +401,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('核对'));
       await settleIo(tester);
-      expect(find.textContaining('旧团 · 旧名（录入时）'), findsOneWidget);
+      expect(find.textContaining('旧团-旧名'), findsOneWidget);
       await tester.tap(find.text('保存'));
       await settleIo(tester);
       final r = (await tester.runAsync(store.list))!.single;

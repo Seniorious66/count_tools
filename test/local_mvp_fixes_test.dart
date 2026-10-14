@@ -423,7 +423,7 @@ void main() {
         );
         final labels = await RecordStore(() async => db).readModel();
         expect(
-          labels.recordMemberLabel(snapshot, member),
+          labels.historicalMemberLabel(snapshot, member),
           '团体（当前团体） · 旧A（录入时）',
         );
         expect(
