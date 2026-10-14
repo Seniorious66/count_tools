@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import '../domain/member_color.dart';
 import 'components.dart';
 import 'theme.dart';
 
@@ -280,13 +281,71 @@ class _MemberColorDialog extends StatefulWidget {
 
 class _MemberColorDialogState extends State<_MemberColorDialog> {
   late Color _color = widget.initial;
+  late final _hex = TextEditingController(
+    text: memberHex(_color.toARGB32() & 0xffffff),
+  );
+  late final _numbers = <String, TextEditingController>{
+    for (final c in const [('红', 16), ('绿', 8), ('蓝', 0)])
+      c.$1: TextEditingController(text: '${(_color.toARGB32() >> c.$2) & 255}'),
+  };
+  final _errors = <String, String>{};
+  void _sync({String? preserve}) {
+    if (preserve != 'hex') _hex.text = memberHex(_color.toARGB32() & 0xffffff);
+    for (final c in const [('红', 16), ('绿', 8), ('蓝', 0)]) {
+      if (preserve != c.$1 && !_errors.containsKey(c.$1)) {
+        _numbers[c.$1]!.text = '${(_color.toARGB32() >> c.$2) & 255}';
+      }
+    }
+  }
+
+  void _choose(Color color) => setState(() {
+    _color = Color(0xff000000 | (color.toARGB32() & 0xffffff));
+    _errors.clear();
+    _sync();
+  });
+  void _hexChanged(String text) => setState(() {
+    final rgb = parseMemberHex(text);
+    if (rgb == null) {
+      _errors['hex'] = '请输入 #RRGGBB 颜色代码';
+      return;
+    }
+    _color = Color(0xff000000 | rgb);
+    _errors.clear();
+    _sync(preserve: 'hex');
+  });
+  void _numberChanged(String channel, int shift, String text) => setState(() {
+    final value = parseMemberChannel(text);
+    if (value == null) {
+      _errors[channel] = '0–255';
+      return;
+    }
+    _color = Color(
+      (_color.toARGB32() & ~(255 << shift)) | (value << shift) | 0xff000000,
+    );
+    _errors.remove(channel);
+    _errors.remove('hex');
+    _sync(preserve: channel);
+  });
+  @override
+  void dispose() {
+    _hex.dispose();
+    for (final c in _numbers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
   void _channel(int shift, double value) {
     final argb = _color.toARGB32();
-    setState(
-      () => _color = Color(
+    setState(() {
+      _color = Color(
         (argb & ~(255 << shift)) | (value.round() << shift) | 0xff000000,
-      ),
-    );
+      );
+      final name = const {16: '红', 8: '绿', 0: '蓝'}[shift]!;
+      _errors.remove(name);
+      _errors.remove('hex');
+      _sync();
+    });
   }
 
   @override
@@ -300,12 +359,42 @@ class _MemberColorDialogState extends State<_MemberColorDialog> {
         children: [
           const Text('成员颜色'),
           const SizedBox(height: 12),
-          _ColorPreview(label: '颜色预览', color: _color),
+          _ColorPreview(
+            label: '颜色预览 ${memberHex(_color.toARGB32() & 0xffffff)}',
+            color: _color,
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final preset in memberColorPresets.entries)
+                OutlinedButton(
+                  key: ValueKey('member-color-preset-${preset.key}'),
+                  onPressed: () => _choose(Color(0xff000000 | preset.value)),
+                  child: _ColorPreview(
+                    label: preset.key,
+                    color: Color(0xff000000 | preset.value),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('member-color-hex'),
+            controller: _hex,
+            decoration: InputDecoration(
+              labelText: '十六进制颜色',
+              hintText: '#RRGGBB',
+              errorText: _errors['hex'],
+            ),
+            onChanged: _hexChanged,
+          ),
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) => ColorPicker(
               pickerColor: _color,
-              onColorChanged: (color) => setState(() => _color = color),
+              onColorChanged: _choose,
               colorPickerWidth: constraints.maxWidth,
               portraitOnly: true,
               enableAlpha: false,
@@ -318,15 +407,37 @@ class _MemberColorDialogState extends State<_MemberColorDialog> {
           // keyboard and screen-reader users; all RGB colors remain possible.
           for (final channel in const [('红', 16), ('绿', 8), ('蓝', 0)]) ...[
             Text(channel.$1),
-            Slider(
-              key: ValueKey('member-color-${channel.$1}'),
-              min: 0,
-              max: 255,
-              divisions: 255,
-              value: ((_color.toARGB32() >> channel.$2) & 255).toDouble(),
-              label: '${(_color.toARGB32() >> channel.$2) & 255}',
-              semanticFormatterCallback: (v) => '${channel.$1} ${v.round()}',
-              onChanged: (v) => _channel(channel.$2, v),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(
+                    key: ValueKey('member-color-${channel.$1}'),
+                    min: 0,
+                    max: 255,
+                    divisions: 255,
+                    value: ((_color.toARGB32() >> channel.$2) & 255).toDouble(),
+                    label: '${(_color.toARGB32() >> channel.$2) & 255}',
+                    semanticFormatterCallback: (v) =>
+                        '${channel.$1} ${v.round()}',
+                    onChanged: (v) => _channel(channel.$2, v),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 92,
+                  child: TextField(
+                    key: ValueKey('member-color-number-${channel.$1}'),
+                    controller: _numbers[channel.$1],
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: const {16: 'R', 8: 'G', 0: 'B'}[channel.$2],
+                      errorText: _errors[channel.$1],
+                    ),
+                    onChanged: (text) =>
+                        _numberChanged(channel.$1, channel.$2, text),
+                  ),
+                ),
+              ],
             ),
           ],
           Wrap(
@@ -338,7 +449,9 @@ class _MemberColorDialogState extends State<_MemberColorDialog> {
                 child: const Text('取消'),
               ),
               FilledButton(
-                onPressed: () => Navigator.pop(context, _color),
+                onPressed: _errors.isEmpty
+                    ? () => Navigator.pop(context, _color)
+                    : null,
                 child: const Text('确定'),
               ),
             ],

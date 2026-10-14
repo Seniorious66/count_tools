@@ -8,6 +8,7 @@ import 'package:count_tools/cheki/data/identity_store.dart';
 import 'package:count_tools/cheki/data/owned_transaction.dart';
 import 'package:count_tools/cheki/data/record_store.dart';
 import 'package:count_tools/cheki/domain/record_information.dart';
+import 'package:count_tools/cheki/domain/member_color.dart';
 import 'package:count_tools/data/database/schema.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -167,10 +168,10 @@ void main() {
         final identity = IdentityStore(owned, clock: clock),
             store = RecordStore(owned, clock: clock, managedEntry: true);
         for (final row in legacy['sub_project_data']!) {
-          final rawColor = int.tryParse(row['color']?.toString() ?? '');
+          final rawColor = parseLegacyMemberColor(row['color'] as String?);
           final m = await identity.createMember(
             name: row['name'] as String,
-            colorRgb: rawColor == null ? null : rawColor & 0xffffff,
+            colorRgb: rawColor,
             operationId: 's25-legacy-member:${row['id']}',
           );
           members[row['id'].toString()] = m.id;
