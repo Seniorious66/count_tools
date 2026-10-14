@@ -14,23 +14,23 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
         MethodChannel(engine.dartExecutor.binaryMessenger, "com.seniorious66.counttools/backup").setMethodCallHandler { call, result ->
-            if (call.method != "exportBackup" && call.method != "importBackup") {
+            if (call.method != "exportBackup" && call.method != "exportCsv" && call.method != "importBackup") {
                 result.notImplemented()
             } else if (pending != null) {
                 result.error("busy", "文件选择正在进行", null)
             } else {
                 val intent: Intent
                 val request: Int
-                if (call.method == "exportBackup") {
+                if (call.method == "exportBackup" || call.method == "exportCsv") {
                     val bytes = call.argument<ByteArray>("bytes")
                     if (bytes == null || bytes.size > maxBytes) {
-                        result.error("invalid", "备份数据无效", null)
+                        result.error("invalid", "导出数据无效", null)
                         return@setMethodCallHandler
                     }
                     exportBytes = bytes
                     intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "application/octet-stream"
+                        type = if (call.method == "exportCsv") "text/csv" else "application/octet-stream"
                         putExtra(Intent.EXTRA_TITLE, call.argument<String>("name") ?: "Cheki.chekibackup")
                     }
                     request = 661
@@ -82,7 +82,7 @@ class MainActivity: FlutterActivity() {
                     runOnUiThread { pending = null; result.success(output.toByteArray()) }
                 }
             } catch (e: Exception) {
-                runOnUiThread { pending = null; exportBytes = null; result.error("file", "文件读写失败，请保留原备份重试", null) }
+                runOnUiThread { pending = null; exportBytes = null; result.error("file", "文件读写失败，请保留原文件重试", null) }
             }
         }.start()
     }

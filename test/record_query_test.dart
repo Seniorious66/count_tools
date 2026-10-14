@@ -530,7 +530,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('券库'), findsWidgets);
-        expect(find.text('统计'), findsNothing);
+        expect(find.text('统计'), findsOneWidget);
         await tester.tap(find.byIcon(Icons.notes));
         await settleIo(tester);
         expect(find.text('已知张数 7'), findsOneWidget);

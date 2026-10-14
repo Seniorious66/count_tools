@@ -85,7 +85,7 @@ void main() {
       expect(find.byType(AppBar), findsOneWidget);
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.text('券库'), findsWidgets);
-      expect(find.text('统计'), findsNothing);
+      expect(find.text('统计'), findsOneWidget);
       final context = tester.element(find.byType(ChekiShell));
       expect(Theme.of(context).colorScheme.primaryContainer, ChekiColors.blue);
       expect(

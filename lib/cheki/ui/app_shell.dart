@@ -7,6 +7,8 @@ import '../../value/info.dart';
 import 'catalog_pages.dart';
 import 'components.dart';
 import 'record_pages.dart';
+import '../data/bi_query.dart';
+import 'bi_page.dart';
 
 /// M1 exposes working home/records; legacy projects remain in management.
 class ChekiAppShell extends StatelessWidget {
@@ -34,6 +36,12 @@ class ChekiAppShell extends StatelessWidget {
           label: '券库',
           icon: Icons.confirmation_number_outlined,
           page: TicketLibraryPage(store: tickets, embedded: true),
+        ),
+        ChekiDestination(
+          id: 'statistics',
+          label: '统计',
+          icon: Icons.bar_chart,
+          page: BiPage(store: BiStore(store.database), records: store),
         ),
       ],
       onManage: () async {
