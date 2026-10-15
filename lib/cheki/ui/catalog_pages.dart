@@ -10,6 +10,7 @@ import '../data/ticket_store.dart';
 import 'ticket_pages.dart';
 import 'backup_page.dart';
 import 'transport_page.dart';
+import 'legacy_mapping_page.dart';
 import 'record_pages.dart';
 import 'identity_pages.dart';
 import 'components.dart';
@@ -132,6 +133,19 @@ class CatalogManagementPage extends StatelessWidget {
                   ),
                 ),
               ),
+            ChekiCard(
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('旧档案映射'),
+                subtitle: const Text('只读原文、明确映射和迁移预览'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LegacyMappingPage()),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             ChekiCard(
               child: ListTile(
                 contentPadding: EdgeInsets.zero,

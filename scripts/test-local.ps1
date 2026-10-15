@@ -66,5 +66,9 @@ try {
         & $Python (Join-Path $repoRoot 'scripts/test-transport-recovery.py') --source $env:CHEKI_TRANSPORT_EVIDENCE
         if ($LASTEXITCODE -ne 0) { throw 'Current structured transport complete recovery checks failed' }
     }
+    if ($env:CHEKI_LEGACY_EVIDENCE) {
+        & $Python (Join-Path $repoRoot 'scripts/test-legacy-mapping-recovery.py') --source $env:CHEKI_LEGACY_EVIDENCE
+        if ($LASTEXITCODE -ne 0) { throw 'Current legacy mapping complete recovery checks failed' }
+    }
     Write-Output 'Requested local checks passed; no device acceptance.'
 } finally { Pop-Location }

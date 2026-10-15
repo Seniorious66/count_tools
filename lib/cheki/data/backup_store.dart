@@ -396,42 +396,49 @@ class BackupStore {
       p.join(recovery.path, 'incoming-${newOperationId()}'),
     );
     await stage.create();
-    for (final entry in files.entries) {
-      final f = File(p.joinAll([stage.path, ...entry.key.split('/')]));
-      await f.parent.create(recursive: true);
-      await f.writeAsBytes(entry.value, flush: true);
-    }
-    final source = await _inspect(stage);
-    if (source['schema'] != payload['schema']) {
-      throw const FormatException('备份版本声明与数据库不同');
-    }
-    final after = await _inspect(stage, migrate: true);
-    final preparedSettings = File('${stage.path}.settings.json');
-    await preparedSettings.writeAsString(jsonEncode(settings), flush: true);
-    final staged = _fingerprint(await _files(stage), settings);
-    return _exclusive(() async {
-      final currentSettings = await readSettings();
-      _preferences(currentSettings);
-      final before = await _inspect(documents);
-      final currentFiles = await _files(documents);
-      final baseline = _fingerprint(currentFiles, currentSettings);
-      if (expectedBaseline != null && baseline != expectedBaseline) {
-        throw const CatalogException('制作预览期间账本已变化，请重新检查');
+    try {
+      for (final entry in files.entries) {
+        final f = File(p.joinAll([stage.path, ...entry.key.split('/')]));
+        await f.parent.create(recursive: true);
+        await f.writeAsBytes(entry.value, flush: true);
       }
-      before.addAll({
-        'settings': currentSettings.length,
-        'files': currentFiles.length,
+      final source = await _inspect(stage);
+      if (source['schema'] != payload['schema']) {
+        throw const FormatException('备份版本声明与数据库不同');
+      }
+      final after = await _inspect(stage, migrate: true);
+      final preparedSettings = File('${stage.path}.settings.json');
+      await preparedSettings.writeAsString(jsonEncode(settings), flush: true);
+      final staged = _fingerprint(await _files(stage), settings);
+      return await _exclusive(() async {
+        final currentSettings = await readSettings();
+        _preferences(currentSettings);
+        final before = await _inspect(documents);
+        final currentFiles = await _files(documents);
+        final baseline = _fingerprint(currentFiles, currentSettings);
+        if (expectedBaseline != null && baseline != expectedBaseline) {
+          throw const CatalogException('制作预览期间账本已变化，请重新检查');
+        }
+        before.addAll({
+          'settings': currentSettings.length,
+          'files': currentFiles.length,
+        });
+        after.addAll({'settings': settings.length, 'files': files.length});
+        return BackupPreview(
+          stage,
+          baseline,
+          staged,
+          before,
+          after,
+          source['schema'] as int,
+        );
       });
-      after.addAll({'settings': settings.length, 'files': files.length});
-      return BackupPreview(
-        stage,
-        baseline,
-        staged,
-        before,
-        after,
-        source['schema'] as int,
-      );
-    });
+    } catch (_) {
+      // Only this unused owned incoming copy is disposable. Former/live
+      // generations and recovery journals are deliberately retained.
+      await discardPreview(BackupPreview(stage, '', '', {}, {}, 0));
+      rethrow;
+    }
   }
 
   Future<void> _writeJournal(Map<String, Object?> state) async {
