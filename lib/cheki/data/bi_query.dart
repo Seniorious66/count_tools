@@ -426,16 +426,11 @@ class BiReport {
       : t.information.quantity! > 0
       ? '调整入'
       : '调整出';
-  List<BiMemberCount> sortedMembers({
-    bool person = false,
-    bool byName = false,
-  }) => (person ? people.values : members.values).toList()
-    ..sort((a, b) {
-      final c = byName
-          ? a.label.compareTo(b.label)
-          : b.quantity.compareTo(a.quantity);
-      return c == 0 ? a.id.compareTo(b.id) : c;
-    });
+  List<BiMemberCount> sortedMembers({bool person = false}) =>
+      (person ? people.values : members.values).toList()..sort((a, b) {
+        final c = b.quantity.compareTo(a.quantity);
+        return c == 0 ? a.id.compareTo(b.id) : c;
+      });
   List<StoredRecord> memberRows(Set<String> ids, {String? day}) => rows
       .where(
         (r) =>

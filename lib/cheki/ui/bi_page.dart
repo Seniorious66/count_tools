@@ -12,6 +12,7 @@ import 'components.dart';
 import 'record_pages.dart';
 import 'theme.dart';
 import 'ticket_pages.dart';
+import 'member_pie.dart';
 
 class BiFileAccess {
   static const channel = MethodChannel('com.seniorious66.counttools/backup');
@@ -54,7 +55,7 @@ class _BiPageState extends State<BiPage> {
     backSigned: back == null || back == 'unknown' ? null : back == 'yes',
     unknownBack: back == 'unknown',
   );
-  bool persons = false, byName = false, exporting = false;
+  bool persons = false, exporting = false;
   String? message;
   @override
   void initState() {
@@ -131,7 +132,7 @@ class _BiPageState extends State<BiPage> {
       }
       final source = state.data!,
           report = source.report(period, groupId: group, filter: filter);
-      final list = report.sortedMembers(person: persons, byName: byName);
+      final list = report.sortedMembers(person: persons);
       final denominator = persons
           ? report.personQuantity
           : report.memberQuantity;
@@ -289,10 +290,6 @@ class _BiPageState extends State<BiPage> {
                 selected: persons,
                 onSelected: (_) => setState(() => persons = true),
               ),
-              TextButton(
-                onPressed: () => setState(() => byName = !byName),
-                child: Text(byName ? '按姓名排序' : '按张数排序'),
-              ),
             ],
           ),
           if (persons) const Text('仅合并手动关联的身份；未关联成员各自保留。'),
@@ -346,45 +343,71 @@ class _BiPageState extends State<BiPage> {
             ),
             child: const Text('查看所选期间记录'),
           ),
-          _section(context, '每日张数', [
-            if (report.days.isEmpty) const Text('没有发生日期记录'),
-            if (report.days.isNotEmpty)
-              SizedBox(
-                height: 120,
-                child: Semantics(
-                  label: '每日张数趋势；下方列表可查看具体数量',
-                  child: CustomPaint(painter: _DailyLine(report.days)),
-                ),
-              ),
-            for (final entry in _sortedDays(report.days).take(14))
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(entry.key ?? '日期未填写'),
-                trailing: Text('${RecordSummary(entry.value).quantityLabel} 张'),
-                onTap: () => _dayRecords(
-                  context,
-                  widget.records,
-                  entry.value,
-                  entry.key ?? '日期未填写',
-                  filter: filter,
-                  group: group,
-                ),
-              ),
-            if (report.days.length > 14)
-              TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => _BiAllDays(
-                      records: widget.records,
-                      days: report.days,
-                      filter: filter,
-                      group: group,
-                    ),
+          KeyedSubtree(
+            key: const ValueKey('bi-daily-section'),
+            child: _section(context, '每日张数', [
+              if (report.days.isEmpty) const Text('没有发生日期记录'),
+              if (report.days.isNotEmpty)
+                SizedBox(
+                  height: 120,
+                  child: Semantics(
+                    label:
+                        '每日张数趋势，${report.days.keys.whereType<String>().length}个日期；下方列表可查看具体数量',
+                    child: CustomPaint(painter: _DailyLine(report.days)),
                   ),
                 ),
-                child: Text('查看全部 ${report.days.length} 个日期'),
+              for (final entry in _sortedDays(report.days).take(5))
+                ListTile(
+                  key: ValueKey('bi-day-preview-${entry.key ?? 'unknown'}'),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(entry.key ?? '日期未填写'),
+                  trailing: Text(
+                    '${RecordSummary(entry.value).quantityLabel} 张',
+                  ),
+                  onTap: () => _dayRecords(
+                    context,
+                    widget.records,
+                    entry.value,
+                    entry.key ?? '日期未填写',
+                    filter: filter,
+                    group: group,
+                  ),
+                ),
+              if (report.days.length > 5)
+                TextButton(
+                  key: const ValueKey('bi-all-days'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => _BiAllDays(
+                        records: widget.records,
+                        days: report.days,
+                        filter: filter,
+                        group: group,
+                      ),
+                    ),
+                  ),
+                  child: Text('查看全部 ${report.days.length} 个日期'),
+                ),
+            ]),
+          ),
+          KeyedSubtree(
+            key: const ValueKey('bi-pie-section'),
+            child: _section(context, persons ? '同人占比' : '成员占比', [
+              MemberPie(
+                slices: [
+                  for (final m in list)
+                    MemberPieSlice(
+                      m.id,
+                      m.label,
+                      m.quantity,
+                      m.unknownRecords,
+                      _memberColor(m.colorRgb),
+                    ),
+                ],
+                denominator: denominator,
               ),
-          ]),
+            ]),
+          ),
           _section(context, '尺寸', [
             for (final e in report.sizes.entries)
               _CountRow(
@@ -405,22 +428,6 @@ class _BiPageState extends State<BiPage> {
             Text('带签中的背签 ${report.backSigned} 张'),
             if (report.backUnknown > 0)
               Text('带签中 ${report.backUnknown} 张背签情况未填写'),
-          ]),
-          _section(context, '领取', [
-            for (final e in report.receipts.entries)
-              _CountRow(
-                label: _receipt(e.key),
-                quantity: e.value,
-                denominator: report.summary.knownQuantity,
-                color: ChekiColors.blueInk,
-              ),
-            Text(
-              '已知已领 ${report.summary.knownReceivedQuantity} 张 · 待领 ${report.summary.knownAwaitingQuantity} 张',
-            ),
-            if (report.summary.unknownReceiptQuantityRecords > 0)
-              Text(
-                '${report.summary.unknownReceiptQuantityRecords} 条领取数量未完整填写',
-              ),
           ]),
           _section(context, '购券与成本', [
             if (member != null ||
@@ -606,6 +613,7 @@ String _signature(String? s) => switch (s) {
   'homework' => '宿题',
   _ => '未填写属性',
 };
+// Original record detail labels keep receipt state after removing its BI panel.
 String _receipt(String? s) => switch (s) {
   'received' => '已领取',
   'partial' => '部分领取',
@@ -681,7 +689,7 @@ class _CountRow extends StatelessWidget {
           Text(label, style: Theme.of(context).textTheme.titleMedium),
           if (detail != null && detail!.isNotEmpty) Text(detail!),
           Text(
-            '${unknown > 0 && quantity == 0 ? '张数未填写' : '$quantity 张'} · ${denominator == 0 ? '—' : '${(100 * quantity / denominator).toStringAsFixed(1)}%'}${unknown > 0 ? ' · $unknown 条张数未填写' : ''}',
+            '${unknown > 0 && quantity == 0 ? '张数未填写' : '$quantity 张'} · ${biShareLabel(quantity, denominator, unknown: unknown)}${unknown > 0 ? ' · $unknown 条张数未填写' : ''}',
           ),
           const SizedBox(height: 6),
           Container(
