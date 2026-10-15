@@ -62,5 +62,9 @@ try {
         & $Python (Join-Path $repoRoot 'scripts/test-transfer-recovery.py') --source $env:COUNT_TOOLS_TRANSFER_ACCEPTANCE
         if ($LASTEXITCODE -ne 0) { throw 'Current transfer complete recovery checks failed' }
     }
+    if ($env:CHEKI_TRANSPORT_EVIDENCE) {
+        & $Python (Join-Path $repoRoot 'scripts/test-transport-recovery.py') --source $env:CHEKI_TRANSPORT_EVIDENCE
+        if ($LASTEXITCODE -ne 0) { throw 'Current structured transport complete recovery checks failed' }
+    }
     Write-Output 'Requested local checks passed; no device acceptance.'
 } finally { Pop-Location }

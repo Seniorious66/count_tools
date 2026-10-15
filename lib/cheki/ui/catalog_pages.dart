@@ -9,6 +9,7 @@ import '../data/record_store.dart';
 import '../data/ticket_store.dart';
 import 'ticket_pages.dart';
 import 'backup_page.dart';
+import 'transport_page.dart';
 import 'record_pages.dart';
 import 'identity_pages.dart';
 import 'components.dart';
@@ -144,6 +145,18 @@ class CatalogManagementPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+            ChekiCard(
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('数据导入与导出'),
+                subtitle: const Text('CSV 多表、交易追加与完整快照'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TransportPage()),
+                ),
+              ),
+            ),
           ],
         ),
       ),

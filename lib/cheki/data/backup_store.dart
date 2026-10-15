@@ -13,7 +13,7 @@ import 'catalog_contract.dart';
 
 const _maxBackup = 128 * 1024 * 1024;
 String _digest(List<int> bytes) => sha256.convert(bytes).toString();
-Object? _json(String text) {
+Object? decodeBackupJson(String text) {
   final decoded = jsonDecode(text);
   var i = 0;
   void space() {
@@ -333,9 +333,33 @@ class BackupStore {
     if (bytes.length > _maxBackup) throw const FormatException('完整备份超过当前大小限制');
     return bytes;
   });
-  Future<BackupPreview> prepare(Uint8List bytes) async {
+
+  /// A transport assembled from a captured generation must not adopt a newer
+  /// baseline while it is being prepared, otherwise intervening writes get lost.
+  static String snapshotFingerprint(Uint8List bytes) {
+    final outer = decodeBackupJson(utf8.decode(bytes)) as Map;
+    final payload = decodeBackupJson(outer['payload'] as String) as Map;
+    return _digest(
+      utf8.encode(
+        jsonEncode({
+          'files': {
+            for (final key in (payload['files'] as Map).keys.toList()..sort())
+              key: _digest(base64Decode(payload['files'][key] as String)),
+          },
+          'settings': _sort(
+            Map<String, Object?>.from(payload['settings'] as Map),
+          ),
+        }),
+      ),
+    );
+  }
+
+  Future<BackupPreview> prepare(
+    Uint8List bytes, {
+    String? expectedBaseline,
+  }) async {
     if (bytes.length > _maxBackup) throw const FormatException('备份过大');
-    final envelope = _json(utf8.decode(bytes)) as Map;
+    final envelope = decodeBackupJson(utf8.decode(bytes)) as Map;
     if (envelope['format'] != 'cheki-full-backup' ||
         envelope['version'] != 1 ||
         envelope['application_id'] != 'com.seniorious66.counttools' ||
@@ -345,7 +369,7 @@ class BackupStore {
       throw const FormatException('备份格式或完整性校验失败');
     }
     final payload = Map<String, Object?>.from(
-          _json(envelope['payload'] as String) as Map,
+          decodeBackupJson(envelope['payload'] as String) as Map,
         ),
         settings = Map<String, Object?>.from(payload['settings'] as Map);
     _preferences(settings);
@@ -390,6 +414,10 @@ class BackupStore {
       _preferences(currentSettings);
       final before = await _inspect(documents);
       final currentFiles = await _files(documents);
+      final baseline = _fingerprint(currentFiles, currentSettings);
+      if (expectedBaseline != null && baseline != expectedBaseline) {
+        throw const CatalogException('制作预览期间账本已变化，请重新检查');
+      }
       before.addAll({
         'settings': currentSettings.length,
         'files': currentFiles.length,
@@ -397,7 +425,7 @@ class BackupStore {
       after.addAll({'settings': settings.length, 'files': files.length});
       return BackupPreview(
         stage,
-        _fingerprint(currentFiles, currentSettings),
+        baseline,
         staged,
         before,
         after,
@@ -471,6 +499,25 @@ class BackupStore {
     if (!await recovery.exists()) return;
     await _owned();
     await _exclusive(_recover);
+  }
+
+  /// Discard only an unused, owned preflight copy, never former live generations.
+  Future<void> discardPreview(BackupPreview preview) async {
+    if (busy || await journal.exists()) return;
+    final path = p.normalize(preview.folder.absolute.path);
+    if (p.dirname(path) != p.normalize(recovery.absolute.path) ||
+        !RegExp(r'^incoming-[A-Za-z0-9-]+$').hasMatch(p.basename(path))) {
+      throw StateError('预览清理位置无效');
+    }
+    if (await FileSystemEntity.type(path, followLinks: false) ==
+        FileSystemEntityType.link) {
+      throw StateError('预览清理不跟随链接');
+    }
+    if (await preview.folder.exists()) {
+      await preview.folder.delete(recursive: true);
+    }
+    final settings = File('$path.settings.json');
+    if (await settings.exists()) await settings.delete();
   }
 
   Future<void> apply(BackupPreview preview) async => _exclusive(() async {

@@ -14,14 +14,14 @@ class MainActivity: FlutterActivity() {
     override fun configureFlutterEngine(engine: FlutterEngine) {
         super.configureFlutterEngine(engine)
         MethodChannel(engine.dartExecutor.binaryMessenger, "com.seniorious66.counttools/backup").setMethodCallHandler { call, result ->
-            if (call.method != "exportBackup" && call.method != "exportCsv" && call.method != "importBackup") {
+            if (call.method != "exportBackup" && call.method != "exportCsv" && call.method != "exportTables" && call.method != "importBackup") {
                 result.notImplemented()
             } else if (pending != null) {
                 result.error("busy", "文件选择正在进行", null)
             } else {
                 val intent: Intent
                 val request: Int
-                if (call.method == "exportBackup" || call.method == "exportCsv") {
+                if (call.method == "exportBackup" || call.method == "exportCsv" || call.method == "exportTables") {
                     val bytes = call.argument<ByteArray>("bytes")
                     if (bytes == null || bytes.size > maxBytes) {
                         result.error("invalid", "导出数据无效", null)
@@ -30,7 +30,7 @@ class MainActivity: FlutterActivity() {
                     exportBytes = bytes
                     intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
-                        type = if (call.method == "exportCsv") "text/csv" else "application/octet-stream"
+                        type = when (call.method) { "exportCsv" -> "text/csv"; "exportTables" -> "application/zip"; else -> "application/octet-stream" }
                         putExtra(Intent.EXTRA_TITLE, call.argument<String>("name") ?: "Cheki.chekibackup")
                     }
                     request = 661
