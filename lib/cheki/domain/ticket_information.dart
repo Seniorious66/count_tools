@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'record_contract.dart';
+import '../data/catalog_contract.dart' show isActionStamp;
 
 /// Exact source amounts. No rounding policy or zero for an unknown amount.
 class TicketMoney {
@@ -44,6 +45,10 @@ class TicketInformation {
     : _values = Map<String, Object?>.from(
         jsonDecode(jsonEncode(values)) as Map,
       ) {
+    if (_values['recorded_at'] != null &&
+        !isActionStamp(_values['recorded_at'])) {
+      throw const FormatException('录入时间格式无效');
+    }
     for (final key in [
       'name',
       'group_id',

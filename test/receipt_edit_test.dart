@@ -283,6 +283,7 @@ void main() {
     await tester.tap(find.byKey(ValueKey('record-${r.id}')));
     await settleIo(tester);
     await tester.ensureVisible(find.text('修改记录'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('修改记录'));
     await settleIo(tester);
   }
@@ -412,6 +413,7 @@ void main() {
       expect(saved.createdAt, original.createdAt);
       await openSavedDetails(tester);
       await tester.ensureVisible(find.text('修改记录'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('修改记录'));
       await settleIo(tester);
       final delete = find.byWidgetPredicate(

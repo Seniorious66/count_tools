@@ -145,7 +145,10 @@ abstract final class EntrySchema {
       'cheki_record_operations',
       'cheki_ticket_operations',
     ]) {
-      if ((await db.query(table)).any((r) => global.contains(r['id']))) {
+      if ((await db.query(
+        table,
+        columns: ['id'],
+      )).any((r) => global.contains(r['id']))) {
         throw StateError('联动操作标识重复');
       }
     }

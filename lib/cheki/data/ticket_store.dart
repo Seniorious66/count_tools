@@ -193,6 +193,18 @@ Map<String, int> remainingLots(List<TicketObject> objects, String day) {
   return result;
 }
 
+String? postedTicketError(String kind, TicketInformation i) {
+  if (!['purchase', 'adjustment'].contains(kind)) return '此类信息不能计入库存';
+  if (i.text('definition_id') == null) return '请选择券种后再计入库存';
+  if (i.quantity == null) return '请填写购入或调整张数';
+  if (i.day == null) return '入库日期缺失，请重新打开记录；已有信息已保留';
+  if (i.text('pool') == null) return '请选择长期或限时券';
+  if (i.text('pool') == 'dated' && i.expiry == null) return '限时券请填写截止日期';
+  if (kind == 'purchase' && i.quantity! < 0) return '购入张数不能为负数';
+  if (i.costConflict) return '历史单价与总金额不一致，请核对原金额；可以先取消计入库存保存信息';
+  return null;
+}
+
 void validateLedger(List<TicketObject> objects) {
   for (final e in objects) {
     final i = e.information;
@@ -203,16 +215,8 @@ void validateLedger(List<TicketObject> objects) {
       }
     }
     if (e.posted) {
-      if (!['purchase', 'adjustment'].contains(e.kind) ||
-          i.quantity == null ||
-          i.day == null ||
-          i.text('definition_id') == null ||
-          i.text('pool') == null ||
-          (i.text('pool') == 'dated' && i.expiry == null) ||
-          (e.kind == 'purchase' && i.quantity! < 0) ||
-          i.costConflict) {
-        throw const FormatException('实际入账需要已知券种、张数、日期和期限；金额冲突请先核对');
-      }
+      final error = postedTicketError(e.kind, i);
+      if (error != null) throw FormatException(error);
       if (i.quantity! > 0 && e.allocations.isNotEmpty) {
         throw const FormatException('入库不应有转出分配');
       }

@@ -93,7 +93,10 @@ class _RecordEditPageState extends State<RecordEditPage> {
     );
     _day.addListener(_inputsChanged);
     _quantity.addListener(_inputsChanged);
-    _coupons.load(_couponInformation());
+    _coupons.load(
+      _couponInformation(),
+      directoryFuture: _directory.then((value) => value.$1),
+    );
     if (widget.addReceipt) _receipts.add();
   }
 
@@ -652,7 +655,7 @@ class RecordInformationView extends StatefulWidget {
 
 class _RecordInformationViewState extends State<RecordInformationView> {
   RecordInformation get info => widget.info;
-  late Future<RecordReadModel> _labels = widget.store.readModel();
+  late Future<RecordReadModel> _labels = widget.store.readLabels();
   StreamSubscription<void>? _subscription;
   @override
   void initState() {
@@ -660,7 +663,7 @@ class _RecordInformationViewState extends State<RecordInformationView> {
     _subscription = RecordStore.changes.listen((_) {
       if (mounted) {
         setState(() {
-          _labels = widget.store.readModel();
+          _labels = widget.store.readLabels();
         });
       }
     });
@@ -685,7 +688,7 @@ class _RecordInformationViewState extends State<RecordInformationView> {
             if (snapshot.hasError) {
               return TextButton(
                 onPressed: () =>
-                    setState(() => _labels = widget.store.readModel()),
+                    setState(() => _labels = widget.store.readLabels()),
                 child: const Text('成员与尺寸读取失败，点击重试'),
               );
             }
@@ -755,7 +758,7 @@ class RecordChangeView extends StatefulWidget {
 }
 
 class _RecordChangeViewState extends State<RecordChangeView> {
-  late Future<RecordReadModel> _labels = widget.store.readModel();
+  late Future<RecordReadModel> _labels = widget.store.readLabels();
   String _value(String key, RecordInformation info, RecordReadModel m) =>
       switch (key) {
         'occurred_on' => info.occurredOn?.value ?? '未填写',
@@ -794,7 +797,7 @@ class _RecordChangeViewState extends State<RecordChangeView> {
       if (s.hasError) {
         return TextButton(
           onPressed: () => setState(() {
-            _labels = widget.store.readModel();
+            _labels = widget.store.readLabels();
           }),
           child: const Text('修改对照读取失败，点击重试'),
         );

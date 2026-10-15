@@ -11,6 +11,7 @@ def money(text):
     return Fraction(text)
 def info(raw):
     v=decode_json(raw)
+    if v.get('recorded_at') is not None and not action_stamp(v['recorded_at']):raise ValueError('Ticket recorded action stamp invalid')
     for k in ('name','group_id','member_id','size_id','signature','scope','definition_id','occurred_on','pool','expires_on','unit_price','total_price','note','reason'):
         if v.get(k) is not None and not isinstance(v[k],str):raise ValueError('Ticket text invalid')
     for k in ('group_id','member_id','size_id','definition_id'):

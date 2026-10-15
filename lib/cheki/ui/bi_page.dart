@@ -448,7 +448,7 @@ class _BiPageState extends State<BiPage> {
               ),
             if (report.purchase.unknownQuantity > 0)
               Text('另有 ${report.purchase.unknownQuantity} 张购入金额未知，未进入均价分母。'),
-            _value('所选 Cheki 的实际用券成本', report.consumedRecordCost.label),
+            _value('所选 Cheki 花费', report.consumedRecordCost.label),
             const Text('金额保留精确值；未用券或未填成本的 Cheki 不据此推算价格。'),
           ], color: ChekiColors.pink),
           _section(context, '期间券流水', [

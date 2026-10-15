@@ -12,13 +12,26 @@ import '../data/transfer_store.dart';
 import 'transfer_pages.dart';
 
 class TicketOverview extends StatelessWidget {
-  const TicketOverview({required this.child, this.store, super.key});
+  const TicketOverview({
+    required this.child,
+    this.store,
+    this.onRecord,
+    super.key,
+  });
   final Widget child;
   final TicketStore? store;
+  final VoidCallback? onRecord;
   @override
   Widget build(BuildContext context) {
     if (store == null) {
-      return ChekiCard(color: ChekiColors.blue, child: child);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ChekiCard(color: ChekiColors.blue, child: child),
+          if (onRecord != null)
+            _action(context, '切', '记录Cheki', ChekiColors.blue, onRecord!),
+        ],
+      );
     }
     final blue = ColoredBox(
       color: ChekiColors.blue,
@@ -27,40 +40,78 @@ class TicketOverview extends StatelessWidget {
     final pink = TicketSummaryPanel(store: store!);
     final metrics = ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: MediaQuery.textScalerOf(context).scale(16) > 24
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [blue, pink],
-            )
-          : IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(child: blue),
-                  Expanded(child: pink),
-                ],
-              ),
-            ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: blue),
+            Expanded(child: pink),
+          ],
+        ),
+      ),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         metrics,
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TicketEditPage(store: store!, kind: 'purchase'),
+        const SizedBox(height: 8),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _action(
+                  context,
+                  '切',
+                  '记录Cheki',
+                  ChekiColors.blue,
+                  onRecord,
+                ),
               ),
-            ),
-            child: const Text('购券'),
+              Expanded(
+                child: _action(
+                  context,
+                  '券',
+                  '购券',
+                  ChekiColors.pink,
+                  () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          TicketEditPage(store: store!, kind: 'purchase'),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
+
+  Widget _action(
+    BuildContext context,
+    String label,
+    String semantic,
+    Color color,
+    VoidCallback? action,
+  ) => Semantics(
+    label: semantic,
+    button: true,
+    excludeSemantics: true,
+    child: FilledButton(
+      key: ValueKey('home-action-$label'),
+      style: FilledButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: ChekiColors.ink,
+        minimumSize: const Size(44, 56),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+      onPressed: action,
+      child: Text(label),
+    ),
+  );
 }
 
 class OverviewMetric extends StatelessWidget {
@@ -454,13 +505,8 @@ class _TicketDetailPageState extends State<TicketDetailPage>
                 ],
               ),
             ),
-            Wrap(
-              spacing: 8,
+            TicketActionRow(
               children: [
-                TextButton(
-                  onPressed: () => edit('definition', original: d),
-                  child: const Text('修改券种'),
-                ),
                 TextButton(
                   onPressed: () => edit('purchase', definitionId: d.id),
                   child: const Text('购券'),
@@ -656,6 +702,7 @@ class _TicketEditPageState extends State<TicketEditPage> {
     if (widget.definitionId != null) 'definition_id': widget.definitionId,
   };
   late bool posted = widget.original?.posted ?? false;
+  late final DateTime _recordedAt = widget.store.clock();
   bool expired = false, review = false, busy = false;
   bool _sizeDefaultPending = false;
   TicketModel? _directory;
@@ -689,6 +736,11 @@ class _TicketEditPageState extends State<TicketEditPage> {
         text: baseline[key]?.toString() ?? '',
       );
     }
+    if (widget.kind == 'purchase' && widget.original == null) {
+      inputs['occurred_on']!.text = OccurredOn.shanghaiDay(_recordedAt).value;
+      selections['pool'] = 'long';
+      posted = true;
+    }
   }
 
   @override
@@ -701,6 +753,9 @@ class _TicketEditPageState extends State<TicketEditPage> {
 
   TicketInformation information() {
     final data = {...baseline};
+    if (widget.kind == 'purchase' && widget.original == null) {
+      data['recorded_at'] = actionStamp(_recordedAt);
+    }
     final fields = setting
         ? ['reminder_days']
         : definition
@@ -721,6 +776,11 @@ class _TicketEditPageState extends State<TicketEditPage> {
         continue;
       }
       if (text.isEmpty && !baseline.containsKey(key)) continue;
+      if (text.isNotEmpty &&
+          ['quantity', 'reminder_days'].contains(key) &&
+          int.tryParse(text) == null) {
+        throw FormatException(key == 'quantity' ? '张数请填写整数' : '提醒天数请填写整数');
+      }
       data[key] = text.isEmpty
           ? null
           : (['quantity', 'reminder_days'].contains(key)
@@ -810,17 +870,24 @@ class _TicketEditPageState extends State<TicketEditPage> {
   );
   void check() {
     try {
-      information();
+      final info = information();
+      if (posted && !definition && !setting) {
+        final message = postedTicketError(widget.kind, info);
+        if (message != null) throw FormatException(message);
+      }
       setState(() {
         error = null;
         review = true;
       });
     } catch (e) {
-      setState(() => error = '$e');
+      setState(
+        () => error = e is FormatException ? e.message.toString() : '请检查填写的信息',
+      );
     }
   }
 
   Future<void> save() async {
+    if (busy) return;
     setState(() {
       busy = true;
       error = null;
@@ -838,7 +905,11 @@ class _TicketEditPageState extends State<TicketEditPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          error = '$e';
+          error = e is FormatException
+              ? e.message.toString()
+              : e is CatalogException
+              ? e.message
+              : '保存失败，输入已保留，请重试';
           busy = false;
         });
       }
@@ -949,7 +1020,15 @@ class _TicketEditPageState extends State<TicketEditPage> {
                         select('definition_id', '券种', {
                           for (final d in m.definitions) d.id: m.label(d),
                         }),
-                        field('occurred_on', '发生日期 YYYY-MM-DD（可空）'),
+                        if (widget.kind == 'purchase')
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Text(
+                              '录入日期：${inputs['occurred_on']!.text.isEmpty ? '未填写' : inputs['occurred_on']!.text}',
+                            ),
+                          )
+                        else
+                          field('occurred_on', '发生日期 YYYY-MM-DD（可空）'),
                         field(
                           'quantity',
                           widget.kind == 'purchase'
@@ -958,18 +1037,20 @@ class _TicketEditPageState extends State<TicketEditPage> {
                           numeric: true,
                         ),
                         select('pool', '期限', {'long': '长期有效', 'dated': '限时券'}),
-                        if (selections['pool'] != 'long')
+                        if (selections['pool'] == 'dated')
                           field('expires_on', '截止日 YYYY-MM-DD（可空）'),
-                        field('unit_price', '原单价 ¥（未知留空）', numeric: true),
-                        field('total_price', '原总金额 ¥（未知留空）', numeric: true),
-                        field('reason', '调整原因（可空）'),
+                        if (widget.kind != 'purchase')
+                          field('unit_price', '原单价 ¥（未知留空）', numeric: true),
+                        field('total_price', '总金额 ¥（未知留空）', numeric: true),
+                        if (widget.kind != 'purchase')
+                          field('reason', '调整原因（可空）'),
                         field('note', '备注（可空）'),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
                           value: posted,
                           onChanged: (v) => setState(() => posted = v ?? false),
                           title: const Text('计入库存'),
-                          subtitle: const Text('信息可先保存；计入库存需已知归属、张数、日期及期限'),
+                          subtitle: const Text('取消后仅保存信息，不增加可用券'),
                         ),
                         if (widget.kind == 'adjustment')
                           CheckboxListTile(
@@ -1080,3 +1161,29 @@ List<Widget> ticketInformationWidgets(TicketModel m, TicketInformation i) => [
           : ticketSimpleValue(e.value)}',
     ),
 ];
+
+/// Four equal action cells; large text may use two columns without truncation.
+class TicketActionRow extends StatelessWidget {
+  const TicketActionRow({required this.children, super.key});
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, bounds) {
+      final columns = MediaQuery.textScalerOf(context).scale(14) > 20 ? 2 : 4;
+      return TextButtonTheme(
+        data: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+            minimumSize: const Size(44, 48),
+          ),
+        ),
+        child: Wrap(
+          children: [
+            for (final child in children)
+              SizedBox(width: bounds.maxWidth / columns, child: child),
+          ],
+        ),
+      );
+    },
+  );
+}

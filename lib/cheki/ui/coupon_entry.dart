@@ -48,14 +48,18 @@ class CouponEntryController extends ChangeNotifier {
     if (jsonEncode(lines) != jsonEncode(raw['lines'] ?? [])) 'lines': lines,
   };
   CouponPlan get plan => CouponPlan(_planRaw);
-  Future<void> load(RecordInformation next) async {
+  Future<void> load(
+    RecordInformation next, {
+    Future<IdentityDirectory>? directoryFuture,
+  }) async {
     info = next;
     loading = true;
     notifyListeners();
     final preserve = loaded;
     try {
       final state = recordId == null ? null : await store.state(recordId!);
-      directory = await IdentityStore(store.database).directory();
+      directory =
+          await (directoryFuture ?? IdentityStore(store.database).directory());
       if (!preserve) {
         mode = state == null ? initialMode : state.plan.mode;
         raw = state?.plan.toMap() ?? {};
@@ -745,7 +749,9 @@ class _CouponCostPreviewState extends State<CouponCostPreview> {
   Widget build(BuildContext c) => FutureBuilder<List<Map<String, Object?>>>(
     future: future,
     builder: (c, s) {
-      if (!widget.plan.consuming) return const SizedBox();
+      final legacy = legacyRecordCost(widget.info.toMap());
+      if (legacy != null) return Text(legacy.label);
+      if (!widget.plan.consuming) return const Text('花费：—');
       if (s.hasError) {
         return TextButton(
           onPressed: () => setState(() {
@@ -765,14 +771,7 @@ class _CouponCostPreviewState extends State<CouponCostPreview> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('预计${amount.label}'),
-            const Text('扣券成本明细'),
-            for (final p in s.data!)
-              Text(
-                '${p['quantity']} 张 · ${p['cost'] == null ? '成本未知' : '成本 ¥${p['cost']}'}${p['preserved'] == true ? ' · 保留原分配' : ''}',
-              ),
-          ],
+          children: [Text('预计${amount.label}')],
         ),
       );
     },

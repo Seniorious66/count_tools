@@ -70,9 +70,10 @@ class BiPeriod {
 
 class BiAmount extends RecordCost {
   @override
-  String get label => knownQuantity == 0 && unknownQuantity > 0
+  String get label =>
+      knownQuantity == 0 && unknownQuantity + unlinkedRecords > 0
       ? '未知'
-      : '${known.exact}${unknownQuantity > 0 ? '（另有$unknownQuantity张成本未知）' : ''}';
+      : '${known.exact}${unknownQuantity + unlinkedRecords > 0 ? '（另有金额未填写）' : ''}';
   String get average =>
       knownQuantity == 0 ? '—' : known.divided(knownQuantity).exact;
 }
@@ -162,6 +163,7 @@ class BiStore {
       sizes: (await tx.query(
         CatalogKind.size.table,
       )).map(CatalogEntity.fromRow),
+      costs: await recordCostsIn(tx),
     );
     final transfers = {
       for (final r in await tx.query(TransferSchema.objects))
@@ -442,18 +444,7 @@ class BiReport {
       )
       .toList();
   BiAmount get consumedRecordCost {
-    final ids = rows.map((r) => r.id).toSet(), amount = BiAmount();
-    for (final t in source.tickets.where(
-      (t) => t.posted && ids.contains(source.entryBindings[t.id]),
-    )) {
-      for (final a in t.allocations) {
-        amount.add(
-          a['cost'] == null ? null : TicketMoney.fromExact(a['cost'] as String),
-          a['quantity'] as int,
-        );
-      }
-    }
-    return amount;
+    return BiAmount()..combine(source.records.costFor(rows.map((r) => r.id)));
   }
 
   /// A long-form statistics report. Raw JSON is retained alongside sheet-safe labels.
@@ -635,9 +626,27 @@ class BiReport {
             .join('、'),
         r.information.occurredOn?.value,
         r.information.quantity,
+        amount:
+            source.records.costs[r.id]?.knownQuantity == 0 ||
+                source.records.costs[r.id] == null
+            ? null
+            : source.records.costs[r.id]!.known.exact,
+        unknown: source.records.costs[r.id]?.unknownQuantity ?? 1,
         raw: jsonEncode(r.toRow()),
       );
     }
+    final expense = consumedRecordCost;
+    row(
+      'record_expense',
+      'total',
+      'Cheki花费',
+      null,
+      rows.length,
+      amount: expense.knownQuantity == 0 && rows.isNotEmpty
+          ? null
+          : expense.known.exact,
+      unknown: expense.unknownQuantity + expense.unlinkedRecords,
+    );
     row(
       'purchase',
       'total',

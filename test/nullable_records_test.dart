@@ -7,7 +7,6 @@ import 'package:count_tools/cheki/data/identity_store.dart';
 import 'package:count_tools/cheki/data/record_store.dart';
 import 'package:count_tools/cheki/domain/record_information.dart';
 import 'package:count_tools/cheki/domain/record_contract.dart';
-import 'package:count_tools/cheki/ui/catalog_pages.dart';
 import 'package:count_tools/cheki/ui/record_pages.dart';
 import 'package:count_tools/cheki/ui/theme.dart';
 import 'package:count_tools/data/database/data_base.dart';
@@ -303,17 +302,16 @@ void main() {
     },
   );
   testWidgets(
-    'actual management entry saves a fully blank historical record then edits and reopens it',
+    'actual home entry saves a fully blank historical record then edits and reopens it',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: chekiTheme(),
-          home: CatalogManagementPage(store: CatalogStore(store.database)),
+          home: Scaffold(body: RecordHomePage(store: store)),
         ),
       );
-      await tester.tap(find.text('Cheki记录'));
       await settleIo(tester);
-      await tester.tap(find.byTooltip('新增记录'));
+      await tester.tap(find.text('切'));
       await settleIo(tester);
       await clearNewShortcuts(tester);
       for (final key in ['record-day', 'record-quantity']) {
@@ -335,6 +333,7 @@ void main() {
       await tester.tap(find.byKey(ValueKey('record-$id')));
       await settleIo(tester);
       await tester.ensureVisible(find.text('修改记录'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('修改记录'));
       await settleIo(tester);
       await tester.enterText(
@@ -349,7 +348,7 @@ void main() {
       await settleIo(tester);
       await tester.tap(find.text('保存'));
       await settleIo(tester);
-      expect(find.text('3 张'), findsOneWidget);
+      expect(find.textContaining('3 张 ·'), findsOneWidget);
       expect(find.text('张数未填写 1 条'), findsNothing);
       rows = (await tester.runAsync(store.list))!;
       expect(rows.single.id, id);
@@ -386,11 +385,11 @@ void main() {
             ).copyWith(textScaler: const TextScaler.linear(2)),
             child: child!,
           ),
-          home: RecordListPage(store: store),
+          home: Scaffold(body: RecordHomePage(store: store)),
         ),
       );
       await settleIo(tester);
-      await tester.tap(find.byTooltip('新增记录'));
+      await tester.tap(find.text('切'));
       await settleIo(tester);
       await clearNewShortcuts(tester);
       await tester.enterText(
@@ -448,6 +447,7 @@ void main() {
       await tester.tap(find.byKey(ValueKey('record-${r!.id}')));
       await settleIo(tester);
       await tester.ensureVisible(find.text('修改记录'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('修改记录'));
       await settleIo(tester);
       await tester.scrollUntilVisible(
@@ -513,6 +513,7 @@ void main() {
       await tester.tap(find.byKey(ValueKey('record-${r!.id}')));
       await settleIo(tester);
       await tester.ensureVisible(find.text('修改记录'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('修改记录'));
       await settleIo(tester);
       await tester.scrollUntilVisible(

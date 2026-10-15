@@ -143,6 +143,7 @@ class _RecordHomePageState extends State<RecordHomePage>
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           TicketOverview(
+            onRecord: () => edit(),
             store: widget.ticketStore,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,30 +159,34 @@ class _RecordHomePageState extends State<RecordHomePage>
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          ChekiCard(
-            color: ChekiColors.surface,
-            child: InkWell(
-              key: const ValueKey('home-pending'),
-              onTap: () => _list(pendingFilter),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('未领取 Cheki'),
-                  Text(
-                    pending.knownReceiptQuantityRecords == 0 &&
-                            pending.recordCount > 0
-                        ? '待领取张数未填写'
-                        : '${pending.knownAwaitingQuantity} 张',
-                  ),
-                  if (pending.unknownReceiptQuantityRecords > 0)
-                    Text('另 ${pending.unknownReceiptQuantityRecords} 条待补领取张数'),
-                  if (all.unknownReceiptRecords > 0)
-                    Text('领取状态未填写 ${all.unknownReceiptRecords} 条'),
-                ],
+          if (pending.recordCount > 0) ...[
+            const SizedBox(height: 12),
+            ChekiCard(
+              color: ChekiColors.surface,
+              child: InkWell(
+                key: const ValueKey('home-pending'),
+                onTap: () => _list(pendingFilter),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('未领取 Cheki'),
+                    Text(
+                      pending.knownReceiptQuantityRecords == 0 &&
+                              pending.recordCount > 0
+                          ? '待领取张数未填写'
+                          : '${pending.knownAwaitingQuantity} 张',
+                    ),
+                    if (pending.unknownReceiptQuantityRecords > 0)
+                      Text(
+                        '另 ${pending.unknownReceiptQuantityRecords} 条待补领取张数',
+                      ),
+                    if (all.unknownReceiptRecords > 0)
+                      Text('领取状态未填写 ${all.unknownReceiptRecords} 条'),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
           if (all.unknownDateRecords > 0)
             TextButton(
               onPressed: () =>
@@ -189,12 +194,6 @@ class _RecordHomePageState extends State<RecordHomePage>
               child: Text('发生日期未填写 ${all.unknownDateRecords} 条'),
             ),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            key: const ValueKey('home-add'),
-            onPressed: () => edit(),
-            icon: const Icon(Icons.add),
-            label: const Text('记一笔'),
-          ),
 
           const SizedBox(height: 16),
           Text('最近记录', style: Theme.of(context).textTheme.titleMedium),
@@ -232,14 +231,13 @@ class _RecordListPageState extends State<RecordListPage>
   @override
   RecordStore get store => widget.store;
   late RecordFilter _filter = widget.initialFilter ?? RecordFilter();
-  bool _merged = true;
-  List<Widget> get _actions => [
-    IconButton(
-      tooltip: '新增记录',
-      onPressed: () => edit(),
-      icon: const Icon(Icons.add),
-    ),
-  ];
+  List<Widget> get _actions => const [];
+  bool get _hasFilters =>
+      _filter.selection != RecordSelection.all ||
+      _filter.memberId != null ||
+      _filter.sizeId != null ||
+      _filter.from != null ||
+      _filter.through != null;
   Future<void> _filters(RecordReadModel m) async {
     final next = await showModalBottomSheet<RecordFilter>(
       context: context,
@@ -272,8 +270,6 @@ class _RecordListPageState extends State<RecordListPage>
                 for (final (value, label) in [
                   (RecordSelection.all, '全部'),
                   (RecordSelection.awaitingReceipt, '未领取'),
-                  (RecordSelection.incomplete, '待补录'),
-                  (RecordSelection.undated, '无日期'),
                 ])
                   ChoiceChip(
                     label: Text(label),
@@ -297,10 +293,12 @@ class _RecordListPageState extends State<RecordListPage>
                   avatar: const Icon(Icons.filter_list),
                   onPressed: () => _filters(m),
                 ),
-                FilterChip(
-                  label: const Text('合并显示'),
-                  selected: _merged,
-                  onSelected: (value) => setState(() => _merged = value),
+                ActionChip(
+                  key: const ValueKey('record-clear-filters'),
+                  label: const Text('清除筛选'),
+                  onPressed: _hasFilters
+                      ? () => setState(() => _filter = RecordFilter())
+                      : null,
                 ),
               ],
             ),
@@ -356,10 +354,7 @@ class _RecordListPageState extends State<RecordListPage>
                       )
                       .join(' · '),
                 ),
-              for (final b
-                  in _merged
-                      ? bundleRecords(group.records)
-                      : group.records.map((r) => RecordBundle([r])))
+              for (final b in bundleRecords(group.records))
                 _RecordTile(
                   record: b.representative,
                   bundle: b,

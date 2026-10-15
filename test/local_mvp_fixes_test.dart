@@ -516,10 +516,8 @@ void main() {
         expect(find.text('共 2 张 · 2 条记录'), findsOneWidget);
         await tester.pageBack();
         await settleIo(tester);
-        await tester.scrollUntilVisible(find.text('合并显示'), -200);
-        await tester.tap(find.text('合并显示'));
-        await settleIo(tester);
-        expect(find.text('2 条记录'), findsNothing);
+        expect(find.text('合并显示'), findsNothing);
+        expect(find.text('2 条记录'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
       }

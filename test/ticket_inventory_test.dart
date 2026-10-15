@@ -418,6 +418,13 @@ void main() {
         ),
       );
       await settleIo(t);
+      await t.scrollUntilVisible(
+        find.text('计入库存'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await t.tap(find.text('计入库存'));
+      await t.pump();
       await t.tap(find.text('核对'));
       await settleIo(t);
       expect(find.text('仅保存信息，不生成库存'), findsOneWidget);
@@ -536,11 +543,7 @@ void main() {
       );
       await t.tap(find.text('打开购券'));
       await settleIo(t);
-      for (final kv in {
-        'occurred_on': '2026-10-13',
-        'quantity': '2',
-        'unit_price': '30.00',
-      }.entries) {
+      for (final kv in {'quantity': '2', 'total_price': '60.00'}.entries) {
         final f = find.byKey(ValueKey('ticket-${kv.key}'));
         await t.ensureVisible(f);
         await t.enterText(f, kv.value);
@@ -552,8 +555,14 @@ void main() {
       await t.tap(find.text('长期有效').last);
       await t.pumpAndSettle();
       await t.ensureVisible(find.text('计入库存'));
-      await t.tap(find.text('计入库存'));
-      await t.pump();
+      expect(
+        t
+            .widget<CheckboxListTile>(
+              find.widgetWithText(CheckboxListTile, '计入库存'),
+            )
+            .value,
+        isTrue,
+      );
       await t.tap(find.text('核对'));
       await t.pumpAndSettle();
       expect(find.text('确认后计入库存'), findsOneWidget);

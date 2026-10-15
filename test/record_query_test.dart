@@ -413,7 +413,7 @@ void main() {
       await settleIo(tester);
       expect(find.text('7 张'), findsOneWidget);
       expect(find.text('成员张数 9'), findsOneWidget);
-      await tester.tap(find.byType(ActionChip));
+      await tester.tap(find.widgetWithText(ActionChip, '筛选'));
       await tester.pumpAndSettle();
       await tester.tap(find.byType(DropdownButtonFormField<String>).first);
       await tester.pumpAndSettle();
@@ -435,6 +435,7 @@ void main() {
       expect(find.textContaining('背签：'), findsNothing);
       expect(find.textContaining('2026-10-12 09:00:00'), findsWidgets);
       await tester.ensureVisible(find.text('修改记录'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('修改记录'));
       await settleIo(tester);
       await tester.enterText(
@@ -483,16 +484,15 @@ void main() {
       await tester.tap(find.text('读取失败，点击重试'));
       await settleIo(tester);
       expect(find.text('未填写 张'), findsOneWidget);
-      await tester.tap(find.text('无日期'));
-      await settleIo(tester);
+      expect(find.text('无日期'), findsNothing);
       expect(find.byKey(ValueKey('record-${blank!.id}')), findsOneWidget);
-      await tester.tap(find.byType(ActionChip));
+      await tester.tap(find.widgetWithText(ActionChip, '筛选'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('取消'));
       await tester.pumpAndSettle();
       expect(
         tester
-            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '无日期'))
+            .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '全部'))
             .selected,
         isTrue,
       );

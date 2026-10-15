@@ -66,6 +66,7 @@ class CatalogManagementPage extends StatelessWidget {
             ),
             ChekiCard(
               child: ListTile(
+                contentPadding: EdgeInsets.zero,
                 title: const Text('券种管理'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.push<void>(
@@ -132,6 +133,7 @@ class CatalogManagementPage extends StatelessWidget {
               ),
             ChekiCard(
               child: ListTile(
+                contentPadding: EdgeInsets.zero,
                 title: const Text('备份与恢复'),
                 subtitle: const Text('完整账本、设置和附件'),
                 trailing: const Icon(Icons.chevron_right),

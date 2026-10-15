@@ -164,9 +164,8 @@ void main() {
       );
       await t.tap(find.text('核对'));
       await settleIo(t);
-      expect(find.text('扣券成本明细'), findsOneWidget);
-      expect(find.text('2 张 · 成本 ¥60'), findsOneWidget);
-      expect(find.text('3 张 · 成本 ¥60'), findsOneWidget);
+      expect(find.text('预计花费：¥120'), findsOneWidget);
+      expect(find.text('扣券成本明细'), findsNothing);
       expect(find.text('保存'), findsOneWidget);
       await t.binding.handlePopRoute();
       await settleIo(t);

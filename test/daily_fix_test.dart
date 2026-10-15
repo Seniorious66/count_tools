@@ -352,11 +352,8 @@ void main() {
       ]);
       expect(mixed.known.exact, '30');
       expect(mixed.unlinkedRecords, 1);
-      expect(mixed.label, contains('1 条未关联扣券'));
-      expect(
-        (await f.records.readModel()).costFor([extra.id]).label,
-        '花费：—（未关联扣券）',
-      );
+      expect(mixed.label, contains('另有金额未填写'));
+      expect((await f.records.readModel()).costFor([extra.id]).label, '花费：—');
     },
   );
   test(
@@ -402,7 +399,7 @@ void main() {
       final total = model.costFor([joint.id, joint.id, mixed.id]);
       expect(total.known.exact, '10');
       expect(total.unknownQuantity, 1);
-      expect(total.label, contains('1 张券成本未知'));
+      expect(total.label, contains('另有金额未填写'));
       final report = (await f.bi.read()).report(
         BiPeriod(BiScope.all, '2026-10-14'),
       );

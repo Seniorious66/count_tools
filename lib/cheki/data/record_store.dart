@@ -32,8 +32,9 @@ class StoredRecord {
   int get revision => _raw['revision'] as int;
   String get createdAt => _raw['created_at'] as String;
   String get updatedAt => _raw['updated_at'] as String;
-  RecordInformation get information =>
-      RecordInformation.decode(_raw['information_json'] as String);
+  late final RecordInformation information = RecordInformation.decode(
+    _raw['information_json'] as String,
+  );
   Map<String, Object?> toRow() => copySqlRow(_raw);
 }
 
@@ -198,6 +199,20 @@ class RecordStore {
 
   /// Also invalidates names after returning from entity management.
   static void invalidateReads() => _changes.add(null);
+
+  /// Labels never load all record JSON or costs just to paint a member name.
+  Future<RecordReadModel> readLabels() async => (await database()).transaction(
+    (tx) async => RecordReadModel(
+      records: const [],
+      groups: (await tx.query(
+        CatalogKind.group.table,
+      )).map(CatalogEntity.fromRow),
+      members: await readMembersWithLegacyColors(tx),
+      sizes: (await tx.query(
+        CatalogKind.size.table,
+      )).map(CatalogEntity.fromRow),
+    ),
+  );
   Future<RecordReadModel> readModel() async => (await database()).transaction(
     (tx) async => RecordReadModel(
       records: (await tx.query(

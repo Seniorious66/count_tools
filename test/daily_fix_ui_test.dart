@@ -108,7 +108,7 @@ void main() {
         lessThan(1),
       );
       expect(
-        t.getTopLeft(find.text('购券')).dy,
+        t.getTopLeft(find.text('券')).dy,
         greaterThan(t.getBottomLeft(right).dy),
       );
       expect(find.text('已知张数'), findsNothing);
@@ -218,6 +218,14 @@ void main() {
             CatalogListPage(kind: CatalogKind.group, store: f.catalog),
           ),
           ('tickets-360', 360, 1, TicketLibraryPage(store: f.tickets)),
+          ('management-360', 360, 1, CatalogManagementPage(store: f.catalog)),
+          ('record-list-360', 360, 1, RecordListPage(store: f.records)),
+          (
+            'purchase-320-big',
+            320,
+            2,
+            TicketEditPage(store: f.tickets, kind: 'purchase'),
+          ),
           (
             'ticket-form-320-big',
             320,
@@ -239,7 +247,20 @@ void main() {
                 ).copyWith(textScaler: TextScaler.linear(page.$3)),
                 child: child!,
               ),
-              home: RepaintBoundary(key: key, child: page.$4),
+              home: RepaintBoundary(
+                key: key,
+                child: page.$4 is CatalogManagementPage
+                    ? Builder(
+                        builder: (context) {
+                          // Keep the real management tree, overriding only the
+                          // nested theme's host-test font for readable evidence.
+                          final management = page.$4 as CatalogManagementPage;
+                          final local = management.build(context) as Theme;
+                          return Theme(data: readable, child: local.child);
+                        },
+                      )
+                    : page.$4,
+              ),
             ),
           );
           await settleIo(t);

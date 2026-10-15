@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import '../domain/ticket_information.dart';
 
-/// Amounts are actual frozen consumption allocations, not current ticket
-/// prices, purchase expenditure or a multiplication by participant count.
+/// Confirmed legacy amounts or actual frozen consumption allocations.
+/// Never current prices, purchase expenditure or participant multiplication.
 class RecordCost {
   TicketMoney known = TicketMoney(BigInt.zero, BigInt.one);
   int knownQuantity = 0,
@@ -42,14 +42,38 @@ class RecordCost {
   }
 
   String get label {
-    if (linkedRecords == 0) return '花费：—（未关联扣券）';
-    final value = knownQuantity == 0 ? '未知' : '¥${known.exact}';
+    final value = knownQuantity == 0 ? '—' : '¥${known.exact}';
     final missing = [
-      if (unknownQuantity > 0) '$unknownQuantity 张券成本未知',
-      if (unlinkedRecords > 0) '$unlinkedRecords 条未关联扣券',
+      if (knownQuantity > 0 && unknownQuantity + unlinkedRecords > 0) '另有金额未填写',
     ];
     return '花费：$value${missing.isEmpty ? '' : '（${missing.join('，')}）'}';
   }
+}
+
+/// Only the explicitly confirmed scoped legacy mapping may supply old amounts.
+/// Invalid/missing text stays unknown and the raw JSON is never rewritten.
+RecordCost? legacyRecordCost(Map<String, Object?> information) {
+  final source = information['legacy_source'], raw = information['legacy_raw'];
+  if (source is! Map ||
+      source['snapshot'] != '20261011_102725' ||
+      source['application_id'] != 'com.example.count_tools' ||
+      source['mapping'] != 'S25-user-confirmed-20261013') {
+    return null;
+  }
+  final result = RecordCost()..linkedRecords = 1;
+  TicketMoney? amount;
+  if (raw is Map &&
+      raw['id'] is int &&
+      (raw['id'] as int) > 0 &&
+      raw['price'] is String) {
+    try {
+      amount = TicketMoney.parse(raw['price'] as String);
+    } on FormatException {
+      /* preserve the original unparseable amount */
+    }
+  }
+  result.add(amount, 1);
+  return result;
 }
 
 Future<Map<String, RecordCost>> recordCostsIn(DatabaseExecutor tx) async {
@@ -70,6 +94,20 @@ Future<Map<String, RecordCost>> recordCostsIn(DatabaseExecutor tx) async {
         (a) => Map<String, Object?>.from(a as Map),
       ),
     );
+  }
+  for (final row in await tx.query(
+    'cheki_records',
+    columns: ['id', 'information_json'],
+  )) {
+    if (!(row['information_json'] as String).contains('"legacy_source"')) {
+      continue;
+    }
+    final cost = legacyRecordCost(
+      Map<String, Object?>.from(
+        jsonDecode(row['information_json'] as String) as Map,
+      ),
+    );
+    if (cost != null) result[row['id'] as String] = cost;
   }
   return Map.unmodifiable(result);
 }
