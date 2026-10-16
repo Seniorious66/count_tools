@@ -4,9 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:count_tools/cheki/data/record_store.dart';
 import 'package:count_tools/cheki/data/entry_store.dart';
+import 'package:count_tools/cheki/data/bi_query.dart';
+import 'package:count_tools/cheki/data/record_query.dart';
+import 'package:count_tools/cheki/data/backup_store.dart';
+import 'package:count_tools/data/database/data_base.dart';
 import 'package:count_tools/cheki/domain/record_information.dart';
 import 'package:count_tools/cheki/domain/coupon_plan.dart';
 import 'bi_fixture.dart';
+import 'transport_test.dart' show state;
 
 // Counts actual read SQL sent through the same Database/Transaction interface.
 class ReadCounter implements Database {
@@ -173,6 +178,7 @@ void main() {
           final db = ReadCounter(await f.records.database());
           final store = RecordStore(() async => db, clock: () => f.clock);
           final entry = EntryStore(store.database, clock: () => f.clock);
+          final bi = BiStore(store.database, clock: () => f.clock);
           final durations = <String, List<int>>{},
               queries = <String, List<int>>{};
           Future<void> measure(
@@ -215,10 +221,60 @@ void main() {
             await measure('list_refresh', () async {
               await store.readModel();
             });
+            await measure('bi_snapshot_and_report', () async {
+              final snapshot = await bi.read();
+              final report = snapshot.report(
+                BiPeriod(BiScope.all, '2026-10-14'),
+              );
+              expect(report.summary.knownQuantity, count);
+              expect(report.memberQuantity, count);
+            });
+            await measure('recency_and_200_sorts', () async {
+              final rows = await store.list();
+              final recent = MemberRecency(rows, excluding: last!.id);
+              for (var i = 0; i < 200; i++) {
+                expect(recent.order([f.b, f.a], '2026-10-14').first, f.a);
+              }
+            });
+          }
+          final before = await state(f.root);
+          var settings = <String, Object?>{
+            'raw': '001',
+            'empty': <String>[],
+            'zero': 0,
+          };
+          final backups = BackupStore(
+            documents: f.root,
+            readSettings: () async => Map.of(settings),
+            writeSettings: (s) async => settings = Map.of(s),
+            closeMain: DatabaseHelper().close,
+          );
+          final watch = Stopwatch()..start();
+          final bytes = await backups.snapshot();
+          final snapshotMs = watch.elapsedMicroseconds / 1000;
+          watch.reset();
+          final preview = await backups.prepare(bytes);
+          final prepareMs = watch.elapsedMicroseconds / 1000;
+          expect(await state(f.root), before);
+          watch.reset();
+          await backups.apply(preview);
+          final applyMs = watch.elapsedMicroseconds / 1000;
+          watch.stop();
+          expect(await state(f.root), before);
+          expect(settings, {'raw': '001', 'empty': <String>[], 'zero': 0});
+          if (await backups.recovery.exists()) {
+            await backups.recovery.delete(recursive: true);
           }
           reports.add({
             'records': count,
             'revision_seed': count == 343 ? 1050 : 6000,
+            'complete_recovery': {
+              'bytes': bytes.length,
+              'snapshot_ms': snapshotMs,
+              'prepare_ms': prepareMs,
+              'apply_ms': applyMs,
+              'all_tables_settings_equal': true,
+            },
             'segments': {
               for (final e in durations.entries)
                 e.key: {

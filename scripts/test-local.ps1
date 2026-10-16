@@ -1,6 +1,8 @@
-param([switch]$BuildDebug, [string]$Python = 'python', [string]$Baseline = '')
+param([switch]$BuildDebug, [string]$Python = 'python', [string]$Baseline = '', [ValidateRange(1,8)][int]$TestConcurrency = 2)
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$previousChekiPython = $env:CHEKI_PYTHON
+$env:CHEKI_PYTHON = (Get-Command $Python -ErrorAction Stop).Source
 Push-Location $repoRoot
 try {
     $planningArgs = @('scripts/verify-mastersheet.py')
@@ -18,7 +20,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Dependency resolution failed' }
     & flutter analyze --no-pub
     if ($LASTEXITCODE -ne 0) { throw 'Flutter analysis failed' }
-    & flutter test --no-pub
+    # One Flutter command owns the workspace; bounded file concurrency still
+    # exercises independent suites without saturating host filesystem work.
+    & flutter test --no-pub --concurrency $TestConcurrency
     if ($LASTEXITCODE -ne 0) { throw 'Flutter tests failed; template tests are not business acceptance' }
     if ($env:COUNT_TOOLS_CATALOG_ACCEPTANCE) {
         & $Python (Join-Path $repoRoot 'scripts/test-catalog-recovery.py') --source $env:COUNT_TOOLS_CATALOG_ACCEPTANCE
@@ -71,4 +75,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Current legacy mapping complete recovery checks failed' }
     }
     Write-Output 'Requested local checks passed; no device acceptance.'
-} finally { Pop-Location }
+} finally {
+    $env:CHEKI_PYTHON = $previousChekiPython
+    Pop-Location
+}

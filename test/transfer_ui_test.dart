@@ -23,23 +23,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'storage_migration_test.dart' show legacyFixture;
-
-Future<void> settleIo(WidgetTester t) async {
-  for (var i = 0; i < 90; i++) {
-    await t.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
-    await t.pump(const Duration(milliseconds: 20));
-    if (i > 4 &&
-        find.byType(CircularProgressIndicator).evaluate().isEmpty &&
-        find.byType(LinearProgressIndicator).evaluate().isEmpty &&
-        !t.binding.hasScheduledFrame) {
-      break;
-    }
-  }
-  await t.pumpAndSettle();
-  expect(t.takeException(), isNull);
-}
+import 'support/settle_io.dart';
+export 'support/settle_io.dart' show settleIo;
 
 class FakeAccess extends BackupFileAccess {
   Uint8List? selected, saved;

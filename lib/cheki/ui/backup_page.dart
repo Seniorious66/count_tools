@@ -163,12 +163,12 @@ class _BackupPageState extends State<BackupPage> {
             if (busy)
               const Padding(
                 padding: EdgeInsets.all(16),
-                child: LinearProgressIndicator(),
+                child: LinearProgressIndicator(semanticsLabel: '正在处理备份，请稍候'),
               ),
             if (message != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(message!),
+                child: Semantics(liveRegion: true, child: Text(message!)),
               ),
             if (preview != null) ...[
               const SizedBox(height: 16),

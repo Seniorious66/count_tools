@@ -14,18 +14,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'storage_migration_test.dart' show legacyFixture;
-
-Future<void> settleIo(WidgetTester tester) async {
-  // OS file work and fake-frame callbacks must both advance during cold open.
-  for (var i = 0; i < 30; i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 15)),
-    );
-    await tester.pump(const Duration(milliseconds: 20));
-  }
-  await tester.pumpAndSettle();
-  expect(tester.takeException(), isNull);
-}
+import 'support/settle_io.dart';
+export 'support/settle_io.dart' show settleIo;
 
 void main() {
   late Directory scratch;

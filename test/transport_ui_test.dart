@@ -12,22 +12,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'bi_fixture.dart';
-
-Future<void> settleIo(WidgetTester t) async {
-  for (var i = 0; i < 1000; i++) {
-    await t.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
-    await t.pump(const Duration(milliseconds: 20));
-    if (i > 4 &&
-        find.byType(LinearProgressIndicator).evaluate().isEmpty &&
-        !t.binding.hasScheduledFrame) {
-      expect(t.takeException(), isNull);
-      return;
-    }
-  }
-  fail('Transport did not complete within its real IO budget');
-}
+import 'support/settle_io.dart';
+export 'support/settle_io.dart' show settleIo;
 
 class FakeTransportAccess extends TransportFileAccess {
   Uint8List? selected, saved;

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:count_tools/cheki/data/backup_store.dart';
 import 'package:count_tools/cheki/data/transport_codec.dart';
 import 'package:count_tools/cheki/data/transport_store.dart';
+import 'package:count_tools/cheki/domain/record_information.dart';
 import 'package:count_tools/data/database/data_base.dart';
 import 'package:count_tools/data/database/schema.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -152,21 +153,68 @@ void main() {
     },
   );
   test(
-    'standard deflate ZIP independently repacked by Python restores in a fresh Dart process',
+    'standard deflate ZIP independently repacked by Python preserves complete state',
     () async {
-      final root = Platform.environment['CHEKI_TRANSPORT_REPACK']!;
-      expect(
-        await File('$root/.transport-synthetic').readAsString(),
-        'count_tools',
-      );
-      final pack = await File('$root/deflated.chekicsv.zip').readAsBytes();
+      final root = Platform.environment['CHEKI_TRANSPORT_REPACK'];
+      late Uint8List pack;
+      Map<String, Object?>? before;
+      if (root != null) {
+        expect(
+          await File('$root/.transport-synthetic').readAsString(),
+          'count_tools',
+        );
+        pack = await File('$root/deflated.chekicsv.zip').readAsBytes();
+      } else {
+        // Always run the cross-runtime regression. No stale external fixture or
+        // environment switch is required for the ordinary full-suite command.
+        await f.quantities();
+        await f.finances(unknown: true);
+        await f.records.save(
+          RecordInformation.fromMap({}),
+          operationId: 'deflate-empty',
+        );
+        final db = await f.records.database();
+        await db.execute(
+          'CREATE TABLE unknown_future(id INTEGER PRIMARY KEY, raw BLOB)',
+        );
+        await db.insert('unknown_future', {
+          'id': 1,
+          'raw': Uint8List.fromList([0, 255]),
+        });
+        before = await state(f.root);
+        final scratch = await Directory.systemTemp.createTemp(
+          'cheki-python-deflate-',
+        );
+        try {
+          final source = '${scratch.path}/source.zip',
+              target = '${scratch.path}/deflated.zip';
+          await File(source).writeAsBytes(await store.export());
+          final result = await Process.run(
+            Platform.environment['CHEKI_PYTHON'] ?? 'python',
+            [
+              '-c',
+              'import sys,zipfile\nwith zipfile.ZipFile(sys.argv[1]) as src, zipfile.ZipFile(sys.argv[2],"w",compression=zipfile.ZIP_DEFLATED) as dst:\n for n in src.namelist(): dst.writestr(n,src.read(n))',
+              source,
+              target,
+            ],
+          );
+          expect(
+            result.exitCode,
+            0,
+            reason: 'Independent Python deflate failed: ${result.stderr}',
+          );
+          pack = await File(target).readAsBytes();
+        } finally {
+          await scratch.delete(recursive: true);
+        }
+      }
       await store.apply(await store.prepare(pack, TransportMode.snapshot));
       final db = await f.records.database();
       await StorageSchema.validate(db, 8);
       expect((await db.query('unknown_future')).single['raw'], [0, 255]);
       expect(await f.records.list(), hasLength(5));
+      if (before != null) expect(await state(f.root), before);
     },
-    skip: Platform.environment['CHEKI_TRANSPORT_REPACK'] == null,
   );
   test(
     'complete snapshot tables unknown BLOB sequences settings attachments and cold read equal',

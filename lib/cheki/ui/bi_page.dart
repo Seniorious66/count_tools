@@ -191,6 +191,9 @@ class _BiPageState extends State<BiPage> {
               ),
             ],
           ),
+          // Floating input labels extend above the border, especially at 200%.
+          // Keep them clear of the multiline period selector on narrow screens.
+          const SizedBox(height: 24),
           DropdownButtonFormField<String>(
             initialValue: group,
             isExpanded: true,

@@ -101,60 +101,69 @@ class CompactEntityGrid extends StatelessWidget {
         itemCount: items.length,
         itemBuilder: (context, index) {
           final item = items[index];
-          return Tooltip(
-            message: [
-              item.name,
-              ?item.subtitle,
-              if (item.inactive) '已停用',
-            ].join(' · '),
-            child: Material(
-              color: ChekiColors.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: ChekiColors.line),
-              ),
-              child: InkWell(
-                key: ValueKey(item.id),
-                onTap: item.onTap,
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (item.color != null) ...[
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: item.color,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: ChekiColors.inputBorder),
+          final description = [
+            item.name,
+            ?item.subtitle,
+            if (item.inactive) '已停用',
+          ].join(' · ');
+          return Semantics(
+            button: true,
+            label: description,
+            onTap: item.onTap,
+            excludeSemantics: true,
+            child: Tooltip(
+              message: description,
+              child: Material(
+                color: ChekiColors.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: ChekiColors.line),
+                ),
+                child: InkWell(
+                  key: ValueKey(item.id),
+                  onTap: item.onTap,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (item.color != null) ...[
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: item.color,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: ChekiColors.inputBorder,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      Text(
-                        item.name,
-                        style: titleStyle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (item.subtitle != null) ...[
-                        const SizedBox(height: 4),
+                          const SizedBox(height: 8),
+                        ],
                         Text(
-                          item.subtitle!,
-                          style: subtitleStyle,
+                          item.name,
+                          style: titleStyle,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (item.subtitle != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            item.subtitle!,
+                            style: subtitleStyle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        if (item.inactive) ...[
+                          const SizedBox(height: 4),
+                          Text('已停用', style: subtitleStyle),
+                        ],
                       ],
-                      if (item.inactive) ...[
-                        const SizedBox(height: 4),
-                        Text('已停用', style: subtitleStyle),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               ),
