@@ -8,6 +8,54 @@ import 'record_cost.dart';
 
 enum RecordSelection { all, awaitingReceipt, incomplete, undated }
 
+/// A form-local, rebuildable index. Changing its reference date never rereads
+/// the database, substitutes an action timestamp, or changes selected identities.
+final class MemberRecency {
+  MemberRecency(Iterable<StoredRecord> records, {String? excluding}) {
+    for (final r in records) {
+      final day = r.information.occurredOn?.value;
+      if (r.id == excluding || day == null) continue;
+      for (final id in r.information.memberIds ?? <String>[]) {
+        (_days[id] ??= []).add(day);
+      }
+    }
+    for (final days in _days.values) {
+      days.sort();
+    }
+  }
+  final _days = <String, List<String>>{};
+  String? latest(String id, String through) {
+    final days = _days[id];
+    if (days == null) return null;
+    var low = 0, high = days.length;
+    while (low < high) {
+      final mid = (low + high) ~/ 2;
+      if (days[mid].compareTo(through) <= 0) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    return low == 0 ? null : days[low - 1];
+  }
+
+  List<String> order(Iterable<String> ids, String? through) {
+    final result = ids.toList();
+    if (through == null) return result;
+    final stable = {for (var i = 0; i < result.length; i++) result[i]: i};
+    final dates = {for (final id in result) id: latest(id, through)};
+    return result..sort((a, b) {
+      final ad = dates[a], bd = dates[b];
+      final byDate = ad == null
+          ? (bd == null ? 0 : 1)
+          : bd == null
+          ? -1
+          : bd.compareTo(ad);
+      return byDate != 0 ? byDate : stable[a]!.compareTo(stable[b]!);
+    });
+  }
+}
+
 /// Filters business dates only. Missing dates never fall back to action time.
 final class RecordFilter {
   RecordFilter({

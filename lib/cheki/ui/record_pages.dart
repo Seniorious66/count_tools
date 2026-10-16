@@ -64,6 +64,28 @@ class _RecordEditPageState extends State<RecordEditPage> {
   late List<String> _members = _initial.memberIds?.toList() ?? [];
   late final _names = RecordNamesController(_initial);
   late String? _size = _initial.sizeId;
+  String? _defaultSize;
+  bool _sizeTouched = false;
+  MemberRecency _recency = MemberRecency(const []);
+  StreamSubscription<void>? _recentSubscription;
+  int _recentRequest = 0;
+  bool _recentFailed = false;
+  Future<void> _loadRecent() async {
+    final request = ++_recentRequest;
+    try {
+      final rows = await widget.store.list();
+      if (!mounted || request != _recentRequest) return;
+      setState(() {
+        _recency = MemberRecency(rows, excluding: widget.original?.id);
+        _recentFailed = false;
+      });
+    } catch (_) {
+      if (mounted && request == _recentRequest) {
+        setState(() => _recentFailed = true);
+      }
+    }
+  }
+
   late SignatureKind? _signature = _initial.signature;
   late bool? _back = _initial.backSigned;
   late final _receipts = ReceiptEditController(
@@ -81,10 +103,23 @@ class _RecordEditPageState extends State<RecordEditPage> {
   String? _error;
   final _operationId = newOperationId();
   late Future<(IdentityDirectory, List<CatalogEntity>)> _directory = _load();
-  Future<(IdentityDirectory, List<CatalogEntity>)> _load() async => (
-    await IdentityStore(widget.store.database).directory(),
-    await CatalogStore(widget.store.database).list(CatalogKind.size),
-  );
+  Future<(IdentityDirectory, List<CatalogEntity>)> _load() async {
+    final directory = await IdentityStore(widget.store.database).directory();
+    final sizes = await CatalogStore(
+      widget.store.database,
+    ).list(CatalogKind.size);
+    if (mounted &&
+        widget.original == null &&
+        !widget.historical &&
+        !_sizeTouched) {
+      _defaultSize = sizes.any((s) => s.id == 'size-3inch' && s.active)
+          ? 'size-3inch'
+          : null;
+      _size = _defaultSize;
+    }
+    return (directory, sizes);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -93,15 +128,28 @@ class _RecordEditPageState extends State<RecordEditPage> {
     );
     _day.addListener(_inputsChanged);
     _quantity.addListener(_inputsChanged);
-    _coupons.load(
-      _couponInformation(),
-      directoryFuture: _directory.then((value) => value.$1),
-    );
+    _loadCoupons();
+    _loadRecent();
+    _recentSubscription = RecordStore.changes.listen((_) => _loadRecent());
     if (widget.addReceipt) _receipts.add();
+  }
+
+  Future<void> _loadCoupons() async {
+    try {
+      final value = await _directory;
+      if (!mounted) return;
+      await _coupons.load(
+        _couponInformation(),
+        directoryFuture: Future.value(value.$1),
+      );
+    } catch (_) {
+      // The directory's own retry is displayed before a coupon can be chosen.
+    }
   }
 
   @override
   void dispose() {
+    _recentSubscription?.cancel();
     for (final c in [_day, _quantity, _note]) {
       c.dispose();
     }
@@ -221,7 +269,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
         _day.text != (_initial.occurredOn?.value ?? '') ||
         _quantity.text != (_initial.quantity?.toString() ?? '') ||
         _note.text != (_initial.note ?? '') ||
-        _size != _initial.sizeId ||
+        _size != (_defaultSize ?? _initial.sizeId) ||
         _members.join('\u0000') != (_initial.memberIds ?? []).join('\u0000') ||
         _signature != _initial.signature ||
         _back != _initial.backSigned ||
@@ -328,7 +376,10 @@ class _RecordEditPageState extends State<RecordEditPage> {
                     builder: (context, snapshot) {
                       if (snapshot.hasError) {
                         return TextButton(
-                          onPressed: () => setState(() => _directory = _load()),
+                          onPressed: () {
+                            setState(() => _directory = _load());
+                            _loadCoupons();
+                          },
                           child: const Text('成员与尺寸读取失败，点击重试'),
                         );
                       }
@@ -339,12 +390,20 @@ class _RecordEditPageState extends State<RecordEditPage> {
                       final groups = {
                         for (final g in directory.groups) g.id: g,
                       };
+                      final membersById = {
+                        for (final m in directory.members) m.id: m,
+                      };
                       return Column(
                         children: [
                           MemberMultiSelectField(
-                            options: directory.members
-                                .map(
-                                  (m) => MemberOption(
+                            options: _recency
+                                .order(
+                                  directory.members.map((m) => m.id),
+                                  _couponInformation().occurredOn?.value,
+                                )
+                                .map((id) {
+                                  final m = membersById[id]!;
+                                  return MemberOption(
                                     id: m.id,
                                     group: groups[m.groupId]?.name ?? '未填写团体',
                                     name: m.name,
@@ -354,8 +413,8 @@ class _RecordEditPageState extends State<RecordEditPage> {
                                     available:
                                         m.active &&
                                         (groups[m.groupId]?.active ?? true),
-                                  ),
-                                )
+                                  );
+                                })
                                 .toList(),
                             selectedIds: _members,
                             onChanged: (ids) => setState(() {
@@ -369,6 +428,11 @@ class _RecordEditPageState extends State<RecordEditPage> {
                               );
                             }),
                           ),
+                          if (_recentFailed)
+                            TextButton(
+                              onPressed: _loadRecent,
+                              child: const Text('最近成员读取失败，重试'),
+                            ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
                             key: ValueKey('record-size-$_size'),
@@ -388,9 +452,10 @@ class _RecordEditPageState extends State<RecordEditPage> {
                                   child: Text(s.name),
                                 ),
                             ],
-                            onChanged: (value) => setState(
-                              () => _size = value == '' ? null : value,
-                            ),
+                            onChanged: (value) => setState(() {
+                              _sizeTouched = true;
+                              _size = value == '' ? null : value;
+                            }),
                           ),
                         ],
                       );
@@ -437,6 +502,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
                   CouponEntryEditor(
                     controller: _coupons,
                     info: _couponInformation(),
+                    autoLoad: false,
                   ),
                   const SizedBox(height: 16),
                   TextField(

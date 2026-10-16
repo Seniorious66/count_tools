@@ -369,8 +369,12 @@ class _TicketLibraryPageState extends State<TicketLibraryPage>
                 padding: EdgeInsets.all(24),
                 child: Text('还没有券种，可先保存空信息再补齐'),
               ),
-            for (final d in m.definitions)
+            for (final d
+                in widget.definitionsOnly
+                    ? m.definitions
+                    : m.stockOrderedDefinitions)
               Padding(
+                key: ValueKey('ticket-stock-${d.id}'),
                 padding: const EdgeInsets.only(top: 12),
                 child: ChekiCard(
                   child: ListTile(

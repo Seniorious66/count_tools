@@ -29,6 +29,9 @@ class CouponEntryController extends ChangeNotifier {
   RecordInformation info = RecordInformation.fromMap({});
   var request = 0;
   bool disposed = false;
+  final _manualLines = <Map<String, Object?>>{};
+  final _suppressedMembers = <String>{};
+  bool _historical = false;
   @override
   void notifyListeners() {
     if (!disposed) super.notifyListeners();
@@ -65,14 +68,21 @@ class CouponEntryController extends ChangeNotifier {
         raw = state?.plan.toMap() ?? {};
         lines = state?.plan.lines ?? [];
         manual = state != null;
+        _historical = recordId != null;
       }
-      model = await store.availability(
-        recordId: recordId,
-        day: info.occurredOn?.value,
-      );
+      // Inputs can change while the directory or inventory is being read.
+      // A loaded snapshot must belong to the latest form date.
+      while (true) {
+        final day = info.occurredOn?.value;
+        final updated = await store.availability(recordId: recordId, day: day);
+        if (disposed) return;
+        if (day != info.occurredOn?.value) continue;
+        model = updated;
+        break;
+      }
       loaded = true;
       loading = false;
-      if (!manual) suggest();
+      if (!_historical) suggest();
       if (!preserve) baseline = plan.encode();
       error = null;
       notifyListeners();
@@ -90,17 +100,19 @@ class CouponEntryController extends ChangeNotifier {
     if (!loaded) return;
     final id = ++request;
     try {
-      if (next.occurredOn != previous.occurredOn) {
+      if (loading ||
+          next.occurredOn != previous.occurredOn ||
+          next.occurredOn != null && model?.day != next.occurredOn?.value) {
         loading = true;
         notifyListeners();
         final updated = await store.availability(
           recordId: recordId,
           day: next.occurredOn?.value,
         );
-        if (id != request) return;
+        if (disposed || id != request) return;
         model = updated;
       }
-      if (!manual) {
+      if (!_historical) {
         suggest();
       } else {
         lines = lines
@@ -148,48 +160,105 @@ class CouponEntryController extends ChangeNotifier {
 
   void suggest({bool reset = false}) {
     if (model == null) return;
-    if (reset) manual = false;
+    if (reset) {
+      manual = false;
+      _historical = false;
+      _manualLines.clear();
+      _suppressedMembers.clear();
+    }
     final old = lines;
     lines = [];
+    final remaining = <String, int>{
+      for (final d in model!.definitions)
+        d.id: model!
+            .pools(d.id)
+            .where((p) => !p.expired(model!.day))
+            .fold(0, (q, p) => q + p.quantity),
+    };
+    // Manual rows reserve their actual pool allocations before suggestions.
+    for (final l in old.where(_manualLines.contains)) {
+      if (!(info.memberIds ?? []).contains(l['member_id'])) continue;
+      final id = l['definition_id'] as String?;
+      if (id != null) {
+        remaining[id] =
+            (remaining[id] ?? 0) -
+            CouponPlan.pools(
+              l,
+            ).fold<int>(0, (q, p) => q + (p['quantity'] as int? ?? 0));
+      }
+    }
     for (final member in info.memberIds ?? <String>[]) {
+      if (_suppressedMembers.contains(member)) continue;
       final existing = old.where((l) => l['member_id'] == member).toList();
-      if (existing.isNotEmpty) {
-        for (final l in existing) {
-          lines.add({
-            ...l,
-            'quantity': reset ? l['quantity'] : info.quantity,
-            'pools': l['pools'],
-          });
+      final pinned = existing.where(_manualLines.contains).toList();
+      if (pinned.isNotEmpty) {
+        lines.addAll(pinned);
+        continue;
+      }
+      final candidates = eligible(member)
+          .where(
+            (d) =>
+                info.occurredOn != null &&
+                (remaining[d.id] ?? 0) > 0 &&
+                (d.information.text('size_id') == null ||
+                    info.sizeId == null ||
+                    d.information.text('size_id') == info.sizeId) &&
+                (d.information.text('signature') == null ||
+                    info.signature == null ||
+                    d.information.text('signature') == info.signature?.name),
+          )
+          .toList();
+      int unknowns(TicketObject d) =>
+          (info.sizeId != null && d.information.text('size_id') == null
+              ? 1
+              : 0) +
+          (info.signature != null && d.information.text('signature') == null
+              ? 1
+              : 0);
+      int sizeRank(TicketObject d) => switch (d.information.text('size_id')) {
+        'size-3inch' => 0,
+        'size-5inch' => 1,
+        null => 3,
+        _ => 2,
+      };
+      candidates.sort((a, b) {
+        // Unknown definition metadata is not a claim of an exact match.
+        var order = unknowns(a).compareTo(unknowns(b));
+        if (order != 0) return order;
+        order = (a.information.text('scope') == 'personal' ? 0 : 1).compareTo(
+          b.information.text('scope') == 'personal' ? 0 : 1,
+        );
+        if (order != 0) return order;
+        if (info.sizeId == null) {
+          order = sizeRank(a).compareTo(sizeRank(b));
+          if (order != 0) return order;
         }
-      } else {
-        final candidates = eligible(member)
-            .where(
-              (d) =>
-                  (d.information.text('size_id') == null ||
-                      d.information.text('size_id') == info.sizeId) &&
-                  (d.information.text('signature') == null ||
-                      d.information.text('signature') == info.signature?.name),
-            )
-            .toList();
-        final personal = candidates
-            .where((d) => d.information.text('scope') == 'personal')
-            .toList();
-        final choices = personal.isNotEmpty ? personal : candidates;
-        lines.add({
-          'member_id': member,
-          'definition_id': choices.length == 1 ? choices.single.id : null,
-          if (choices.length == 1)
-            'definition_name': choices.single.information.text('name'),
-          if (choices.length == 1)
-            'group_name': directory?.groups
-                .where(
-                  (g) => g.id == choices.single.information.text('group_id'),
-                )
-                .firstOrNull
-                ?.knownName,
-          'quantity': info.quantity,
-          'pools': [],
-        });
+        return a.id.compareTo(b.id);
+      });
+      final choice = candidates.firstOrNull;
+      final quantity = reset && existing.isNotEmpty
+          ? existing.first['quantity'] as int?
+          : info.quantity;
+      lines.add({
+        if (existing.isNotEmpty &&
+            existing.first['definition_id'] == choice?.id)
+          ...existing.first,
+        'member_id': member,
+        'definition_id': choice?.id,
+        if (choice != null) 'definition_name': choice.information.text('name'),
+        if (choice != null)
+          'group_name': directory?.groups
+              .where((g) => g.id == choice.information.text('group_id'))
+              .firstOrNull
+              ?.knownName,
+        'quantity': quantity,
+        'pools':
+            existing.isNotEmpty && existing.first['definition_id'] == choice?.id
+            ? existing.first['pools']
+            : [],
+      });
+      if (choice != null) {
+        remaining[choice.id] = (remaining[choice.id] ?? 0) - (quantity ?? 0);
       }
     }
     allocate();
@@ -202,7 +271,11 @@ class CouponEntryController extends ChangeNotifier {
 
   void allocate({int? only}) {
     if (info.occurredOn == null) {
-      for (final l in lines) {
+      for (final l in lines.where(
+        (l) => only != null
+            ? identical(l, lines[only])
+            : !_manualLines.contains(l),
+      )) {
         l['pools'] = [];
       }
       return;
@@ -226,10 +299,22 @@ class CouponEntryController extends ChangeNotifier {
               );
         }
       }
+    } else {
+      for (final line in lines.where(_manualLines.contains)) {
+        for (final pool in CouponPlan.pools(line)) {
+          final key = '${line['definition_id']}:${pool['expires_on'] ?? ''}';
+          available[key] =
+              ((available[key] ?? 0) - (pool['quantity'] as int? ?? 0)).clamp(
+                0,
+                1 << 53,
+              );
+        }
+      }
     }
     for (var i = 0; i < lines.length; i++) {
       if (only != null && only != i) continue;
       final line = lines[i];
+      if (only == null && _manualLines.contains(line)) continue;
       final priorPools = CouponPlan.pools(line);
       final def = line['definition_id'] as String?;
       var left = line['quantity'] as int?;
@@ -274,6 +359,7 @@ class CouponEntryController extends ChangeNotifier {
 
   void selectDefinition(int index, String? id) {
     manual = true;
+    _manualLines.add(lines[index]);
     lines[index]['definition_id'] = id;
     final d = model?.definitions.where((d) => d.id == id).firstOrNull;
     if (d != null) {
@@ -292,6 +378,7 @@ class CouponEntryController extends ChangeNotifier {
 
   void editQuantity(int index, String text) {
     manual = true;
+    _manualLines.add(lines[index]);
     lines[index]['quantity'] = text.trim().isEmpty
         ? null
         : int.tryParse(text) ?? -1;
@@ -300,6 +387,7 @@ class CouponEntryController extends ChangeNotifier {
 
   void editPool(int line, int pool, String text) {
     manual = true;
+    _manualLines.add(lines[line]);
     final p = CouponPlan.pools(lines[line]);
     p[pool]['quantity'] = text.trim().isEmpty ? null : int.tryParse(text) ?? -1;
     lines[line]['pools'] = p;
@@ -308,23 +396,31 @@ class CouponEntryController extends ChangeNotifier {
 
   void addLine(String member) {
     manual = true;
+    _suppressedMembers.remove(member);
     lines.add({
       'member_id': member,
       'definition_id': null,
       'quantity': info.quantity,
       'pools': [],
     });
+    _manualLines.add(lines.last);
     notifyListeners();
   }
 
   void removeLine(int i) {
     manual = true;
+    final member = lines[i]['member_id'] as String? ?? '';
+    _manualLines.remove(lines[i]);
     lines.removeAt(i);
+    if (!lines.any((l) => l['member_id'] == member)) {
+      _suppressedMembers.add(member);
+    }
     notifyListeners();
   }
 
   void addExpired(int line, TicketPool pool) {
     manual = true;
+    _manualLines.add(lines[line]);
     final pools = CouponPlan.pools(lines[line]);
     if (!pools.any(
       (p) => p['pool'] == 'dated' && p['expires_on'] == pool.expiry,
@@ -342,6 +438,7 @@ class CouponEntryController extends ChangeNotifier {
 
   void confirmExpired(int line, int pool, bool yes) {
     manual = true;
+    _manualLines.add(lines[line]);
     final pools = CouponPlan.pools(lines[line]);
     pools[pool]['allow_expired'] = yes;
     lines[line]['pools'] = pools;
@@ -389,10 +486,12 @@ class CouponEntryEditor extends StatefulWidget {
   const CouponEntryEditor({
     required this.controller,
     required this.info,
+    this.autoLoad = true,
     super.key,
   });
   final CouponEntryController controller;
   final RecordInformation info;
+  final bool autoLoad;
   @override
   State<CouponEntryEditor> createState() => _CouponEntryEditorState();
 }
@@ -403,7 +502,7 @@ class _CouponEntryEditorState extends State<CouponEntryEditor> {
   void initState() {
     super.initState();
     c.addListener(update);
-    if (!c.loaded && !c.loading) c.load(widget.info);
+    if (widget.autoLoad && !c.loaded && !c.loading) c.load(widget.info);
   }
 
   void update() {
@@ -535,6 +634,14 @@ class _CouponEntryEditorState extends State<CouponEntryEditor> {
             ),
             if (def != null && valid.isEmpty)
               const Text('该日期无有效库存，可查看过期库存或切换仅记录。'),
+            if (selected != null &&
+                (selected.information.text('size_id') == null ||
+                    selected.information.text('signature') == null))
+              const Text('券种尺寸或属性未填写，请核对是否适用。'),
+            if (l['quantity'] is int &&
+                pools.fold<int>(0, (q, p) => q + (p['quantity'] as int? ?? 0)) <
+                    (l['quantity'] as int))
+              const Text('可用库存不足，请手动选择券种或调整分配。'),
             for (var p = 0; p < pools.length; p++)
               if (pools[p]['expires_on'] != null ||
                   valid.any((x) => x.expiry == null) ||

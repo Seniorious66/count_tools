@@ -114,7 +114,10 @@ class TicketModel {
       'signature',
     )],
   ].join(' · ');
-  Map<String, int> get remaining => remainingLots(objects, day);
+  // One immutable reader snapshot: do not replay the ledger per definition.
+  late final Map<String, int> remaining = Map.unmodifiable(
+    remainingLots(objects, day),
+  );
   List<TicketPool> pools(String id) {
     final result = <String?, int>{};
     final rest = remaining;
@@ -145,6 +148,21 @@ class TicketModel {
       definitions.expand((e) => pools(e.id)).toList();
   int get available =>
       allPools.where((p) => !p.expired(day)).fold(0, (q, p) => q + p.quantity);
+
+  /// Library presentation only: management order and FIFO remain unchanged.
+  List<TicketObject> get stockOrderedDefinitions {
+    final quantities = {
+      for (final d in definitions)
+        d.id: pools(
+          d.id,
+        ).where((p) => !p.expired(day)).fold(0, (q, p) => q + p.quantity),
+    };
+    return definitions..sort((a, b) {
+      final quantity = quantities[b.id]!.compareTo(quantities[a.id]!);
+      return quantity != 0 ? quantity : a.id.compareTo(b.id);
+    });
+  }
+
   List<TicketObject> get drafts => objects
       .where((e) => !e.posted && ['purchase', 'adjustment'].contains(e.kind))
       .toList();

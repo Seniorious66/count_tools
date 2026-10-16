@@ -135,8 +135,8 @@ void main() {
       final chart = t.widget<MemberPie>(pie);
       expect(chart.denominator, 9);
       expect(chart.slices.map((s) => s.quantity), [5, 4]);
-      expect(find.text('晨星-A · 5 张 · 55.6%'), findsOneWidget);
-      expect(find.text('夜航-B · 4 张 · 44.4%'), findsOneWidget);
+      expect(find.semantics.byLabel('晨星-A · 5 张 · 55.6%'), findsOneWidget);
+      expect(find.semantics.byLabel('夜航-B · 4 张 · 44.4%'), findsOneWidget);
       expect(chart.slices.first.color, const Color(0xff123456));
       expect(chart.slices.last.color, Colors.white);
       expect(find.text('按姓名排序'), findsNothing);
@@ -238,7 +238,7 @@ void main() {
       expect(chart.denominator, 11);
       expect(chart.slices.length, 1);
       expect(chart.slices.single.label, '同一成员');
-      expect(find.text('同一成员 · 11 张 · 100.0%'), findsOneWidget);
+      expect(find.semantics.byLabel('同一成员 · 11 张 · 100.0%'), findsOneWidget);
       await capture(t, 'person-share');
     },
   );
@@ -258,7 +258,7 @@ void main() {
       await reveal(t, pie);
       expect(t.widget<MemberPie>(pie).denominator, 5);
       expect(t.widget<MemberPie>(pie).slices.single.id, f.a);
-      expect(find.text('晨星-A · 5 张 · 100.0%'), findsOneWidget);
+      expect(find.semantics.byLabel('晨星-A · 5 张 · 100.0%'), findsOneWidget);
     },
   );
   testWidgets(
@@ -322,14 +322,20 @@ void main() {
       await reveal(t, pie);
       expect(find.byKey(const ValueKey('bi-pie-paint')), findsNothing);
       expect(find.text('暂无可统计张数'), findsOneWidget);
-      expect(find.text('晨星-A · 张数未填写 · — · 1 条张数未填写'), findsOneWidget);
+      expect(
+        find.semantics.byLabel('晨星-A · 张数未填写 · — · 1 条张数未填写'),
+        findsOneWidget,
+      );
       await capture(t, 'unknown-only');
       await t.runAsync(() => f.record(2, [f.b]));
       await settleIo(t);
       await reveal(t, pie);
       expect(t.widget<MemberPie>(pie).denominator, 2);
-      expect(find.text('晨星-A · 张数未填写 · — · 1 条张数未填写'), findsOneWidget);
-      expect(find.text('夜航-B · 2 张 · 100.0%'), findsOneWidget);
+      expect(
+        find.semantics.byLabel('晨星-A · 张数未填写 · — · 1 条张数未填写'),
+        findsOneWidget,
+      );
+      expect(find.semantics.byLabel('夜航-B · 2 张 · 100.0%'), findsOneWidget);
       await capture(t, 'unknown-shares');
     },
   );
@@ -354,7 +360,7 @@ void main() {
         await mount(t, width: width);
         await reveal(t, pie);
         expect(t.widget<MemberPie>(pie).slices.length, 26);
-        expect(find.bySemanticsLabel(RegExp(r'晨星-A · 5 张 ·')), findsOneWidget);
+        expect(find.semantics.byLabel(RegExp(r'晨星-A · 5 张 ·')), findsOneWidget);
         expect(t.takeException(), isNull);
         await capture(t, 'many-${width.toInt()}');
         await t.pumpWidget(const SizedBox());
@@ -364,7 +370,13 @@ void main() {
       await reveal(t, pie);
       await capture(t, 'many-320-large');
       final last = t.widget<MemberPie>(pie).slices.last;
-      await reveal(t, find.byKey(ValueKey('bi-pie-legend-${last.id}')));
+      expect(
+        find.semantics.byLabel(
+          last.description(t.widget<MemberPie>(pie).denominator),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(ValueKey('bi-pie-legend-${last.id}')), findsNothing);
       expect(t.takeException(), isNull);
       await capture(t, 'many-320-large-last');
       semantics.dispose();
