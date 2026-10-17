@@ -175,9 +175,15 @@ void main() {
         '2026-10-13',
       );
       await settleIo(t);
-      await pick(t, 'transfer-source-pool-null', '可用');
+      expect(
+        find.byKey(const ValueKey('transfer-source-pool-long')),
+        findsOneWidget,
+      );
       await pick(t, 'transfer-target-null', '晨星 · 团体券');
-      await pick(t, 'transfer-target-pool-null', '不限期限');
+      expect(
+        find.byKey(const ValueKey('transfer-target-pool-long')),
+        findsOneWidget,
+      );
       await reach(t, find.byKey(const ValueKey('transfer-quantity')));
       await t.enterText(find.byKey(const ValueKey('transfer-quantity')), '2');
       await t.tap(find.text('核对并入账'));
@@ -314,7 +320,10 @@ void main() {
         );
         await t.tap(find.text('打开换送'));
         await settleIo(t);
-        await pick(t, 'transfer-source-pool-null', '可用');
+        expect(
+          find.byKey(const ValueKey('transfer-source-pool-long')),
+          findsOneWidget,
+        );
         await reach(t, find.byKey(const ValueKey('transfer-quantity')));
         await t.enterText(
           find.byKey(const ValueKey('transfer-quantity')),

@@ -496,7 +496,11 @@ class TransferStore {
         }
         left -= n;
       }
-      if (left != 0) throw const CatalogException('该发生日期库存不足，不能借未来库存');
+      if (left != 0) {
+        throw CatalogException(
+          '该发生日期库存不足：需要${i.quantity}张，可用${i.quantity! - left}张，还差$left张；不能借未来库存',
+        );
+      }
       return out;
     });
   }

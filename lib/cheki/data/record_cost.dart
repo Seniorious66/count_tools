@@ -42,7 +42,7 @@ class RecordCost {
   }
 
   String get label {
-    final value = knownQuantity == 0 ? '—' : '¥${known.exact}';
+    final value = knownQuantity == 0 ? '—' : '¥${known.roundedYuan}';
     final missing = [
       if (knownQuantity > 0 && unknownQuantity + unlinkedRecords > 0) '另有金额未填写',
     ];

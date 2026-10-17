@@ -12,6 +12,7 @@ import 'coupon_entry.dart';
 import '../domain/record_contract.dart';
 import '../domain/record_information.dart';
 import 'components.dart';
+import 'quantity_stepper.dart';
 import 'identity_pages.dart' show identityActionLabel;
 import 'member_inputs.dart';
 import 'theme.dart';
@@ -357,18 +358,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
-                    key: const ValueKey('record-quantity'),
+                  QuantityStepper(
+                    fieldKey: const ValueKey('record-quantity'),
                     controller: _quantity,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: '张数',
-                      suffixIcon: IconButton(
-                        tooltip: '清空张数',
-                        onPressed: () => setState(() => _quantity.clear()),
-                        icon: const Icon(Icons.clear),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 16),
                   FutureBuilder<(IdentityDirectory, List<CatalogEntity>)>(

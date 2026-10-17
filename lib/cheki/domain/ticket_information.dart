@@ -32,6 +32,10 @@ class TicketMoney {
       TicketMoney(numerator, denominator * BigInt.from(q));
   bool same(TicketMoney other) =>
       numerator * other.denominator == other.numerator * denominator;
+
+  /// Display only: exact amounts and inheritance never use this rounded value.
+  String get roundedYuan =>
+      '${(numerator * BigInt.two + denominator) ~/ (denominator * BigInt.two)}';
   String get exact {
     final gcd = numerator.gcd(denominator);
     final n = numerator ~/ gcd, d = denominator ~/ gcd;

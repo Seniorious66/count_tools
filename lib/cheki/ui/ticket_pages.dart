@@ -6,6 +6,7 @@ import '../data/catalog_contract.dart';
 import '../domain/ticket_information.dart';
 import '../domain/record_contract.dart';
 import 'components.dart';
+import 'quantity_stepper.dart';
 import 'theme.dart';
 import 'record_browse.dart' show recordAppBar;
 import '../data/transfer_store.dart';
@@ -1033,13 +1034,24 @@ class _TicketEditPageState extends State<TicketEditPage> {
                           )
                         else
                           field('occurred_on', '发生日期 YYYY-MM-DD（可空）'),
-                        field(
-                          'quantity',
-                          widget.kind == 'purchase'
-                              ? '购入张数（可空）'
-                              : '调整张数，增加填正数，减少填负数',
-                          numeric: true,
-                        ),
+                        if (widget.kind == 'purchase')
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: QuantityStepper(
+                              fieldKey: const ValueKey('ticket-quantity'),
+                              controller: inputs['quantity']!,
+                              label: '张数',
+                              enabled: !busy,
+                            ),
+                          )
+                        else
+                          field(
+                            'quantity',
+                            widget.kind == 'purchase'
+                                ? '购入张数（可空）'
+                                : '调整张数，增加填正数，减少填负数',
+                            numeric: true,
+                          ),
                         select('pool', '期限', {'long': '长期有效', 'dated': '限时券'}),
                         if (selections['pool'] == 'dated')
                           field('expires_on', '截止日 YYYY-MM-DD（可空）'),

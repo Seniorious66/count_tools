@@ -13,6 +13,7 @@ import 'record_pages.dart';
 import 'theme.dart';
 import 'ticket_pages.dart';
 import 'member_pie.dart';
+import 'spending_page.dart';
 
 class BiFileAccess {
   static const channel = MethodChannel('com.seniorious66.counttools/backup');
@@ -283,6 +284,42 @@ class _BiPageState extends State<BiPage> {
           Wrap(
             spacing: 8,
             children: [
+              TextButton(
+                key: const ValueKey('member-expenses'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => SpendingPage(
+                      store: widget.store,
+                      records: widget.records,
+                      period: period,
+                      group: group,
+                      member: member,
+                      exportCsv: (csv) =>
+                          (widget.access ?? BiFileAccess()).save(csv),
+                    ),
+                  ),
+                ),
+                child: const Text('成员花费'),
+              ),
+              TextButton(
+                key: const ValueKey('group-expenses'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => SpendingPage(
+                      store: widget.store,
+                      records: widget.records,
+                      period: period,
+                      group: group,
+                      groups: true,
+                      exportCsv: (csv) =>
+                          (widget.access ?? BiFileAccess()).save(csv),
+                    ),
+                  ),
+                ),
+                child: const Text('团体花费'),
+              ),
               ChoiceChip(
                 label: const Text('成员'),
                 selected: !persons,
@@ -440,7 +477,7 @@ class _BiPageState extends State<BiPage> {
                 receipt != null ||
                 back != null)
               const Text('券金额和库存按期间与团体筛选；用券成本按所选 Cheki 筛选。'),
-            _value('购券金额', report.purchase.label),
+            _value('购券金额', report.purchase.displayLabel),
             _value('已知成本购入均价', report.purchase.average),
             for (final p in report.purchases.entries)
               Padding(
@@ -450,7 +487,7 @@ class _BiPageState extends State<BiPage> {
                   children: [
                     Text(report.definitionLabel(p.key)),
                     Text(
-                      '购入 ${p.value.knownQuantity + p.value.unknownQuantity} 张 · 金额 ${p.value.label}',
+                      '购入 ${p.value.knownQuantity + p.value.unknownQuantity} 张 · 金额 ${p.value.displayLabel}',
                     ),
                     Text('已知成本均价 ${p.value.average}'),
                   ],
@@ -458,13 +495,13 @@ class _BiPageState extends State<BiPage> {
               ),
             if (report.purchase.unknownQuantity > 0)
               Text('另有 ${report.purchase.unknownQuantity} 张购入金额未知，未进入均价分母。'),
-            _value('所选 Cheki 花费', report.consumedRecordCost.label),
+            _value('所选 Cheki 花费', report.consumedRecordCost.displayLabel),
             const Text('金额保留精确值；未用券或未填成本的 Cheki 不据此推算价格。'),
           ], color: ChekiColors.pink),
           _section(context, '期间券流水', [
             if (report.flows.isEmpty) const Text('本期间没有已入账券流水'),
             for (final f in report.flows.values)
-              _value('${f.kind} ${f.quantity} 张', f.cost.label),
+              _value('${f.kind} ${f.quantity} 张', f.cost.displayLabel),
             if (report.draftCount > 0)
               Text('${report.draftCount} 条草稿未入账，不计库存与金额'),
             TextButton(
@@ -493,15 +530,19 @@ class _BiPageState extends State<BiPage> {
                       s.label,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text('可用 ${s.available} 张 · 成本 ${s.availableCost.label}'),
+                    Text(
+                      '可用 ${s.available} 张 · 成本 ${s.availableCost.displayLabel}',
+                    ),
                     if (s.datedAvailable > 0)
                       Text(
                         '限时 ${s.datedAvailable} 张${s.longAvailable > 0 ? ' · 长期 ${s.longAvailable} 张' : ''}',
                       ),
                     if (s.nearExpiry > 0) Text('临期 ${s.nearExpiry} 张'),
                     if (s.expired > 0)
-                      Text('过期 ${s.expired} 张 · 成本 ${s.expiredCost.label}'),
-                    Text('库存成本 ${s.cost.label}'),
+                      Text(
+                        '过期 ${s.expired} 张 · 成本 ${s.expiredCost.displayLabel}',
+                      ),
+                    Text('库存成本 ${s.cost.displayLabel}'),
                   ],
                 ),
               ),
@@ -815,6 +856,25 @@ class _BiMemberPageState extends State<BiMemberPage> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(widget.period.label),
+            if (widget.memberIds.length == 1)
+              TextButton(
+                key: const ValueKey('member-daily-expenses'),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => SpendingPage(
+                      store: widget.store,
+                      records: widget.records,
+                      period: widget.period,
+                      group: widget.group,
+                      member: widget.memberIds.length == 1
+                          ? widget.memberIds.single
+                          : null,
+                    ),
+                  ),
+                ),
+                child: const Text('查看成员花费'),
+              ),
             Text(
               '${summary.quantityLabel} 张',
               style: Theme.of(context).textTheme.headlineLarge,

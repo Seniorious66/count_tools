@@ -7,6 +7,7 @@ import '../data/ticket_store.dart';
 import '../data/transfer_store.dart';
 import '../domain/transfer_information.dart';
 import '../domain/record_contract.dart';
+import '../domain/ticket_information.dart';
 import 'components.dart';
 import 'theme.dart';
 
@@ -33,6 +34,7 @@ class _TransferEditPageState extends State<TransferEditPage> {
         'source_definition_id': widget.sourceDefinition,
         'occurred_on': OccurredOn.shanghaiDay(widget.store.clock()).value,
         'quantity': 1,
+        if (widget.kind == 'exchange') 'target_pool': 'long',
       });
   late final day = TextEditingController(
         text: initial.text('occurred_on') ?? '',
@@ -54,12 +56,42 @@ class _TransferEditPageState extends State<TransferEditPage> {
       targetPool = initial.text('target_pool');
   late bool expired = initial.expiredConfirmed;
   late Future<TicketModel> model = _load();
-  Future<TicketModel> _load() =>
-      TicketStore(widget.store.database, clock: widget.store.clock).readModel(
-        day: RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(day.text)
-            ? day.text
-            : null,
+  int _request = 0;
+  bool _sourcePoolTouched = false;
+  Future<TicketModel> _load() async {
+    final request = ++_request;
+    final updated =
+        await TicketStore(
+          widget.store.database,
+          clock: widget.store.clock,
+        ).readModel(
+          day: RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(day.text)
+              ? day.text
+              : null,
+        );
+    if (!mounted || request != _request) return updated;
+    if (widget.original == null && !_sourcePoolTouched) {
+      final pools = from == null
+          ? <TicketPool>[]
+          : updated
+                .pools(from!)
+                .where((p) => p.quantity > 0 && !p.expired(updated.day))
+                .toList();
+      pools.sort(
+        (a, b) =>
+            (a.expiry ?? '9999-12-31').compareTo(b.expiry ?? '9999-12-31'),
       );
+      final choice = pools.firstOrNull;
+      sourcePool = choice == null
+          ? null
+          : choice.expiry == null
+          ? 'long'
+          : 'dated';
+      sourceExpiry.text = choice?.expiry ?? '';
+    }
+    return updated;
+  }
+
   bool busy = false, leaving = false;
   String? error;
   final operationId = newOperationId();
@@ -241,7 +273,9 @@ class _TransferEditPageState extends State<TransferEditPage> {
           ? (_) => setState(() {
               model = _load();
             })
-          : null,
+          : (_) => setState(() {
+              if (key == 'transfer-source-expiry') _sourcePoolTouched = true;
+            }),
     ),
   );
   @override
@@ -310,7 +344,13 @@ class _TransferEditPageState extends State<TransferEditPage> {
                               'transfer-source',
                               from,
                               choices,
-                              (v) => setState(() => from = v),
+                              (v) => setState(() {
+                                from = v;
+                                if (widget.original == null) {
+                                  _sourcePoolTouched = false;
+                                }
+                                model = _load();
+                              }),
                             ),
                             pick(
                               '券池',
@@ -318,6 +358,7 @@ class _TransferEditPageState extends State<TransferEditPage> {
                               sourcePool,
                               [('long', '可用'), ('dated', '指定期限')],
                               (v) => setState(() {
+                                _sourcePoolTouched = true;
                                 sourcePool = v;
                                 if (v == 'long') sourceExpiry.clear();
                               }),
@@ -333,6 +374,29 @@ class _TransferEditPageState extends State<TransferEditPage> {
                                 Text(
                                   '${p.expiry ?? '可用'} · ${p.quantity} 张${p.expired(m.day) ? ' · 已过期' : ''}',
                                 ),
+                            if (from != null &&
+                                int.tryParse(quantity.text) != null)
+                              Builder(
+                                builder: (_) {
+                                  final available = m
+                                      .pools(from!)
+                                      .where(
+                                        (p) =>
+                                            p.expiry ==
+                                                (sourcePool == 'dated'
+                                                    ? sourceExpiry.text
+                                                    : null) &&
+                                            (!p.expired(m.day) || expired),
+                                      )
+                                      .fold<int>(0, (q, p) => q + p.quantity);
+                                  final need = int.tryParse(quantity.text)!;
+                                  return need > available
+                                      ? Text(
+                                          '需要$need张，可用$available张，还差${need - available}张。请修改张数或来源池。',
+                                        )
+                                      : const SizedBox.shrink();
+                                },
+                              ),
                             if (sourcePool == 'dated' &&
                                 sourceExpiry.text.isNotEmpty)
                               CheckboxListTile(
@@ -514,7 +578,9 @@ class _TransferReviewPageState extends State<TransferReviewPage> {
                   ],
                   Text(widget.posted ? '确认后实际入账' : '仅保存信息，不产生库存变动'),
                   for (final cost in widget.costs)
-                    Text('${cost['quantity']} 张 · 成本 ${cost['cost'] ?? '未知'}'),
+                    Text(
+                      '${cost['quantity']} 张 · 成本 ${cost['cost'] == null ? '未知' : TicketMoney.fromExact(cost['cost'] as String).roundedYuan}',
+                    ),
                   if (widget.info.text('kind') == 'exchange' && widget.posted)
                     const Text('目标逐来源继承成本，不增加购买支出或Cheki。'),
                   if (error != null)

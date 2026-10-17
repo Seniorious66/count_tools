@@ -69,6 +69,10 @@ class BiPeriod {
 }
 
 class BiAmount extends RecordCost {
+  String get displayLabel =>
+      knownQuantity == 0 && unknownQuantity + unlinkedRecords > 0
+      ? '未知'
+      : '${known.roundedYuan}${unknownQuantity + unlinkedRecords > 0 ? '（另有金额未填写）' : ''}';
   @override
   String get label =>
       knownQuantity == 0 && unknownQuantity + unlinkedRecords > 0

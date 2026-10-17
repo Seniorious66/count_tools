@@ -30,6 +30,8 @@ class CouponEntryController extends ChangeNotifier {
   var request = 0;
   bool disposed = false;
   final _manualLines = <Map<String, Object?>>{};
+  final _definitionOnly = <Map<String, Object?>>{};
+  final _manualPools = <Map<String, Object?>>{};
   final _suppressedMembers = <String>{};
   bool _historical = false;
   @override
@@ -123,6 +125,21 @@ class CouponEntryController extends ChangeNotifier {
                   next.memberIds!.contains(l['member_id']),
             )
             .toList();
+        if (next.quantity != previous.quantity) {
+          for (final line in lines) {
+            if (lines
+                        .where(
+                          (other) => other['member_id'] == line['member_id'],
+                        )
+                        .length ==
+                    1 &&
+                (!_manualLines.contains(line) ||
+                    _definitionOnly.contains(line))) {
+              line['quantity'] = next.quantity;
+            }
+          }
+          allocate();
+        }
       }
       loading = false;
       error = null;
@@ -164,9 +181,14 @@ class CouponEntryController extends ChangeNotifier {
       manual = false;
       _historical = false;
       _manualLines.clear();
+      _definitionOnly.clear();
+      _manualPools.clear();
       _suppressedMembers.clear();
     }
     final old = lines;
+    for (final line in old.where(_definitionOnly.contains)) {
+      line['quantity'] = info.quantity;
+    }
     lines = [];
     final remaining = <String, int>{
       for (final d in model!.definitions)
@@ -236,8 +258,10 @@ class CouponEntryController extends ChangeNotifier {
         return a.id.compareTo(b.id);
       });
       final choice = candidates.firstOrNull;
-      final quantity = reset && existing.isNotEmpty
-          ? existing.first['quantity'] as int?
+      // Reset pool allocation without discarding an explicit positive demand.
+      final previousQuantity = existing.firstOrNull?['quantity'];
+      final quantity = reset && previousQuantity is int && previousQuantity > 0
+          ? previousQuantity
           : info.quantity;
       lines.add({
         if (existing.isNotEmpty &&
@@ -274,7 +298,7 @@ class CouponEntryController extends ChangeNotifier {
       for (final l in lines.where(
         (l) => only != null
             ? identical(l, lines[only])
-            : !_manualLines.contains(l),
+            : !_manualLines.contains(l) || _definitionOnly.contains(l),
       )) {
         l['pools'] = [];
       }
@@ -300,7 +324,9 @@ class CouponEntryController extends ChangeNotifier {
         }
       }
     } else {
-      for (final line in lines.where(_manualLines.contains)) {
+      for (final line in lines.where(
+        (l) => _manualLines.contains(l) && !_definitionOnly.contains(l),
+      )) {
         for (final pool in CouponPlan.pools(line)) {
           final key = '${line['definition_id']}:${pool['expires_on'] ?? ''}';
           available[key] =
@@ -314,11 +340,19 @@ class CouponEntryController extends ChangeNotifier {
     for (var i = 0; i < lines.length; i++) {
       if (only != null && only != i) continue;
       final line = lines[i];
-      if (only == null && _manualLines.contains(line)) continue;
+      if (only == null &&
+          _manualLines.contains(line) &&
+          !_definitionOnly.contains(line)) {
+        continue;
+      }
       final priorPools = CouponPlan.pools(line);
       final def = line['definition_id'] as String?;
       var left = line['quantity'] as int?;
       final pools = <Map<String, Object?>>[];
+      if (left != null && left < 0) {
+        line['pools'] = pools;
+        continue;
+      }
       if (def != null) {
         for (final p in model!.pools(def)) {
           if (p.expired(model!.day)) continue;
@@ -360,6 +394,8 @@ class CouponEntryController extends ChangeNotifier {
   void selectDefinition(int index, String? id) {
     manual = true;
     _manualLines.add(lines[index]);
+    _definitionOnly.add(lines[index]);
+    _manualPools.remove(lines[index]);
     lines[index]['definition_id'] = id;
     final d = model?.definitions.where((d) => d.id == id).firstOrNull;
     if (d != null) {
@@ -372,25 +408,33 @@ class CouponEntryController extends ChangeNotifier {
       });
     }
     // Reserve other manual rows before suggesting only the selected row.
-    allocate(only: index);
+    allocate();
     notifyListeners();
   }
 
   void editQuantity(int index, String text) {
     manual = true;
     _manualLines.add(lines[index]);
+    _definitionOnly.remove(lines[index]);
     lines[index]['quantity'] = text.trim().isEmpty
         ? null
         : int.tryParse(text) ?? -1;
+    if (!_manualPools.contains(lines[index])) {
+      allocate(only: index);
+      allocate(); // Released stock can now satisfy the other automatic rows.
+    }
     notifyListeners();
   }
 
   void editPool(int line, int pool, String text) {
     manual = true;
     _manualLines.add(lines[line]);
+    _definitionOnly.remove(lines[line]);
+    _manualPools.add(lines[line]);
     final p = CouponPlan.pools(lines[line]);
     p[pool]['quantity'] = text.trim().isEmpty ? null : int.tryParse(text) ?? -1;
     lines[line]['pools'] = p;
+    allocate();
     notifyListeners();
   }
 
@@ -411,6 +455,8 @@ class CouponEntryController extends ChangeNotifier {
     manual = true;
     final member = lines[i]['member_id'] as String? ?? '';
     _manualLines.remove(lines[i]);
+    _definitionOnly.remove(lines[i]);
+    _manualPools.remove(lines[i]);
     lines.removeAt(i);
     if (!lines.any((l) => l['member_id'] == member)) {
       _suppressedMembers.add(member);
@@ -421,6 +467,8 @@ class CouponEntryController extends ChangeNotifier {
   void addExpired(int line, TicketPool pool) {
     manual = true;
     _manualLines.add(lines[line]);
+    _definitionOnly.remove(lines[line]);
+    _manualPools.add(lines[line]);
     final pools = CouponPlan.pools(lines[line]);
     if (!pools.any(
       (p) => p['pool'] == 'dated' && p['expires_on'] == pool.expiry,
@@ -439,6 +487,8 @@ class CouponEntryController extends ChangeNotifier {
   void confirmExpired(int line, int pool, bool yes) {
     manual = true;
     _manualLines.add(lines[line]);
+    _definitionOnly.remove(lines[line]);
+    _manualPools.add(lines[line]);
     final pools = CouponPlan.pools(lines[line]);
     pools[pool]['allow_expired'] = yes;
     lines[line]['pools'] = pools;
@@ -450,6 +500,19 @@ class CouponEntryController extends ChangeNotifier {
       throw const CatalogException('券库存尚未读取成功，请重试；不会按零库存保存');
     }
     final p = plan;
+    if (p.consuming) {
+      for (final line in p.lines) {
+        final need = line['quantity'];
+        final allocated = CouponPlan.pools(
+          line,
+        ).fold<int>(0, (q, pool) => q + (pool['quantity'] as int? ?? 0));
+        if (need is int && need > 0 && allocated != need) {
+          throw CatalogException(
+            '需要$need张，已分配$allocated张，${allocated < need ? '还差${need - allocated}' : '多分配${allocated - need}'}张；请核对差额、券种或分配。',
+          );
+        }
+      }
+    }
     final db = await store.database();
     await EntrySchema.validatePlan(db, current, p, actual: p.consuming);
     if (p.consuming) {
@@ -641,7 +704,9 @@ class _CouponEntryEditorState extends State<CouponEntryEditor> {
             if (l['quantity'] is int &&
                 pools.fold<int>(0, (q, p) => q + (p['quantity'] as int? ?? 0)) <
                     (l['quantity'] as int))
-              const Text('可用库存不足，请手动选择券种或调整分配。'),
+              Text(
+                '需要${l['quantity']}张，${c._manualPools.contains(l) ? '已分配' : '可用'}${pools.fold<int>(0, (q, p) => q + ((p['quantity'] as int? ?? 0).clamp(0, 1000000000)))}张，还差${(l['quantity'] as int) - pools.fold<int>(0, (q, p) => q + ((p['quantity'] as int? ?? 0).clamp(0, 1000000000)))}张。可修改张数、券种或切换仅记录。',
+              ),
             for (var p = 0; p < pools.length; p++)
               if (pools[p]['expires_on'] != null ||
                   valid.any((x) => x.expiry == null) ||
@@ -670,6 +735,8 @@ class _CouponEntryEditorState extends State<CouponEntryEditor> {
               Text(
                 '已分配 ${pools.fold(0, (q, p) => q + (p['quantity'] is int ? p['quantity'] as int : 0))} / 需用 ${l['quantity']} 张',
               ),
+            if (c._manualPools.contains(l))
+              Text('手动分配已保留；记录${widget.info.quantity ?? '未填写'}张，请核对需要量和分配量。'),
             for (final expired in available.where((p) => p.expired(model.day)))
               TextButton(
                 onPressed: () => c.addExpired(i, expired),
