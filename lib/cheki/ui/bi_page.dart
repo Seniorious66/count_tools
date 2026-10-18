@@ -8,6 +8,7 @@ import '../data/record_query.dart';
 import '../data/record_store.dart';
 import '../data/ticket_store.dart';
 import '../domain/record_contract.dart';
+import '../domain/ticket_information.dart';
 import 'components.dart';
 import 'record_pages.dart';
 import 'theme.dart';
@@ -477,8 +478,10 @@ class _BiPageState extends State<BiPage> {
                 receipt != null ||
                 back != null)
               const Text('券金额和库存按期间与团体筛选；用券成本按所选 Cheki 筛选。'),
-            _value('购券金额', report.purchase.displayLabel),
-            _value('已知成本购入均价', report.purchase.average),
+            if (report.purchase.hasAmount)
+              _value('购券金额', report.purchase.displayLabel),
+            if (report.purchase.hasAmount)
+              _value('购入均价', report.purchase.average),
             for (final p in report.purchases.entries)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
@@ -487,21 +490,22 @@ class _BiPageState extends State<BiPage> {
                   children: [
                     Text(report.definitionLabel(p.key)),
                     Text(
-                      '购入 ${p.value.knownQuantity + p.value.unknownQuantity} 张 · 金额 ${p.value.displayLabel}',
+                      '购入 ${p.value.knownQuantity + p.value.unknownQuantity} 张${p.value.hasAmount ? ' · 金额 ${p.value.displayLabel}' : ''}',
                     ),
-                    Text('已知成本均价 ${p.value.average}'),
+                    if (p.value.hasAmount) Text('均价 ${p.value.average}'),
                   ],
                 ),
               ),
-            if (report.purchase.unknownQuantity > 0)
-              Text('另有 ${report.purchase.unknownQuantity} 张购入金额未知，未进入均价分母。'),
-            _value('所选 Cheki 花费', report.consumedRecordCost.displayLabel),
-            const Text('金额保留精确值；未用券或未填成本的 Cheki 不据此推算价格。'),
+            if (report.consumedRecordCost.hasAmount)
+              _value('所选 Cheki 花费', report.consumedRecordCost.displayLabel),
           ], color: ChekiColors.pink),
           _section(context, '期间券流水', [
             if (report.flows.isEmpty) const Text('本期间没有已入账券流水'),
             for (final f in report.flows.values)
-              _value('${f.kind} ${f.quantity} 张', f.cost.displayLabel),
+              if (f.cost.hasAmount)
+                _value('${f.kind} ${f.quantity} 张', f.cost.displayLabel)
+              else
+                Text('${f.kind} ${f.quantity} 张'),
             if (report.draftCount > 0)
               Text('${report.draftCount} 条草稿未入账，不计库存与金额'),
             TextButton(
@@ -531,7 +535,7 @@ class _BiPageState extends State<BiPage> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
-                      '可用 ${s.available} 张 · 成本 ${s.availableCost.displayLabel}',
+                      '可用 ${s.available} 张${s.availableCost.hasAmount ? ' · 成本 ${s.availableCost.displayLabel}' : ''}',
                     ),
                     if (s.datedAvailable > 0)
                       Text(
@@ -540,9 +544,9 @@ class _BiPageState extends State<BiPage> {
                     if (s.nearExpiry > 0) Text('临期 ${s.nearExpiry} 张'),
                     if (s.expired > 0)
                       Text(
-                        '过期 ${s.expired} 张 · 成本 ${s.expiredCost.displayLabel}',
+                        '过期 ${s.expired} 张${s.expiredCost.hasAmount ? ' · 成本 ${s.expiredCost.displayLabel}' : ''}',
                       ),
-                    Text('库存成本 ${s.cost.displayLabel}'),
+                    if (s.cost.hasAmount) Text('库存成本 ${s.cost.displayLabel}'),
                   ],
                 ),
               ),
@@ -1150,13 +1154,20 @@ class _FlowPage extends StatelessWidget {
                       .join(),
                 ),
                 if (t.information.quantity! > 0)
-                  Text('单张成本 ${t.unitCost?.exact ?? '未知'}'),
+                  if (t.unitCost != null)
+                    Text('单张成本 ${t.unitCost!.roundedYuan}'),
                 for (final a in t.allocations)
-                  Text('${a['quantity']} 张 · 来源成本 ${a['cost'] ?? '未知'}'),
+                  Text(
+                    '${a['quantity']} 张${a['cost'] == null ? '' : ' · 来源成本 ${TicketMoney.fromExact(a['cost'] as String).roundedYuan}'}',
+                  ),
                 if (t.information.text('unit_price') != null)
-                  Text('原单价 ¥${t.information.text('unit_price')}'),
+                  Text(
+                    '原单价 ¥${TicketMoney.parse(t.information.text('unit_price')!).roundedYuan}',
+                  ),
                 if (t.information.text('total_price') != null)
-                  Text('原总额 ¥${t.information.text('total_price')}'),
+                  Text(
+                    '原总额 ¥${TicketMoney.parse(t.information.text('total_price')!).roundedYuan}',
+                  ),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(

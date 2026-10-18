@@ -36,6 +36,22 @@ class TicketMoney {
   /// Display only: exact amounts and inheritance never use this rounded value.
   String get roundedYuan =>
       '${(numerator * BigInt.two + denominator) ~/ (denominator * BigInt.two)}';
+
+  /// Ordinary numeric exports only. Complete transport retains [exact].
+  /// Up to 12 decimal places, half up; never fed back into cost inheritance.
+  String get decimal {
+    final scale = BigInt.from(10).pow(12);
+    final value =
+        (numerator * scale * BigInt.two + denominator) ~/
+        (denominator * BigInt.two);
+    final whole = value ~/ scale;
+    final tail = (value % scale)
+        .toString()
+        .padLeft(12, '0')
+        .replaceFirst(RegExp(r'0+$'), '');
+    return tail.isEmpty ? '$whole' : '$whole.$tail';
+  }
+
   String get exact {
     final gcd = numerator.gcd(denominator);
     final n = numerator ~/ gcd, d = denominator ~/ gcd;

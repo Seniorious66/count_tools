@@ -5,6 +5,9 @@ import '../domain/ticket_information.dart';
 import '../domain/record_contract.dart';
 import 'catalog_contract.dart';
 import 'catalog_store.dart';
+import 'ticket_cost_link.dart';
+import 'transfer_store.dart' show TransferSchema;
+import 'record_store.dart' show RecordStore;
 
 class TicketObject {
   TicketObject.fromRow(
@@ -365,6 +368,7 @@ abstract final class TicketSchema {
         entities.any((e) => !sameSqlRow(e.raw, latest[e.id]!))) {
       throw StateError('券原档不完整');
     }
+    await CostLinkAudit.read(db);
   }
 }
 
@@ -450,7 +454,7 @@ class TicketStore {
       'allow_expired': allowExpired,
     });
     final db = await database();
-    var changed = false;
+    var changed = false, costLinked = false;
     final saved = await db.transaction((tx) async {
       final used = await tx.query(
         TicketSchema.operations,
@@ -532,6 +536,33 @@ class TicketStore {
           throw const FormatException('条目已修改，请重新打开');
         }
         before = matches.single.raw;
+        if (purchaseMoneyEdit(matches.single, information, posted)) {
+          if (information.costConflict) {
+            throw const FormatException('金额不一致，请核对总额');
+          }
+          await TicketSchema.validate(tx);
+          final hasTransfers = (await tx.rawQuery(
+            "SELECT name FROM sqlite_master WHERE name='cheki_transfer_lots'",
+          )).isNotEmpty;
+          if (hasTransfers) await TransferSchema.validate(tx);
+          final entity = await linkPurchaseCost(
+            tx,
+            original: matches.single,
+            information: information,
+            operationId: operationId,
+            request: request,
+            stamp: actionStamp(clock()),
+            all: all,
+          );
+          await TicketSchema.validate(tx);
+          if (hasTransfers) {
+            await TransferSchema.validate(tx);
+          }
+          if (afterWrite != null) await afterWrite!();
+          changed = true;
+          costLinked = true;
+          return entity;
+        }
         if (all.any(
           (e) =>
               e.id != original.id &&
@@ -669,6 +700,9 @@ class TicketStore {
       return entity;
     });
     if (changed && !managedEntry && !managedTransfer) invalidateReads();
+    if (costLinked && !managedEntry && !managedTransfer) {
+      RecordStore.invalidateReads();
+    }
     return saved;
   }
 }

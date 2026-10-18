@@ -192,7 +192,7 @@ void main() {
     },
   );
   test(
-    'precise source slices aggregate before half-up display and CSV keeps fractions',
+    'precise source slices aggregate before half-up display and CSV uses decimal amounts',
     () async {
       final d = await def();
       await f.buy(d, 3, total: '100');
@@ -200,7 +200,8 @@ void main() {
       final r = report(await f.bi.read());
       expect(r.total(r.lines).known.exact, '200/3');
       expect(r.total(r.lines).label, '花费：¥67');
-      expect(r.csv(r.lines), contains('"200/3"'));
+      expect(r.csv(r.lines), contains('"66.666666666667"'));
+      expect(r.csv(r.lines), isNot(contains('"200/3"')));
       expect(TicketMoney.parse('0.5').roundedYuan, '1');
       expect(TicketMoney.parse('0.49').roundedYuan, '0');
       expect(
@@ -262,7 +263,7 @@ void main() {
       final r = report(await f.bi.read());
       expect(r.total(r.lines).known.exact, '0');
       expect(r.total(r.lines).unknownQuantity, 1);
-      expect(r.total(r.lines).label, contains('另有金额未填写'));
+      expect(r.total(r.lines).label, '花费：¥0');
       final outside = SpendingReport(
         await f.bi.read(),
         BiPeriod(BiScope.day, '2026-10-13'),

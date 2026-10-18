@@ -4,7 +4,7 @@ import json
 import re
 from fractions import Fraction
 from catalog_validation import action_stamp, decode_json, decode_row, table_rows
-from ticket_validation import entity as ticket_entity, cost
+from ticket_validation import entity as ticket_entity, cost, cost_link_audit
 
 OBJECTS='cheki_transfer_objects'; OPS='cheki_transfer_operations'
 BINDINGS='cheki_transfer_bindings'; LOTS='cheki_transfer_lots'
@@ -97,10 +97,11 @@ def verify_transfers(db):
     if len(links)!=len(bound) or any(bound.get(b['ticket_id'])!=b['transfer_id'] or tickets[b['ticket_id']]['posted'] and b['ticket_id'] not in current for b in links):raise ValueError('Transfer child changed alone')
     bases=table_rows(db,LOTS,('ticket_id','source_id','outgoing_id','quantity','unit_cost','source_json','source_unit_cost','created_at'))
     byIncoming={r['ticket_id']:r for r in bases};covered=set()
-    for b in bases:
+    old_lots,new_lots,historical_unit=cost_link_audit(db)
+    for b in [*bases,*old_lots,*new_lots]:
         incoming=tickets.get(b['ticket_id']);outgoing=tickets.get(b['outgoing_id']);source=decode_row(b['source_json']);sv,_=ticket_entity(source)
         if incoming is None or outgoing is None or incoming['id'] not in bound or bound[incoming['id']]!=bound.get(outgoing['id']) or type(b['quantity']) is not int or b['quantity']<=0 or ticket_entity(incoming)[0].get('quantity')!=b['quantity'] or not action_stamp(b['created_at']) or source['id']!=b['source_id'] or (sv.get('quantity') or 0)<=0 or source['seq']>=incoming['seq'] or source not in histories.get(source['id'],[]):raise ValueError('Transfer original cost lot invalid')
-        unit=exact(b['unit_cost']);basis=byIncoming.get(source['id']);expected=cost(sv) if basis is None else exact(basis['unit_cost'])
+        unit=exact(b['unit_cost']);basis=byIncoming.get(source['id']);expected=cost(sv) if basis is None else exact(historical_unit(source,basis))
         if unit!=expected or b['source_unit_cost']!=b['unit_cost']:raise ValueError('Transfer inherited cost changed')
         if not any(old['posted'] and any(a.get('source_id')==source['id'] and a.get('quantity')==b['quantity'] and a.get('cost')==(None if unit is None else str(unit*b['quantity'])) for a in ticket_entity(old)[1]) for old in histories.get(outgoing['id'],[])):raise ValueError('Transfer outgoing allocation differs')
         covered.add(incoming['id'])

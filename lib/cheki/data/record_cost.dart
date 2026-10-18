@@ -41,13 +41,8 @@ class RecordCost {
     unlinkedRecords += other.unlinkedRecords;
   }
 
-  String get label {
-    final value = knownQuantity == 0 ? '—' : '¥${known.roundedYuan}';
-    final missing = [
-      if (knownQuantity > 0 && unknownQuantity + unlinkedRecords > 0) '另有金额未填写',
-    ];
-    return '花费：$value${missing.isEmpty ? '' : '（${missing.join('，')}）'}';
-  }
+  bool get hasAmount => knownQuantity > 0;
+  String get label => hasAmount ? '花费：¥${known.roundedYuan}' : '';
 }
 
 /// Only the explicitly confirmed scoped legacy mapping may supply old amounts.

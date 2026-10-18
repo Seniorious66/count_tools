@@ -579,7 +579,7 @@ class _TransferReviewPageState extends State<TransferReviewPage> {
                   Text(widget.posted ? '确认后实际入账' : '仅保存信息，不产生库存变动'),
                   for (final cost in widget.costs)
                     Text(
-                      '${cost['quantity']} 张 · 成本 ${cost['cost'] == null ? '未知' : TicketMoney.fromExact(cost['cost'] as String).roundedYuan}',
+                      '${cost['quantity']} 张${cost['cost'] == null ? '' : ' · 成本 ${TicketMoney.fromExact(cost['cost'] as String).roundedYuan}'}',
                     ),
                   if (widget.info.text('kind') == 'exchange' && widget.posted)
                     const Text('目标逐来源继承成本，不增加购买支出或Cheki。'),
@@ -729,10 +729,11 @@ class _TransferDetailPageState extends State<TransferDetailPage> {
                           '${child.information.text('reason')} · ${child.information.quantity} 张',
                         ),
                         if ((child.information.quantity ?? 0) > 0)
-                          Text('继承每张成本 ${child.unitCost?.exact ?? '未知'}'),
+                          if (child.unitCost != null)
+                            Text('继承每张成本 ${child.unitCost!.roundedYuan}'),
                         for (final a in child.allocations)
                           Text(
-                            '${a['quantity']} 张 · 转出成本 ${a['cost'] ?? '未知'}',
+                            '${a['quantity']} 张${a['cost'] == null ? '' : ' · 转出成本 ${TicketMoney.fromExact(a['cost'] as String).roundedYuan}'}',
                           ),
                       ],
                     ],
@@ -842,7 +843,7 @@ class TicketDependenciesPage extends StatelessWidget {
                         ),
                         for (final a in r.allocations)
                           Text(
-                            '来源分配 ${a['quantity']} 张 · 成本 ${a['cost'] ?? '未知'}',
+                            '来源分配 ${a['quantity']} 张${a['cost'] == null ? '' : ' · 成本 ${TicketMoney.fromExact(a['cost'] as String).roundedYuan}'}',
                           ),
                       ],
                     ),

@@ -231,7 +231,8 @@ void main() {
       final r = (await f.bi.read()).report(BiPeriod(BiScope.all, '2026-10-14'));
       expect(r.purchase.known.exact, '116');
       expect(r.purchase.unknownQuantity, 2);
-      expect(r.purchase.average, '29/2');
+      expect(r.purchase.average, '15');
+      expect(r.purchase.known.divided(r.purchase.knownQuantity).exact, '29/2');
       expect(r.stocks[f.source]!.available, 5);
       expect(r.stocks[f.source]!.expired, 2);
       expect(r.stocks[f.source]!.cost.known.exact, '50');

@@ -209,25 +209,32 @@ class _SpendingPageState extends State<SpendingPage> {
           children: [
             Text(widget.period.label),
             const SizedBox(height: 12),
-            ChekiCard(
-              color: ChekiColors.blue,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    report.total(rows).label,
-                    key: const ValueKey('expense-total'),
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  Text(
-                    'Cheki ${report.total(rows.where((l) => l.kind == 'Cheki')).label}',
-                  ),
-                  Text(
-                    '赠送 ${report.total(rows.where((l) => l.kind == '赠送')).label}',
-                  ),
-                ],
+            if (report.total(rows).hasAmount)
+              ChekiCard(
+                color: ChekiColors.blue,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      report.total(rows).label,
+                      key: const ValueKey('expense-total'),
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    if (report
+                        .total(rows.where((l) => l.kind == 'Cheki'))
+                        .hasAmount)
+                      Text(
+                        'Cheki ${report.total(rows.where((l) => l.kind == 'Cheki')).label}',
+                      ),
+                    if (report
+                        .total(rows.where((l) => l.kind == '赠送'))
+                        .hasAmount)
+                      Text(
+                        '赠送 ${report.total(rows.where((l) => l.kind == '赠送')).label}',
+                      ),
+                  ],
+                ),
               ),
-            ),
             const SizedBox(height: 12),
             if (!drill) ...[
               Wrap(
@@ -264,16 +271,26 @@ class _SpendingPageState extends State<SpendingPage> {
                           ),
                         ),
                   title: Text(groups ? groupLabel(id) : memberLabel(id)),
-                  subtitle: Text(
-                    report
-                        .total(
-                          report.assigned(
-                            member: groups ? null : id,
-                            group: groups ? id : widget.group,
-                          ),
+                  subtitle:
+                      report
+                          .total(
+                            report.assigned(
+                              member: groups ? null : id,
+                              group: groups ? id : widget.group,
+                            ),
+                          )
+                          .hasAmount
+                      ? Text(
+                          report
+                              .total(
+                                report.assigned(
+                                  member: groups ? null : id,
+                                  group: groups ? id : widget.group,
+                                ),
+                              )
+                              .label,
                         )
-                        .label,
-                  ),
+                      : null,
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(
                     context,
@@ -303,7 +320,8 @@ class _SpendingPageState extends State<SpendingPage> {
             if (common.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(!groups && widget.member == null ? '未分配到成员' : '共同费用（未分摊）'),
-              Text(report.total(common).label),
+              if (report.total(common).hasAmount)
+                Text(report.total(common).label),
               Text(
                 !groups && widget.member == null
                     ? '团体通用券赠送及共同费用保留原金额，不自动分配到成员。'

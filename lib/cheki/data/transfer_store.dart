@@ -6,6 +6,7 @@ import 'catalog_contract.dart';
 import 'catalog_store.dart';
 import 'ticket_store.dart';
 import 'owned_transaction.dart';
+import 'ticket_cost_link.dart';
 
 class TransferObject {
   TransferObject.fromRow(Map<String, Object?> row) : raw = copySqlRow(row) {
@@ -243,7 +244,12 @@ abstract final class TransferSchema {
       }
     }
     final bases = await db.query(lots), seenLots = <String>{};
-    for (final b in bases) {
+    final costAudit = await CostLinkAudit.read(db);
+    for (final b in [
+      ...bases,
+      ...costAudit.beforeLots,
+      ...costAudit.afterLots,
+    ]) {
       final incoming = byId[b['ticket_id']], outgoing = byId[b['outgoing_id']];
       if (incoming == null ||
           outgoing == null ||
@@ -285,7 +291,7 @@ abstract final class TransferSchema {
           .firstOrNull;
       final expectedUnit = sourceBasis == null
           ? source.information.unitCost?.exact
-          : sourceBasis['unit_cost'];
+          : costAudit.historicalUnit(source, sourceBasis);
       if (b['unit_cost'] != expectedUnit || source.seq >= incoming.seq) {
         throw StateError('继承单位成本与原购入不一致');
       }

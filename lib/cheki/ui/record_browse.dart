@@ -678,7 +678,7 @@ class _RecordDetailPageState extends State<RecordDetailPage>
           padding: const EdgeInsets.all(16),
           children: [
             RecordInformationView(info: r.information, store: store),
-            Text(m.costFor([r.id]).label),
+            if (m.costFor([r.id]).hasAmount) Text(m.costFor([r.id]).label),
             const SizedBox(height: 16),
             RecordCouponView(
               recordId: r.id,

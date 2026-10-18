@@ -69,17 +69,11 @@ class BiPeriod {
 }
 
 class BiAmount extends RecordCost {
-  String get displayLabel =>
-      knownQuantity == 0 && unknownQuantity + unlinkedRecords > 0
-      ? '未知'
-      : '${known.roundedYuan}${unknownQuantity + unlinkedRecords > 0 ? '（另有金额未填写）' : ''}';
+  String get displayLabel => hasAmount ? known.roundedYuan : '';
   @override
-  String get label =>
-      knownQuantity == 0 && unknownQuantity + unlinkedRecords > 0
-      ? '未知'
-      : '${known.exact}${unknownQuantity + unlinkedRecords > 0 ? '（另有金额未填写）' : ''}';
+  String get label => displayLabel;
   String get average =>
-      knownQuantity == 0 ? '—' : known.divided(knownQuantity).exact;
+      hasAmount ? known.divided(knownQuantity).roundedYuan : '';
 }
 
 /// Additional Cheki dimensions do not invent an allocation of group coupons to people.
@@ -457,7 +451,7 @@ class BiReport {
         'date',
         'quantity',
         'denominator',
-        'exact_amount',
+        'amount_decimal',
         'unknown_cost_quantity',
         'source_json',
       ],
@@ -479,7 +473,9 @@ class BiReport {
       date,
       q,
       denominator,
-      amount,
+      amount is String && RegExp(r'^\d+(?:/[1-9]\d*)?$').hasMatch(amount)
+          ? TicketMoney.fromExact(amount).decimal
+          : amount,
       unknown,
       raw,
     ]);
@@ -641,9 +637,7 @@ class BiReport {
       'Cheki花费',
       null,
       rows.length,
-      amount: expense.knownQuantity == 0 && rows.isNotEmpty
-          ? null
-          : expense.known.exact,
+      amount: expense.hasAmount ? expense.known.exact : null,
       unknown: expense.unknownQuantity + expense.unlinkedRecords,
     );
     row(
@@ -652,18 +646,18 @@ class BiReport {
       '购券金额',
       null,
       purchase.knownQuantity,
-      amount: purchase.knownQuantity == 0 && purchase.unknownQuantity > 0
-          ? null
-          : purchase.known.exact,
+      amount: purchase.hasAmount ? purchase.known.exact : null,
       unknown: purchase.unknownQuantity,
     );
     row(
       'purchase',
       'mean',
-      '已知成本购入均价',
+      '购入均价',
       null,
       purchase.knownQuantity,
-      amount: purchase.average,
+      amount: purchase.hasAmount
+          ? purchase.known.divided(purchase.knownQuantity).decimal
+          : null,
     );
     for (final p in purchases.entries) {
       row(
@@ -672,13 +666,13 @@ class BiReport {
         definitionLabel(p.key),
         null,
         p.value.knownQuantity + p.value.unknownQuantity,
-        amount: p.value.knownQuantity == 0 && p.value.unknownQuantity > 0
-            ? null
-            : p.value.known.exact,
+        amount: p.value.hasAmount ? p.value.known.exact : null,
         unknown: p.value.unknownQuantity,
         raw: jsonEncode({
           'known_quantity': p.value.knownQuantity,
-          'known_average': p.value.average,
+          'known_average': p.value.hasAmount
+              ? p.value.known.divided(p.value.knownQuantity).decimal
+              : null,
         }),
       );
     }
@@ -689,9 +683,7 @@ class BiReport {
         s.label,
         cutoff,
         s.available + s.expired,
-        amount: s.cost.knownQuantity == 0 && s.cost.unknownQuantity > 0
-            ? null
-            : s.cost.known.exact,
+        amount: s.cost.hasAmount ? s.cost.known.exact : null,
         unknown: s.cost.unknownQuantity,
         raw: jsonEncode({
           'available': s.available,
@@ -711,9 +703,7 @@ class BiReport {
         f.kind,
         null,
         f.quantity,
-        amount: f.cost.knownQuantity == 0 && f.cost.unknownQuantity > 0
-            ? null
-            : f.cost.known.exact,
+        amount: f.cost.hasAmount ? f.cost.known.exact : null,
         unknown: f.cost.unknownQuantity,
       );
     }

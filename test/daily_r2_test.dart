@@ -67,7 +67,7 @@ void main() {
       final model = await f.records.readModel();
       expect(model.costFor([a.id, b.id, a.id]).known.exact, '200');
       expect(model.costFor([z.id]).label, '花费：¥0');
-      expect(model.costFor([missing.id, invalid.id]).label, '花费：—');
+      expect(model.costFor([missing.id, invalid.id]).label, '');
       expect(
         legacyRecordCost({
           'legacy_raw': {'id': 1, 'price': '100'},

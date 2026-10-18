@@ -309,7 +309,7 @@ void main() {
       await reach(t, find.text('导出花费明细'));
       await t.tap(find.text('导出花费明细'));
       await settleIo(t);
-      expect(csv, contains('"exact_amount"'));
+      expect(csv, contains('"amount_decimal"'));
       expect(csv, contains('"赠送"'));
       expect(t.takeException(), isNull);
     },

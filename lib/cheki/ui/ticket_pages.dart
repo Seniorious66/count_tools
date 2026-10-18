@@ -467,11 +467,7 @@ String entryLabel(TicketModel m, TicketObject e) {
 String entrySummary(TicketObject e) {
   final i = e.information;
   return '${i.day ?? '日期未填写'} · ${i.quantity == null ? '张数未填写' : '${i.quantity} 张'}'
-      '${i.expiry == null ? '' : ' · ${i.expiry} 截止'} · ${i.costConflict
-          ? '金额待核对'
-          : e.unitCost == null
-          ? '成本未知'
-          : '每张成本 ¥${e.unitCost!.exact}'}'
+      '${i.expiry == null ? '' : ' · ${i.expiry} 截止'}${e.unitCost == null ? '' : ' · 每张成本 ¥${e.unitCost!.roundedYuan}'}'
       '${e.posted ? '' : ' · 未入账'}';
 }
 
@@ -559,16 +555,20 @@ class _TicketDetailPageState extends State<TicketDetailPage>
                     Text(entryLabel(m, e)),
                     Text(entrySummary(e)),
                     if (e.information.text('unit_price') != null)
-                      Text('原单价 ¥${e.information.text('unit_price')}'),
+                      Text(
+                        '原单价 ¥${TicketMoney.parse(e.information.text('unit_price')!).roundedYuan}',
+                      ),
                     if (e.information.text('total_price') != null)
-                      Text('原总额 ¥${e.information.text('total_price')}'),
+                      Text(
+                        '原总额 ¥${TicketMoney.parse(e.information.text('total_price')!).roundedYuan}',
+                      ),
                     if (e.information.text('reason') != null)
                       Text('原因：${e.information.text('reason')}'),
                     if (e.information.text('note') != null)
                       Text(e.information.text('note')!),
                     for (final a in e.allocations)
                       Text(
-                        '购入 ${m.objects.singleWhere((x) => x.id == a['source_id']).information.day ?? '日期未知'} · ${a['quantity']} 张 · 成本 ${a['cost'] ?? '未知'}',
+                        '购入 ${m.objects.singleWhere((x) => x.id == a['source_id']).information.day ?? '日期未知'} · ${a['quantity']} 张${a['cost'] == null ? '' : ' · 成本 ${TicketMoney.fromExact(a['cost'] as String).roundedYuan}'}',
                       ),
                     Text('录入 ${e.raw['created_at']}'),
                     Wrap(
@@ -662,10 +662,10 @@ Future<void> showTicketHistory(
                           const Text('新建')
                         else
                           Text(
-                            '修改前：${TicketInformation.decode(decodeSqlRow(h['before_json'] as String)['information_json'] as String).toMap().entries.where((x) => ticketLabels.containsKey(x.key)).map((x) => '${ticketLabels[x.key]}：${ticketSimpleValue(x.value)}').join('；')}',
+                            '修改前：${TicketInformation.decode(decodeSqlRow(h['before_json'] as String)['information_json'] as String).toMap().entries.where((x) => ticketLabels.containsKey(x.key)).map((x) => '${ticketLabels[x.key]}：${ticketFieldValue(x.key, x.value)}').join('；')}',
                           ),
                         Text(
-                          '修改后：${TicketInformation.decode(decodeSqlRow(h['after_json'] as String)['information_json'] as String).toMap().entries.where((x) => ticketLabels.containsKey(x.key)).map((x) => '${ticketLabels[x.key]}：${ticketSimpleValue(x.value)}').join('；')}',
+                          '修改后：${TicketInformation.decode(decodeSqlRow(h['after_json'] as String)['information_json'] as String).toMap().entries.where((x) => ticketLabels.containsKey(x.key)).map((x) => '${ticketLabels[x.key]}：${ticketFieldValue(x.key, x.value)}').join('；')}',
                         ),
                       ],
                     ),
@@ -810,6 +810,13 @@ class _TicketEditPageState extends State<TicketEditPage> {
             ? (selections[key] == null ? null : selections[key] == 'yes')
             : selections[key];
       }
+    }
+    // A purchase has one visible total. Keep a legacy hidden unit in its old
+    // audit revision; do not let it conflict with the deliberately edited total.
+    if (widget.kind == 'purchase' &&
+        data['total_price'] != baseline['total_price'] &&
+        baseline['unit_price'] != null) {
+      data['unit_price'] = null;
     }
     return TicketInformation(data);
   }
@@ -1161,9 +1168,17 @@ String ticketSimpleValue(Object? v) => v == null
             'homework': '宿题',
           }[v] ??
           '$v';
+String ticketFieldValue(String key, Object? value) =>
+    value != null && ['unit_price', 'total_price'].contains(key)
+    ? TicketMoney.parse(value as String).roundedYuan
+    : ticketSimpleValue(value);
+
 List<Widget> ticketInformationWidgets(TicketModel m, TicketInformation i) => [
   for (final e in i.toMap().entries.where(
-    (e) => ticketLabels.containsKey(e.key) && e.key != 'name',
+    (e) =>
+        ticketLabels.containsKey(e.key) &&
+        e.key != 'name' &&
+        (!['unit_price', 'total_price'].contains(e.key) || e.value != null),
   ))
     Text(
       '${ticketLabels[e.key]}：${e.key == 'definition_id'
@@ -1174,6 +1189,8 @@ List<Widget> ticketInformationWidgets(TicketModel m, TicketInformation i) => [
           ? m.members[e.value] ?? '未填写'
           : e.key == 'size_id'
           ? m.sizes[e.value] ?? '未填写'
+          : ['unit_price', 'total_price'].contains(e.key)
+          ? TicketMoney.parse(e.value as String).roundedYuan
           : ticketSimpleValue(e.value)}',
     ),
 ];

@@ -925,7 +925,7 @@ class _CouponCostPreviewState extends State<CouponCostPreview> {
     builder: (c, s) {
       final legacy = legacyRecordCost(widget.info.toMap());
       if (legacy != null) return Text(legacy.label);
-      if (!widget.plan.consuming) return const Text('花费：—');
+      if (!widget.plan.consuming) return const SizedBox.shrink();
       if (s.hasError) {
         return TextButton(
           onPressed: () => setState(() {
@@ -941,6 +941,7 @@ class _CouponCostPreviewState extends State<CouponCostPreview> {
       if (!s.hasData) return const LinearProgressIndicator();
       final amount = RecordCost()..linkedRecords = 1;
       amount.addAllocations(s.data!);
+      if (!amount.hasAmount) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(

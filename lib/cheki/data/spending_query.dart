@@ -174,7 +174,7 @@ class SpendingReport {
         'ticket_id',
         'member_id',
         'group_id',
-        'exact_amount',
+        'amount_decimal',
         'unknown_parts',
       ],
       for (final l in rows)
@@ -185,7 +185,7 @@ class SpendingReport {
           l.ticket?.id,
           l.memberId,
           l.groupId,
-          l.amount.knownQuantity == 0 ? null : l.amount.known.exact,
+          l.amount.knownQuantity == 0 ? null : l.amount.known.decimal,
           l.amount.unknownQuantity + l.amount.unlinkedRecords,
         ],
     ].map((r) => r.map(cell).join(',')).join('\r\n');

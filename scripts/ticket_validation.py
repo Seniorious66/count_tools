@@ -45,6 +45,47 @@ def entity(r):
     elif a:raise ValueError('Unposted allocation invalid')
     return v,a
 
+def cost_link_audit(db):
+    """Retain and verify schema8 cost-only basis revisions in existing audit rows."""
+    histories=table_rows(db,HISTORY,('id','object_id','operation_id','before_json','after_json','created_at'),order='id')
+    ops={o['id']:o for o in table_rows(db,OPS,('id','request_json'))}
+    by_op={h['operation_id']:h for h in histories}
+    revisions={};old_lots=[];new_lots=[]
+    for h in histories:
+        req=decode_json(ops[h['operation_id']]['request_json'])
+        if '__cheki_cost_link_v1' not in req:continue
+        tag=req['__cheki_cost_link_v1']
+        if not isinstance(tag,dict) or not isinstance(tag.get('root_operation'),str) or h['before_json'] is None:raise ValueError('Cost link audit invalid')
+        root=by_op.get(tag['root_operation'])
+        if root is None or root['before_json'] is None:raise ValueError('Cost link purchase audit missing')
+        rb=decode_row(root['before_json']);ra=decode_row(root['after_json'])
+        ib,_=entity(rb);ia,_=entity(ra)
+        if rb['kind']!='purchase' or not rb['posted'] or not ra['posted'] or (ib.get('quantity') or 0)<=0 or {k:v for k,v in ib.items() if k not in ('unit_price','total_price')}!={k:v for k,v in ia.items() if k not in ('unit_price','total_price')} or h['created_at']!=root['created_at']:raise ValueError('Cost link is not a purchase money edit')
+        before=decode_row(h['before_json']);after=decode_row(h['after_json']);bv,ba=entity(before);av,aa=entity(after)
+        if before['kind']!='adjustment' or not before['posted'] or not after['posted'] or before['information_json']!=after['information_json'] or [{k:v for k,v in x.items() if k!='cost'} for x in ba]!=[{k:v for k,v in x.items() if k!='cost'} for x in aa]:raise ValueError('Cost link changed inventory facts')
+        b,a=tag.get('before_lot'),tag.get('after_lot')
+        if (b is None)!=(a is None):raise ValueError('Cost link basis audit incomplete')
+        if b is None:
+            if (bv.get('quantity') or 0)>=0:raise ValueError('Cost link incoming basis missing')
+            continue
+        old=decode_row(b);new=decode_row(a)
+        keep=lambda x:{k:v for k,v in x.items() if k not in ('unit_cost','source_unit_cost','source_json')}
+        if old.get('ticket_id')!=before['id'] or new.get('ticket_id')!=after['id'] or keep(old)!=keep(new):raise ValueError('Cost link changed lineage')
+        rev=revisions.setdefault(before['id'],[])
+        if rev and rev[-1][2]!=old:raise ValueError('Cost basis revision chain broken')
+        rev.append((after['revision'],old,new));old_lots.append(old);new_lots.append(new)
+    if revisions:
+        actual={b['ticket_id']:b for b in table_rows(db,'cheki_transfer_lots',('ticket_id',))}
+        if any(actual.get(k)!=v[-1][2] for k,v in revisions.items()):raise ValueError('Cost basis current audit mismatch')
+    def historical_unit(source,basis):
+        rev=revisions.get(source['id'])
+        if not rev:return basis['unit_cost']
+        value=rev[0][1]['unit_cost']
+        for number,_,new in rev:
+            if number<=source['revision']:value=new['unit_cost']
+        return value
+    return old_lots,new_lots,historical_unit
+
 def verify_tickets(db):
     rows=table_rows(db,OBJECTS,FIELDS,order='seq');ops=table_rows(db,OPS,('id','object_id','request_json','result_json','created_at'));hist=table_rows(db,HISTORY,('id','object_id','operation_id','before_json','after_json','created_at'))
     for t in (OBJECTS,OPS,HISTORY):
@@ -83,4 +124,5 @@ def verify_tickets(db):
         if req.get('kind')!=after['kind'] or req.get('information_json')!=after['information_json'] or req.get('posted')!=bool(after['posted']) or req.get('id')!=(None if before is None else after['id']) or req.get('revision')!=(None if before is None else before['revision']):raise ValueError('Ticket request mismatch')
         latest[after['id']]=after;seen.add(op['id'])
     if len(seen)!=len(ops) or len(latest)!=len(rows) or any(latest.get(r['id'])!=r for r in rows):raise ValueError('Ticket audit incomplete')
+    cost_link_audit(db)
     return {OBJECTS:len(rows),OPS:len(ops),HISTORY:len(hist)}
