@@ -6,10 +6,12 @@ class ChekiCard extends StatelessWidget {
   const ChekiCard({
     required this.child,
     this.color = ChekiColors.surface,
+    this.padding = const EdgeInsets.all(16),
     super.key,
   });
   final Widget child;
   final Color color;
+  final EdgeInsetsGeometry padding;
   @override
   Widget build(BuildContext context) => Material(
     color: color,
@@ -18,7 +20,7 @@ class ChekiCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       side: const BorderSide(color: ChekiColors.line),
     ),
-    child: Padding(padding: const EdgeInsets.all(16), child: child),
+    child: Padding(padding: padding, child: child),
   );
 }
 

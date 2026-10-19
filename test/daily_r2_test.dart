@@ -471,7 +471,8 @@ void main() {
     (t) async {
       addTearDown(t.view.reset);
       await mount(t, CatalogManagementPage(store: f.catalog));
-      final titles = ['旧版项目', 'Cheki记录', '券种管理', '成员'];
+      final titles = ['Cheki记录', '券种管理', '成员'];
+      expect(find.text('旧版项目'), findsNothing);
       final xs = titles.map((x) => t.getTopLeft(find.text(x)).dx).toList();
       expect(xs.every((x) => (x - xs.first).abs() < 1), isTrue);
       await t.pumpWidget(const SizedBox());

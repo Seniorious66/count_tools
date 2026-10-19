@@ -11,6 +11,7 @@ import '../domain/record_contract.dart';
 import '../domain/ticket_information.dart';
 import 'components.dart';
 import 'record_pages.dart';
+import 'record_browse.dart' show recordAppBar;
 import 'theme.dart';
 import 'ticket_pages.dart';
 import 'member_pie.dart';
@@ -32,12 +33,14 @@ class BiPage extends StatefulWidget {
     required this.records,
     this.access,
     this.initialPeriod,
+    this.reportsOnly = false,
     super.key,
   });
   final BiStore store;
   final RecordStore records;
   final BiFileAccess? access;
   final BiPeriod? initialPeriod;
+  final bool reportsOnly;
   @override
   State<BiPage> createState() => _BiPageState();
 }
@@ -115,7 +118,38 @@ class _BiPageState extends State<BiPage> {
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<BiSnapshot>(
+  Widget build(BuildContext context) => widget.reportsOnly
+      ? Scaffold(
+          appBar: recordAppBar(context, '报表与导出'),
+          body: SafeArea(top: false, child: body()),
+        )
+      : body();
+
+  List<Widget> expenseLinks() => [
+    for (final groups in [false, true])
+      TextButton(
+        key: ValueKey(groups ? 'group-expenses' : 'member-expenses'),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => SpendingPage(
+              store: widget.store,
+              records: widget.records,
+              period: period,
+              group: group,
+              member: member,
+              groups: groups,
+              exportCsv: widget.reportsOnly
+                  ? (csv) => (widget.access ?? BiFileAccess()).save(csv)
+                  : null,
+            ),
+          ),
+        ),
+        child: Text(groups ? '团体花费' : '成员花费'),
+      ),
+  ];
+
+  Widget body() => FutureBuilder<BiSnapshot>(
     future: snapshot,
     builder: (context, state) {
       if (state.connectionState != ConnectionState.done) {
@@ -255,310 +289,280 @@ class _BiPageState extends State<BiPage> {
             ],
           ),
           const SizedBox(height: 16),
-          ChekiCard(
-            color: ChekiColors.blue,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${report.summary.quantityLabel} 张',
-                  style: Theme.of(context).textTheme.headlineLarge,
-                ),
-                Text(
-                  '成员参与 ${report.memberQuantityLabel} 张 · ${report.rows.length} 条记录',
-                ),
-                if (report.summary.unknownQuantityRecords > 0)
-                  Text('${report.summary.unknownQuantityRecords} 条张数未填写'),
-                if (report.summary.unknownMemberRecords > 0)
-                  Text('${report.summary.unknownMemberRecords} 条成员未填写'),
-                if (excluded > 0)
+          if (!widget.reportsOnly) ...[
+            ChekiCard(
+              color: ChekiColors.blue,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    period.scope == BiScope.all
-                        ? '$excluded 条日期未填写，另列展示'
-                        : '$excluded 条日期未填写，未归入此期间',
+                    '${report.summary.quantityLabel} 张',
+                    style: Theme.of(context).textTheme.headlineLarge,
                   ),
-                if (report.rows.isEmpty) const Text('这个范围还没有记录'),
+                  Text(
+                    '成员参与 ${report.memberQuantityLabel} 张 · ${report.rows.length} 条记录',
+                  ),
+                  if (report.summary.unknownQuantityRecords > 0)
+                    Text('${report.summary.unknownQuantityRecords} 条张数未填写'),
+                  if (report.summary.unknownMemberRecords > 0)
+                    Text('${report.summary.unknownMemberRecords} 条成员未填写'),
+                  if (excluded > 0)
+                    Text(
+                      period.scope == BiScope.all
+                          ? '$excluded 条日期未填写，另列展示'
+                          : '$excluded 条日期未填写，未归入此期间',
+                    ),
+                  if (report.rows.isEmpty) const Text('这个范围还没有记录'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              children: [
+                ...expenseLinks(),
+                ChoiceChip(
+                  label: const Text('成员'),
+                  selected: !persons,
+                  onSelected: (_) => setState(() => persons = false),
+                ),
+                ChoiceChip(
+                  label: const Text('同人关联'),
+                  selected: persons,
+                  onSelected: (_) => setState(() => persons = true),
+                ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton(
-                key: const ValueKey('member-expenses'),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => SpendingPage(
-                      store: widget.store,
-                      records: widget.records,
-                      period: period,
-                      group: group,
-                      member: member,
-                      exportCsv: (csv) =>
-                          (widget.access ?? BiFileAccess()).save(csv),
-                    ),
-                  ),
-                ),
-                child: const Text('成员花费'),
-              ),
-              TextButton(
-                key: const ValueKey('group-expenses'),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => SpendingPage(
-                      store: widget.store,
-                      records: widget.records,
-                      period: period,
-                      group: group,
-                      groups: true,
-                      exportCsv: (csv) =>
-                          (widget.access ?? BiFileAccess()).save(csv),
-                    ),
-                  ),
-                ),
-                child: const Text('团体花费'),
-              ),
-              ChoiceChip(
-                label: const Text('成员'),
-                selected: !persons,
-                onSelected: (_) => setState(() => persons = false),
-              ),
-              ChoiceChip(
-                label: const Text('同人关联'),
-                selected: persons,
-                onSelected: (_) => setState(() => persons = true),
-              ),
-            ],
-          ),
-          if (persons) const Text('仅合并手动关联的身份；未关联成员各自保留。'),
-          ChekiCard(
-            child: Column(
-              children: [
-                if (list.isEmpty) const Text('还没有可统计的成员'),
-                for (final m in list)
-                  _CountRow(
-                    label: m.label,
-                    quantity: m.quantity,
-                    denominator: denominator,
-                    unknown: m.unknownRecords,
-                    detail: m.bySize.entries
-                        .map(
-                          (e) =>
-                              '${source.records.sizes[e.key]?.name ?? '尺寸未填写'} ${e.value}',
-                        )
-                        .join(' · '),
-                    color: _memberColor(m.colorRgb),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => BiMemberPage(
-                          store: widget.store,
-                          records: widget.records,
-                          period: period,
-                          group: group,
-                          filter: filter,
-                          memberIds: m.memberIds,
-                          label: m.label,
+            if (persons) const Text('仅合并手动关联的身份；未关联成员各自保留。'),
+            ChekiCard(
+              child: Column(
+                children: [
+                  if (list.isEmpty) const Text('还没有可统计的成员'),
+                  for (final m in list)
+                    _CountRow(
+                      label: m.label,
+                      quantity: m.quantity,
+                      denominator: denominator,
+                      unknown: m.unknownRecords,
+                      detail: m.bySize.entries
+                          .map(
+                            (e) =>
+                                '${source.records.sizes[e.key]?.name ?? '尺寸未填写'} ${e.value}',
+                          )
+                          .join(' · '),
+                      color: _memberColor(m.colorRgb),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => BiMemberPage(
+                            store: widget.store,
+                            records: widget.records,
+                            period: period,
+                            group: group,
+                            filter: filter,
+                            memberIds: m.memberIds,
+                            label: m.label,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => _BiRecordsPage(
-                  store: widget.records,
-                  ids: report.rows.map((r) => r.id).toSet(),
-                  label: '所选期间记录',
-                  filterByDay: false,
-                  filter: filter,
-                  group: group,
-                ),
+                ],
               ),
             ),
-            child: const Text('查看所选期间记录'),
-          ),
-          KeyedSubtree(
-            key: const ValueKey('bi-daily-section'),
-            child: _section(context, '每日张数', [
-              if (report.days.isEmpty) const Text('没有发生日期记录'),
-              if (report.days.isNotEmpty)
-                SizedBox(
-                  height: 120,
-                  child: Semantics(
-                    label:
-                        '每日张数趋势，${report.days.keys.whereType<String>().length}个日期；下方列表可查看具体数量',
-                    child: CustomPaint(painter: _DailyLine(report.days)),
-                  ),
-                ),
-              for (final entry in _sortedDays(report.days).take(5))
-                ListTile(
-                  key: ValueKey('bi-day-preview-${entry.key ?? 'unknown'}'),
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(entry.key ?? '日期未填写'),
-                  trailing: Text(
-                    '${RecordSummary(entry.value).quantityLabel} 张',
-                  ),
-                  onTap: () => _dayRecords(
-                    context,
-                    widget.records,
-                    entry.value,
-                    entry.key ?? '日期未填写',
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => _BiRecordsPage(
+                    store: widget.records,
+                    ids: report.rows.map((r) => r.id).toSet(),
+                    label: '所选期间记录',
+                    filterByDay: false,
                     filter: filter,
                     group: group,
                   ),
                 ),
-              if (report.days.length > 5)
-                TextButton(
-                  key: const ValueKey('bi-all-days'),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => _BiAllDays(
-                        records: widget.records,
-                        days: report.days,
-                        filter: filter,
-                        group: group,
-                      ),
-                    ),
-                  ),
-                  child: Text('查看全部 ${report.days.length} 个日期'),
-                ),
-            ]),
-          ),
-          KeyedSubtree(
-            key: const ValueKey('bi-pie-section'),
-            child: _section(context, persons ? '同人占比' : '成员占比', [
-              MemberPie(
-                slices: [
-                  for (final m in list)
-                    MemberPieSlice(
-                      m.id,
-                      m.label,
-                      m.quantity,
-                      m.unknownRecords,
-                      _memberColor(m.colorRgb),
-                    ),
-                ],
-                denominator: denominator,
               ),
-            ]),
-          ),
-          _section(context, '尺寸', [
-            for (final e in report.sizes.entries)
-              _CountRow(
-                label: source.records.sizes[e.key]?.name ?? '未填写尺寸',
-                quantity: e.value,
-                denominator: report.summary.knownQuantity,
-                color: ChekiColors.blueInk,
-              ),
-          ]),
-          _section(context, '属性', [
-            for (final e in report.signatures.entries)
-              _CountRow(
-                label: _signature(e.key),
-                quantity: e.value,
-                denominator: report.summary.knownQuantity,
-                color: ChekiColors.blueInk,
-              ),
-            Text('带签中的背签 ${report.backSigned} 张'),
-            if (report.backUnknown > 0)
-              Text('带签中 ${report.backUnknown} 张背签情况未填写'),
-          ]),
-          _section(context, '购券与成本', [
-            if (member != null ||
-                person != null ||
-                size != null ||
-                signature != null ||
-                receipt != null ||
-                back != null)
-              const Text('券金额和库存按期间与团体筛选；用券成本按所选 Cheki 筛选。'),
-            if (report.purchase.hasAmount)
-              _value('购券金额', report.purchase.displayLabel),
-            if (report.purchase.hasAmount)
-              _value('购入均价', report.purchase.average),
-            for (final p in report.purchases.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(report.definitionLabel(p.key)),
-                    Text(
-                      '购入 ${p.value.knownQuantity + p.value.unknownQuantity} 张${p.value.hasAmount ? ' · 金额 ${p.value.displayLabel}' : ''}',
-                    ),
-                    if (p.value.hasAmount) Text('均价 ${p.value.average}'),
-                  ],
-                ),
-              ),
-            if (report.consumedRecordCost.hasAmount)
-              _value('所选 Cheki 花费', report.consumedRecordCost.displayLabel),
-          ], color: ChekiColors.pink),
-          _section(context, '期间券流水', [
-            if (report.flows.isEmpty) const Text('本期间没有已入账券流水'),
-            for (final f in report.flows.values)
-              if (f.cost.hasAmount)
-                _value('${f.kind} ${f.quantity} 张', f.cost.displayLabel)
-              else
-                Text('${f.kind} ${f.quantity} 张'),
-            if (report.draftCount > 0)
-              Text('${report.draftCount} 条草稿未入账，不计库存与金额'),
-            TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => _FlowPage(
-                    report: report,
-                    store: TicketStore(widget.store.database),
-                  ),
-                ),
-              ),
-              child: const Text('查看流水明细'),
+              child: const Text('查看所选期间记录'),
             ),
-          ]),
-          _section(context, '库存 · 截至 ${report.cutoff}', [
-            if (period.scope == BiScope.all)
-              const Text('所有期间流水包含未来已记账日期，库存仅截止今天。'),
-            if (report.stocks.isEmpty) const Text('截止此日无剩余库存'),
-            for (final s in report.stocks.values)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      s.label,
-                      style: Theme.of(context).textTheme.titleMedium,
+            KeyedSubtree(
+              key: const ValueKey('bi-daily-section'),
+              child: _section(context, '每日张数', [
+                if (report.days.isEmpty) const Text('没有发生日期记录'),
+                if (report.days.isNotEmpty)
+                  SizedBox(
+                    height: 120,
+                    child: Semantics(
+                      label:
+                          '每日张数趋势，${report.days.keys.whereType<String>().length}个日期；下方列表可查看具体数量',
+                      child: CustomPaint(painter: _DailyLine(report.days)),
                     ),
-                    Text(
-                      '可用 ${s.available} 张${s.availableCost.hasAmount ? ' · 成本 ${s.availableCost.displayLabel}' : ''}',
+                  ),
+                for (final entry in _sortedDays(report.days).take(5))
+                  ListTile(
+                    key: ValueKey('bi-day-preview-${entry.key ?? 'unknown'}'),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(entry.key ?? '日期未填写'),
+                    trailing: Text(
+                      '${RecordSummary(entry.value).quantityLabel} 张',
                     ),
-                    if (s.datedAvailable > 0)
-                      Text(
-                        '限时 ${s.datedAvailable} 张${s.longAvailable > 0 ? ' · 长期 ${s.longAvailable} 张' : ''}',
+                    onTap: () => _dayRecords(
+                      context,
+                      widget.records,
+                      entry.value,
+                      entry.key ?? '日期未填写',
+                      filter: filter,
+                      group: group,
+                    ),
+                  ),
+                if (report.days.length > 5)
+                  TextButton(
+                    key: const ValueKey('bi-all-days'),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => _BiAllDays(
+                          records: widget.records,
+                          days: report.days,
+                          filter: filter,
+                          group: group,
+                        ),
                       ),
-                    if (s.nearExpiry > 0) Text('临期 ${s.nearExpiry} 张'),
-                    if (s.expired > 0)
-                      Text(
-                        '过期 ${s.expired} 张${s.expiredCost.hasAmount ? ' · 成本 ${s.expiredCost.displayLabel}' : ''}',
+                    ),
+                    child: Text('查看全部 ${report.days.length} 个日期'),
+                  ),
+              ]),
+            ),
+            KeyedSubtree(
+              key: const ValueKey('bi-pie-section'),
+              child: _section(context, persons ? '同人占比' : '成员占比', [
+                MemberPie(
+                  slices: [
+                    for (final m in list)
+                      MemberPieSlice(
+                        m.id,
+                        m.label,
+                        m.quantity,
+                        m.unknownRecords,
+                        _memberColor(m.colorRgb),
                       ),
-                    if (s.cost.hasAmount) Text('库存成本 ${s.cost.displayLabel}'),
                   ],
+                  denominator: denominator,
                 ),
+              ]),
+            ),
+            _section(context, '尺寸', [
+              for (final e in report.sizes.entries)
+                _CountRow(
+                  label: source.records.sizes[e.key]?.name ?? '未填写尺寸',
+                  quantity: e.value,
+                  denominator: report.summary.knownQuantity,
+                  color: ChekiColors.blueInk,
+                ),
+            ]),
+            _section(context, '属性', [
+              for (final e in report.signatures.entries)
+                _CountRow(
+                  label: _signature(e.key),
+                  quantity: e.value,
+                  denominator: report.summary.knownQuantity,
+                  color: ChekiColors.blueInk,
+                ),
+              Text('带签中的背签 ${report.backSigned} 张'),
+              if (report.backUnknown > 0)
+                Text('带签中 ${report.backUnknown} 张背签情况未填写'),
+            ]),
+          ],
+          if (widget.reportsOnly) ...[
+            Wrap(spacing: 8, children: expenseLinks()),
+            _section(context, '购券与成本', [
+              if (member != null ||
+                  person != null ||
+                  size != null ||
+                  signature != null ||
+                  receipt != null ||
+                  back != null)
+                const Text('券金额和库存按期间与团体筛选；用券成本按所选 Cheki 筛选。'),
+              if (report.purchase.hasAmount)
+                _value('购券金额', report.purchase.displayLabel),
+              if (report.purchase.hasAmount)
+                _value('购入均价', report.purchase.average),
+              for (final p in report.purchases.entries)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(report.definitionLabel(p.key)),
+                      Text(
+                        '购入 ${p.value.knownQuantity + p.value.unknownQuantity} 张${p.value.hasAmount ? ' · 金额 ${p.value.displayLabel}' : ''}',
+                      ),
+                      if (p.value.hasAmount) Text('均价 ${p.value.average}'),
+                    ],
+                  ),
+                ),
+              if (report.consumedRecordCost.hasAmount)
+                _value('所选 Cheki 花费', report.consumedRecordCost.displayLabel),
+            ], color: ChekiColors.pink),
+            _section(context, '期间券流水', [
+              if (report.flows.isEmpty) const Text('本期间没有已入账券流水'),
+              for (final f in report.flows.values)
+                if (f.cost.hasAmount)
+                  _value('${f.kind} ${f.quantity} 张', f.cost.displayLabel)
+                else
+                  Text('${f.kind} ${f.quantity} 张'),
+              if (report.draftCount > 0)
+                Text('${report.draftCount} 条草稿未入账，不计库存与金额'),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => _FlowPage(
+                      report: report,
+                      store: TicketStore(widget.store.database),
+                    ),
+                  ),
+                ),
+                child: const Text('查看流水明细'),
               ),
-          ], color: ChekiColors.pink),
-          FilledButton.icon(
-            onPressed: exporting ? null : () => export(report),
-            icon: const Icon(Icons.save_alt),
-            label: Text(exporting ? '正在保存…' : '保存统计 CSV'),
-          ),
-          const Text('选择保存位置；统计 CSV 不用于恢复完整账本。'),
-          if (message != null)
-            Text(message!, key: const ValueKey('bi-export-result')),
+            ]),
+            _section(context, '库存 · 截至 ${report.cutoff}', [
+              if (period.scope == BiScope.all)
+                const Text('所有期间流水包含未来已记账日期，库存仅截止今天。'),
+              if (report.stocks.isEmpty) const Text('截止此日无剩余库存'),
+              for (final s in report.stocks.values)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.label,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        '可用 ${s.available} 张${s.availableCost.hasAmount ? ' · 成本 ${s.availableCost.displayLabel}' : ''}',
+                      ),
+                      if (s.datedAvailable > 0)
+                        Text(
+                          '限时 ${s.datedAvailable} 张${s.longAvailable > 0 ? ' · 长期 ${s.longAvailable} 张' : ''}',
+                        ),
+                      if (s.nearExpiry > 0) Text('临期 ${s.nearExpiry} 张'),
+                      if (s.expired > 0)
+                        Text(
+                          '过期 ${s.expired} 张${s.expiredCost.hasAmount ? ' · 成本 ${s.expiredCost.displayLabel}' : ''}',
+                        ),
+                      if (s.cost.hasAmount) Text('库存成本 ${s.cost.displayLabel}'),
+                    ],
+                  ),
+                ),
+            ], color: ChekiColors.pink),
+            FilledButton.icon(
+              onPressed: exporting ? null : () => export(report),
+              icon: const Icon(Icons.save_alt),
+              label: Text(exporting ? '正在保存…' : '保存统计 CSV'),
+            ),
+            const Text('选择保存位置；统计 CSV 不用于恢复完整账本。'),
+            if (message != null)
+              Text(message!, key: const ValueKey('bi-export-result')),
+          ],
         ],
       );
     },

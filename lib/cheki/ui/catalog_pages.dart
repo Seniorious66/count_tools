@@ -7,6 +7,8 @@ import '../data/identity_contract.dart';
 import '../data/identity_store.dart';
 import '../data/record_store.dart';
 import '../data/ticket_store.dart';
+import '../data/bi_query.dart';
+import 'bi_page.dart';
 import 'ticket_pages.dart';
 import 'backup_page.dart';
 import 'transport_page.dart';
@@ -18,9 +20,16 @@ import 'theme.dart';
 import 'entity_grid.dart';
 
 class CatalogManagementPage extends StatelessWidget {
-  CatalogManagementPage({CatalogStore? store, super.key})
-    : store = store ?? CatalogStore(() => DatabaseHelper().database);
+  CatalogManagementPage({
+    CatalogStore? store,
+    this.showLegacy = false,
+    this.reportAccess,
+    super.key,
+  }) : store = store ?? CatalogStore(() => DatabaseHelper().database);
   final CatalogStore store;
+  // Internal navigation boundary; legacy data and recovery are unaffected.
+  final bool showLegacy;
+  final BiFileAccess? reportAccess;
   @override
   Widget build(BuildContext context) => Theme(
     data: chekiTheme(),
@@ -31,22 +40,23 @@ class CatalogManagementPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: ChekiCard(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('旧版项目'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.push<void>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const HomePage(title: '旧版项目'),
+            if (showLegacy)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ChekiCard(
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('旧版项目'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HomePage(title: '旧版项目'),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: ChekiCard(
@@ -133,16 +143,50 @@ class CatalogManagementPage extends StatelessWidget {
                   ),
                 ),
               ),
-            ChekiCard(
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('旧档案映射'),
-                subtitle: const Text('只读原文、明确映射和迁移预览'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.push<void>(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LegacyMappingPage()),
+            if (showLegacy) ...[
+              ChekiCard(
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('旧档案映射'),
+                  subtitle: const Text('只读原文、明确映射和迁移预览'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LegacyMappingPage(),
+                    ),
+                  ),
                 ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            ChekiCard(
+              child: ExpansionTile(
+                key: const ValueKey('management-reports'),
+                tilePadding: EdgeInsets.zero,
+                title: const Text('报表与导出'),
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('购券、库存与CSV'),
+                    subtitle: const Text('期间流水、统计及花费导出'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BiPage(
+                          store: BiStore(store.database, clock: store.clock),
+                          records: RecordStore(
+                            store.database,
+                            clock: store.clock,
+                          ),
+                          access: reportAccess,
+                          reportsOnly: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),

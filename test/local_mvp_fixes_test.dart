@@ -10,6 +10,7 @@ import 'package:count_tools/cheki/data/record_store.dart';
 import 'package:count_tools/cheki/domain/record_information.dart';
 import 'package:count_tools/cheki/ui/identity_pages.dart';
 import 'package:count_tools/cheki/ui/record_pages.dart';
+import 'package:count_tools/cheki/ui/compact_record.dart';
 import 'package:count_tools/cheki/ui/theme.dart';
 import 'package:count_tools/data/database/data_base.dart';
 import 'package:count_tools/data/database/schema.dart';
@@ -507,17 +508,22 @@ void main() {
           ),
         );
         await settleIo(tester);
-        await tester.scrollUntilVisible(find.text('2 条记录'), 200);
-        await tester.drag(find.byType(ListView).first, const Offset(0, -400));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('2 条记录'));
+        await tester.scrollUntilVisible(find.byType(CompactRecordContent), 200);
+        await tester.ensureVisible(find.byType(CompactRecordContent));
+        await tester.tap(find.byType(CompactRecordContent));
         await settleIo(tester);
         expect(find.text('原始记录'), findsOneWidget);
         expect(find.text('共 2 张 · 2 条记录'), findsOneWidget);
         await tester.pageBack();
         await settleIo(tester);
         expect(find.text('合并显示'), findsNothing);
-        expect(find.text('2 条记录'), findsOneWidget);
+        expect(find.byType(CompactRecordContent), findsOneWidget);
+        expect(
+          tester
+              .widget<CompactRecordContent>(find.byType(CompactRecordContent))
+              .quantitySize,
+          startsWith('2 张'),
+        );
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
       }

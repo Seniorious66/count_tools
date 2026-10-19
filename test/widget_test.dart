@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'support/legacy_navigation.dart';
 import 'package:count_tools/app.dart';
 import 'package:count_tools/data/database/data_base.dart';
 import 'package:count_tools/data/database/helper/project_helper.dart';
@@ -33,8 +34,7 @@ void main() {
   });
   Future<void> openLegacy(WidgetTester tester) async {
     expect(find.byKey(const ValueKey('home-month')), findsOneWidget);
-    await tester.tap(find.byTooltip('打开管理'));
-    await tester.pumpAndSettle();
+    await openLegacyManagement(tester);
     await tester.tap(find.text('旧版项目'));
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 80)),

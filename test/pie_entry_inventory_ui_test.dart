@@ -30,7 +30,12 @@ void main() {
           ).readAsBytes().then(ByteData.sublistView),
         );
       await font.load();
-      final icons = FontLoader('MaterialIcons')..addFont(File('C:/Users/Aphoe/.cache/count-tools-runtime/flutter-3.47.5/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf').readAsBytes().then(ByteData.sublistView));
+      final icons = FontLoader('MaterialIcons')
+        ..addFont(
+          File(
+            'C:/Users/Aphoe/.cache/count-tools-runtime/flutter-3.47.5/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
+          ).readAsBytes().then(ByteData.sublistView),
+        );
       await icons.load();
     }
   });
@@ -111,11 +116,13 @@ void main() {
       await host(t, TicketLibraryPage(store: f.tickets));
       final first = find.byKey(ValueKey('ticket-stock-${ids[0]}'));
       final second = find.byKey(ValueKey('ticket-stock-${ids[1]}'));
-      expect(t.getTopLeft(second).dy, lessThan(t.getTopLeft(first).dy));
+      expect(t.getTopLeft(second).dy, t.getTopLeft(first).dy);
+      expect(t.getTopLeft(second).dx, lessThan(t.getTopLeft(first).dx));
       await t.runAsync(() => f.buy(ids[0], 30));
       await settleIo(t);
-      expect(t.getTopLeft(first).dy, lessThan(t.getTopLeft(second).dy));
-      await t.tap(find.descendant(of: first, matching: find.byType(ListTile)));
+      expect(t.getTopLeft(first).dy, t.getTopLeft(second).dy);
+      expect(t.getTopLeft(first).dx, lessThan(t.getTopLeft(second).dx));
+      await t.tap(first);
       await settleIo(t);
       final detail = t.widget<TicketDetailPage>(find.byType(TicketDetailPage));
       expect(detail.id, ids[0]);

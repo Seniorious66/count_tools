@@ -231,6 +231,7 @@ void main() {
             body: BiPage(
               store: f.bi,
               records: f.records,
+              reportsOnly: true,
               initialPeriod: BiPeriod(BiScope.all, '2026-10-14'),
             ),
           ),

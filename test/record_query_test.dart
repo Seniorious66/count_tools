@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'support/legacy_navigation.dart';
 import 'dart:ui' as ui;
 import 'package:count_tools/cheki/data/catalog_contract.dart';
 import 'package:count_tools/cheki/data/catalog_store.dart';
@@ -533,8 +534,7 @@ void main() {
         await tester.tap(find.byIcon(Icons.notes));
         await settleIo(tester);
         expect(find.text('7 张'), findsOneWidget);
-        await tester.tap(find.byTooltip('打开管理'));
-        await tester.pumpAndSettle();
+        await openLegacyManagement(tester);
         await tester.tap(find.text('旧版项目'));
         await settleIo(tester);
         expect(find.text('合成项目'), findsOneWidget);

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'support/legacy_navigation.dart';
 import 'dart:ui' as ui;
 import 'package:count_tools/app.dart';
 import 'package:count_tools/cheki/ui/app_shell.dart';
@@ -108,11 +109,10 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('尺寸'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('旧版项目'),
-        -160,
-        scrollable: find.byType(Scrollable).first,
-      );
+      expect(find.text('旧版项目'), findsNothing);
+      await tester.binding.handlePopRoute();
+      await settleIo(tester);
+      await openLegacyManagement(tester);
       await tester.ensureVisible(find.text('旧版项目'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('旧版项目'));
@@ -307,8 +307,7 @@ void main() {
           find.byKey(const ValueKey('home-month')).hitTestable(),
           findsOneWidget,
         );
-        await tester.tap(find.byTooltip('打开管理'));
-        await tester.pumpAndSettle();
+        await openLegacyManagement(tester);
         await tester.tap(find.text('旧版项目'));
         await settleIo(tester);
         expect(find.byTooltip('修改项目').hitTestable(), findsOneWidget);

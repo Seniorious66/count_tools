@@ -11,6 +11,7 @@ import 'components.dart';
 import 'identity_pages.dart' show identityActionLabel;
 import 'record_pages.dart';
 import 'theme.dart';
+import 'compact_record.dart';
 
 AppBar recordAppBar(
   BuildContext context,
@@ -414,57 +415,27 @@ class _RecordTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: ChekiCard(
-        child: InkWell(
+        padding: const EdgeInsets.all(12),
+        child: CompactRecordContent(
           key: ValueKey('record-${record.id}'),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(i.occurredOn?.value ?? '发生日期未填写'),
-                if ((i.memberIds ?? []).isEmpty)
-                  const Text('成员未填写')
-                else
-                  for (final id in i.memberIds!)
-                    Row(
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: model.members[id]?.colorRgb == null
-                                ? ChekiColors.inputBorder
-                                : Color(
-                                    0xff000000 | model.members[id]!.colorRgb!,
-                                  ),
-                            border: Border.all(color: ChekiColors.inputBorder),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(model.recordMemberLabel(i, id))),
-                      ],
-                    ),
-                Text(
-                  '${quantity == null ? '张数未填写' : '$quantity 张'} · ${i.sizeId == null ? '尺寸未填写' : model.sizes[i.sizeId]?.name ?? '尺寸信息不可用'}',
-                ),
-                if ((bundle?.records.length ?? 1) > 1)
-                  Text(
-                    '${bundle!.records.length} 条记录',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                Text(
-                  '${i.signature?.label ?? '属性未填写'}${i.backSigned == true ? ' · 背签' : ''} · ${i.receiptStatus?.label ?? '领取信息未填写'}',
-                ),
-                Text(
-                  model
-                      .costFor(bundle?.records.map((r) => r.id) ?? [record.id])
-                      .label,
-                ),
-              ],
-            ),
-          ),
+          date: i.occurredOn?.value ?? '发生日期未填写',
+          members: [
+            for (final id in i.memberIds ?? <String>[])
+              (
+                name: model.recordMemberLabel(i, id),
+                color: model.members[id]?.colorRgb == null
+                    ? ChekiColors.inputBorder
+                    : Color(0xff000000 | model.members[id]!.colorRgb!),
+              ),
+          ],
+          quantitySize:
+              '${quantity == null ? '张数未填写' : '$quantity 张'} · ${i.sizeId == null ? '尺寸未填写' : model.sizes[i.sizeId]?.name ?? '尺寸信息不可用'}',
+          attributesReceipt:
+              '${i.signature?.label ?? '属性未填写'}${i.backSigned == true ? ' · 背签' : ''} · ${i.receiptStatus?.label ?? '领取信息未填写'}',
+          cost: model
+              .costFor(bundle?.records.map((r) => r.id) ?? [record.id])
+              .label,
         ),
       ),
     );

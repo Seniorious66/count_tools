@@ -85,22 +85,27 @@ void main() {
           );
   }
 
-  Widget page({BiStore? store, BiFileAccess? access, double scale = 1}) =>
-      MaterialApp(
-        theme: readableTheme(),
-        builder: (c, child) => MediaQuery(
-          data: MediaQuery.of(c).copyWith(textScaler: TextScaler.linear(scale)),
-          child: child!,
-        ),
-        home: Scaffold(
-          body: BiPage(
-            store: store ?? f.bi,
-            records: f.records,
-            access: access,
-            initialPeriod: BiPeriod(BiScope.month, '2026-10-14'),
-          ),
-        ),
-      );
+  Widget page({
+    BiStore? store,
+    BiFileAccess? access,
+    double scale = 1,
+    bool reportsOnly = false,
+  }) => MaterialApp(
+    theme: readableTheme(),
+    builder: (c, child) => MediaQuery(
+      data: MediaQuery.of(c).copyWith(textScaler: TextScaler.linear(scale)),
+      child: child!,
+    ),
+    home: Scaffold(
+      body: BiPage(
+        store: store ?? f.bi,
+        records: f.records,
+        access: access,
+        reportsOnly: reportsOnly,
+        initialPeriod: BiPeriod(BiScope.month, '2026-10-14'),
+      ),
+    ),
+  );
   testWidgets(
     'fourth actual navigation shows stats and keeps chosen period on return',
     (t) async {
@@ -181,6 +186,8 @@ void main() {
       final before = (await t.runAsync(
         () => f.records.list(),
       ))!.map((r) => r.information.encode()).toList();
+      await t.pumpWidget(page(store: store, access: access, reportsOnly: true));
+      await settleIo(t);
       await t.scrollUntilVisible(
         find.text('保存统计 CSV'),
         500,
@@ -237,6 +244,8 @@ void main() {
         await t.pumpAndSettle();
         t.view.resetViewInsets();
         await t.pageBack();
+        await settleIo(t);
+        await t.pumpWidget(page(scale: 2, reportsOnly: true));
         await settleIo(t);
         await t.scrollUntilVisible(
           find.text('保存统计 CSV'),
@@ -395,6 +404,8 @@ void main() {
     await settleIo(t);
     await capture('member-month');
     await t.pageBack();
+    await settleIo(t);
+    await t.pumpWidget(page(reportsOnly: true));
     await settleIo(t);
     await t.scrollUntilVisible(
       find.text('购券与成本'),

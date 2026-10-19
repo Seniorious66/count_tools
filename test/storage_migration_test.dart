@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'support/legacy_navigation.dart';
 import 'dart:convert';
 import 'package:count_tools/app.dart';
 import 'package:count_tools/data/database/data_base.dart';
@@ -380,8 +381,7 @@ void main() {
 
       await show(const App());
       expect(find.byKey(const ValueKey('home-month')), findsOneWidget);
-      await tester.tap(find.byTooltip('打开管理'));
-      await tester.pumpAndSettle();
+      await openLegacyManagement(tester);
       await tester.tap(find.text('旧版项目'));
       for (var i = 0; i < 30; i++) {
         await tester.runAsync(
@@ -400,8 +400,7 @@ void main() {
       await show(const SizedBox());
       await tester.runAsync(() => DatabaseHelper().close());
       await show(const App());
-      await tester.tap(find.byTooltip('打开管理'));
-      await tester.pumpAndSettle();
+      await openLegacyManagement(tester);
       await tester.tap(find.text('旧版项目'));
       for (var i = 0; i < 30; i++) {
         await tester.runAsync(

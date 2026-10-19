@@ -370,40 +370,51 @@ class _TicketLibraryPageState extends State<TicketLibraryPage>
                 padding: EdgeInsets.all(24),
                 child: Text('还没有券种，可先保存空信息再补齐'),
               ),
-            for (final d
-                in widget.definitionsOnly
-                    ? m.definitions
-                    : m.stockOrderedDefinitions)
-              Padding(
-                key: ValueKey('ticket-stock-${d.id}'),
-                padding: const EdgeInsets.only(top: 12),
-                child: ChekiCard(
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(m.label(d)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${m.scopeLabel(d)}${d.information.toMap()['active'] == false
-                              ? ' · 已停用'
-                              : d.information.toMap()['active'] == null
-                              ? ' · 启用状态未填写'
-                              : ''}',
-                        ),
-                        if (!widget.definitionsOnly) ...poolWidgets(m, d),
-                      ],
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => widget.definitionsOnly
-                        ? edit('definition', original: d)
-                        : Navigator.push<void>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  TicketDetailPage(store: store, id: d.id),
-                            ),
+            if (widget.definitionsOnly)
+              for (final d
+                  in widget.definitionsOnly
+                      ? m.definitions
+                      : m.stockOrderedDefinitions)
+                Padding(
+                  key: ValueKey('ticket-stock-${d.id}'),
+                  padding: const EdgeInsets.only(top: 12),
+                  child: ChekiCard(
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(m.label(d)),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${m.scopeLabel(d)}${d.information.toMap()['active'] == false
+                                ? ' · 已停用'
+                                : d.information.toMap()['active'] == null
+                                ? ' · 启用状态未填写'
+                                : ''}',
                           ),
+                          if (!widget.definitionsOnly) ...poolWidgets(m, d),
+                        ],
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => widget.definitionsOnly
+                          ? edit('definition', original: d)
+                          : Navigator.push<void>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    TicketDetailPage(store: store, id: d.id),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+            if (!widget.definitionsOnly)
+              _TicketGrid(
+                model: m,
+                onOpen: (d) => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TicketDetailPage(store: store, id: d.id),
                   ),
                 ),
               ),
@@ -429,6 +440,103 @@ class _TicketLibraryPageState extends State<TicketLibraryPage>
       body: SafeArea(child: body),
     );
   }
+}
+
+class _TicketGrid extends StatelessWidget {
+  const _TicketGrid({required this.model, required this.onOpen});
+  final TicketModel model;
+  final void Function(TicketObject) onOpen;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final columns =
+          constraints.maxWidth < 276 ||
+              MediaQuery.textScalerOf(context).scale(14) > 19
+          ? 1
+          : 2;
+      final definitions = model.stockOrderedDefinitions;
+      Widget card(TicketObject d) {
+        final status = d.information.toMap()['active'] == false
+            ? '已停用'
+            : d.information.toMap()['active'] == null
+            ? '启用状态未填写'
+            : null;
+        final available = model
+            .pools(d.id)
+            .where((p) => !p.expired(model.day))
+            .fold(0, (q, p) => q + p.quantity);
+        final label = model.label(d);
+        return ChekiCard(
+          key: ValueKey('ticket-stock-${d.id}'),
+          padding: const EdgeInsets.all(12),
+          child: Semantics(
+            button: true,
+            label:
+                '$label，${model.scopeLabel(d)}，可用 $available 张${status == null ? '' : '，$status'}',
+            child: InkWell(
+              onTap: () => onOpen(d),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    model.scopeLabel(d),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  if (status != null)
+                    Text(status, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$available 张',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  // Keep expiry/near-expiry semantics exactly as the full reader.
+                  ...poolWidgets(model, d).skip(1),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      return Column(
+        children: [
+          for (var i = 0; i < definitions.length; i += columns)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: card(definitions[i])),
+                    if (columns == 2) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: i + 1 < definitions.length
+                            ? card(definitions[i + 1])
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
 }
 
 List<Widget> poolWidgets(TicketModel m, TicketObject d) {
