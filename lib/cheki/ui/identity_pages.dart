@@ -117,9 +117,10 @@ class _IdentityListPageState extends State<IdentityListPage> {
                         color: item.colorRgb == null
                             ? ChekiColors.inputBorder
                             : Color(0xff000000 | item.colorRgb!),
-                        inactive:
-                            !item.active ||
-                            groupMap[item.groupId]?.active == false,
+                        inactiveLabel: MemberAvailability.fromMember(
+                          item,
+                          groupMap[item.groupId],
+                        ).description,
                         onTap: () => _edit(item),
                       ),
                   ],
@@ -534,7 +535,7 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                                   (g) => DropdownMenuItem(
                                     value: g.id,
                                     child: Text(
-                                      '${g.name}${g.active ? '' : '（已停用）'}',
+                                      '${g.name}${g.active ? '' : '（团体已停用）'}',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -547,6 +548,10 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                                       () => _groupId = id == '' ? null : id,
                                     ),
                             ),
+                            if (groups.any(
+                              (g) => g.id == _groupId && !g.active,
+                            ))
+                              const Text('团体已停用'),
                             if (widget.original != null)
                               const Padding(
                                 padding: EdgeInsets.only(top: 8),
@@ -620,8 +625,16 @@ class _IdentityEditPageState extends State<IdentityEditPage> {
                         child: SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: _active,
-                          title: const Text('使用中'),
-                          subtitle: const Text('停用后保留历史'),
+                          title: Text(
+                            widget.kind == IdentityKind.member
+                                ? '成员使用中'
+                                : '同人关联使用中',
+                          ),
+                          subtitle: Text(
+                            widget.kind == IdentityKind.member
+                                ? '仅设置成员自身状态，停用后保留历史'
+                                : '停用后保留历史',
+                          ),
                           onChanged: _saving
                               ? null
                               : (value) => setState(() => _active = value),
@@ -729,7 +742,11 @@ class _IdentityHistoryItem extends StatelessWidget {
             if (before != null && before['name'] != after['name'])
               Text('原名：${before['name']}'),
             Text(
-              after['active'] == 1 ? '使用中' : '已停用',
+              after['active'] == 1
+                  ? '使用中'
+                  : kind == IdentityKind.member
+                  ? '成员已停用'
+                  : '同人关联已停用',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (kind == IdentityKind.member)

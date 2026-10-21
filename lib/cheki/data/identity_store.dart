@@ -200,11 +200,15 @@ class IdentityStore {
               where: 'id=?',
               whereArgs: [member.groupId],
             );
-      if ((member.groupId != null && groups.isEmpty) ||
-          (!retainedIds.contains(id) &&
-              (!member.active ||
-                  (groups.isNotEmpty && groups.single['active'] != 1)))) {
-        throw const CatalogException('成员或团体已停用，请重新选择');
+      final availability = MemberAvailability.fromMember(
+        member,
+        groups.isEmpty ? null : CatalogEntity.fromRow(groups.single),
+      );
+      if (availability.groupMissing ||
+          (!retainedIds.contains(id) && !availability.available)) {
+        throw CatalogException(
+          '${member.name}${groups.isEmpty ? '' : '（${CatalogEntity.fromRow(groups.single).name}）'}：${availability.description}，请重新选择',
+        );
       }
       if (member.personId != null && !persons.add(member.personId!)) {
         throw const CatalogException('同一张 Cheki 只能选择同一人的一个成员身份');
@@ -357,12 +361,18 @@ class IdentityStore {
                 where: 'id=?',
                 whereArgs: [groupId],
               );
-        if ((groupId != null && groups.isEmpty) ||
-            (transfer != null && groupId == null) ||
-            ((before == null || correctGroup) &&
-                groups.isNotEmpty &&
-                groups.single['active'] != 1)) {
+        if (groupId != null && groups.isEmpty) {
+          throw const CatalogException('团体信息不可用，请重新选择');
+        }
+        if (transfer != null && groupId == null) {
           throw const CatalogException('请选择有效团体');
+        }
+        if ((before == null || correctGroup) &&
+            groups.isNotEmpty &&
+            groups.single['active'] != 1) {
+          throw CatalogException(
+            '${CatalogEntity.fromRow(groups.single).name}：团体已停用，请重新选择',
+          );
         }
         if (correctGroup) {
           final conflicts = await groupCorrectionConflictsIn(

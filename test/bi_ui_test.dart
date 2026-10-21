@@ -235,8 +235,8 @@ void main() {
         await settleIo(t);
         await t.tap(find.text('选择日期查看'));
         await t.pumpAndSettle();
-        await t.tap(find.byType(TextField));
-        await t.pumpAndSettle();
+        expect(find.byType(CalendarDatePicker), findsOneWidget);
+        expect(find.byType(TextField), findsNothing);
         t.view.viewInsets = const FakeViewPadding(bottom: 300);
         await t.pump();
         expect(t.takeException(), isNull);
@@ -351,11 +351,11 @@ void main() {
       );
       await t.tap(find.text('2026-10-01 — 2026-10-31'));
       await t.pumpAndSettle();
-      await t.enterText(find.byType(TextField), '2026-02-30');
-      await t.tap(find.text('确定'));
-      await t.pumpAndSettle();
-      expect(find.text('日期需为 YYYY-MM-DD，并在所选期间内'), findsOneWidget);
-      await t.enterText(find.byType(TextField), '2026-09-30');
+      expect(find.byType(TextField), findsNothing);
+      t
+          .widget<CalendarDatePicker>(find.byType(CalendarDatePicker))
+          .onDateChanged(DateTime(2026, 9, 30));
+      await t.pump();
       await t.tap(find.text('确定'));
       await settleIo(t);
       expect(find.text('2026-09-01 — 2026-09-30'), findsOneWidget);

@@ -494,7 +494,8 @@ void main() {
       await capture(t, 'report-${pair.$1}');
       await t.tap(find.text('2026-10-01 — 2026-10-31'));
       await settleIo(t);
-      await t.enterText(find.byType(TextField), '2026-10-13');
+      expect(find.byType(CalendarDatePicker), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
       t.view.viewInsets = const FakeViewPadding(bottom: 300);
       await t.pump();
       await t.ensureVisible(find.text('取消'));

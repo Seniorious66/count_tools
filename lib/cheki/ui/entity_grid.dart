@@ -10,11 +10,14 @@ class EntityGridItem {
     this.subtitle,
     this.color,
     this.inactive = false,
+    this.inactiveLabel,
   });
   final String id, name;
   final String? subtitle;
   final Color? color;
   final bool inactive;
+  final String? inactiveLabel;
+  String? get status => inactiveLabel ?? (inactive ? '已停用' : null);
   final VoidCallback onTap;
 }
 
@@ -31,13 +34,17 @@ class CompactEntityGrid extends StatelessWidget {
         context,
       ).textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.w600);
       final subtitleStyle = Theme.of(context).textTheme.bodySmall!;
-      TextPainter measure(String value, TextStyle style, double width) =>
-          TextPainter(
-            text: TextSpan(text: value, style: style),
-            textDirection: Directionality.of(context),
-            textScaler: scaler,
-            maxLines: 2,
-          )..layout(maxWidth: math.max(1, width));
+      TextPainter measure(
+        String value,
+        TextStyle style,
+        double width, {
+        int? maxLines = 2,
+      }) => TextPainter(
+        text: TextSpan(text: value, style: style),
+        textDirection: Directionality.of(context),
+        textScaler: scaler,
+        maxLines: maxLines,
+      )..layout(maxWidth: math.max(1, width));
       final large = scaler.scale(15) > 22;
       bool wordsFit(String value, TextStyle style, double width) =>
           RegExp(r'[A-Za-z][A-Za-z0-9]*').allMatches(value).every((match) {
@@ -82,8 +89,14 @@ class CompactEntityGrid extends StatelessWidget {
           textHeight +
               24 +
               (item.color == null ? 0 : 18) +
-              (item.inactive
-                  ? measure('已停用', subtitleStyle, width - 24).height + 4
+              (item.status != null
+                  ? measure(
+                          item.status!,
+                          subtitleStyle,
+                          width - 24,
+                          maxLines: null,
+                        ).height +
+                        4
                   : 0),
         );
       }
@@ -104,7 +117,7 @@ class CompactEntityGrid extends StatelessWidget {
           final description = [
             item.name,
             ?item.subtitle,
-            if (item.inactive) '已停用',
+            ?item.status,
           ].join(' · ');
           return Semantics(
             button: true,
@@ -158,9 +171,9 @@ class CompactEntityGrid extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
-                        if (item.inactive) ...[
+                        if (item.status != null) ...[
                           const SizedBox(height: 4),
-                          Text('已停用', style: subtitleStyle),
+                          Text(item.status!, style: subtitleStyle),
                         ],
                       ],
                     ),

@@ -320,7 +320,7 @@ class _CatalogListPageState extends State<CatalogListPage> {
                         EntityGridItem(
                           id: 'group-${item.id}',
                           name: item.name,
-                          inactive: !item.active,
+                          inactiveLabel: item.active ? null : '团体已停用',
                           onTap: () => _edit(item),
                         ),
                     ],
@@ -646,7 +646,9 @@ class _CatalogHistoryPageState extends State<CatalogHistoryPage> {
                                   ? '新增 ${after.name}'
                                   : '${before.name} → ${after.name}',
                             ),
-                            Text(after.active ? '使用中' : '已停用'),
+                            Text(
+                              after.active ? '使用中' : '${widget.kind.label}已停用',
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               shown,

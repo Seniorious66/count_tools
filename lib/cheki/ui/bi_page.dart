@@ -16,6 +16,7 @@ import 'theme.dart';
 import 'ticket_pages.dart';
 import 'member_pie.dart';
 import 'spending_page.dart';
+import 'bi_date_picker.dart';
 
 class BiFileAccess {
   static const channel = MethodChannel('com.seniorious66.counttools/backup');
@@ -93,7 +94,11 @@ class _BiPageState extends State<BiPage> {
   }
 
   Future<void> date() async {
-    final selected = await _chooseDate(context, period.anchor);
+    final selected = await chooseBiDate(
+      context,
+      period.anchor,
+      today: OccurredOn.shanghaiDay(widget.store.clock()).value,
+    );
     if (selected != null && mounted) {
       setState(() => period = BiPeriod(period.scope, selected));
     }
@@ -190,10 +195,30 @@ class _BiPageState extends State<BiPage> {
             spacing: 8,
             runSpacing: 4,
             children: [
+              ChoiceChip(
+                key: const ValueKey('bi-today'),
+                label: const Text('今日'),
+                selected:
+                    period.scope == BiScope.day &&
+                    period.anchor ==
+                        OccurredOn.shanghaiDay(widget.store.clock()).value,
+                onSelected: (_) => setState(
+                  () => period = BiPeriod(
+                    BiScope.day,
+                    OccurredOn.shanghaiDay(widget.store.clock()).value,
+                  ),
+                ),
+              ),
               for (final scope in BiScope.values)
                 ChoiceChip(
                   label: Text(scope.label),
-                  selected: scope == period.scope,
+                  selected:
+                      scope == period.scope &&
+                      (scope != BiScope.day ||
+                          period.anchor !=
+                              OccurredOn.shanghaiDay(
+                                widget.store.clock(),
+                              ).value),
                   onSelected: (_) =>
                       setState(() => period = BiPeriod(scope, period.anchor)),
                 ),
@@ -203,7 +228,13 @@ class _BiPageState extends State<BiPage> {
           Row(
             children: [
               IconButton(
-                tooltip: '上一期间',
+                tooltip: switch (period.scope) {
+                  BiScope.month => '上月',
+                  BiScope.year => '上一年',
+                  BiScope.day => '前一天',
+                  BiScope.week => '上一周',
+                  BiScope.all => '上一期间',
+                },
                 onPressed:
                     period.scope == BiScope.all || period.from == '0001-01-01'
                     ? null
@@ -217,7 +248,13 @@ class _BiPageState extends State<BiPage> {
                 ),
               ),
               IconButton(
-                tooltip: '下一期间',
+                tooltip: switch (period.scope) {
+                  BiScope.month => '下月',
+                  BiScope.year => '下一年',
+                  BiScope.day => '后一天',
+                  BiScope.week => '下一周',
+                  BiScope.all => '下一期间',
+                },
                 onPressed:
                     period.scope == BiScope.all ||
                         period.through == '9999-12-31'
@@ -594,71 +631,6 @@ Widget _filterField(
     onChanged: changed,
   ),
 );
-Future<String?> _chooseDate(
-  BuildContext context,
-  String initial, {
-  String? from,
-  String? through,
-}) => showDialog<String>(
-  context: context,
-  builder: (_) => _BiDateDialog(initial: initial, from: from, through: through),
-);
-
-class _BiDateDialog extends StatefulWidget {
-  const _BiDateDialog({required this.initial, this.from, this.through});
-  final String initial;
-  final String? from, through;
-  @override
-  State<_BiDateDialog> createState() => _BiDateDialogState();
-}
-
-class _BiDateDialogState extends State<_BiDateDialog> {
-  late final controller = TextEditingController(text: widget.initial);
-  String? error;
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  void confirm() {
-    try {
-      final day = OccurredOn.parse(controller.text.trim()).value;
-      if (widget.from != null && day.compareTo(widget.from!) < 0 ||
-          widget.through != null && day.compareTo(widget.through!) > 0) {
-        throw const FormatException('请选择所选期间内的日期');
-      }
-      Navigator.of(context).pop(day);
-    } catch (_) {
-      setState(() => error = '日期需为 YYYY-MM-DD，并在所选期间内');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    scrollable: true,
-    title: const Text('选择日期'),
-    content: TextField(
-      controller: controller,
-      keyboardType: TextInputType.datetime,
-      decoration: InputDecoration(
-        labelText: '日期',
-        hintText: 'YYYY-MM-DD',
-        errorText: error,
-        errorMaxLines: 3,
-      ),
-      onSubmitted: (_) => confirm(),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('取消'),
-      ),
-      FilledButton(onPressed: confirm, child: const Text('确定')),
-    ],
-  );
-}
-
 String _signature(String? s) => switch (s) {
   'signed' => '带签',
   'unsigned' => '无签',
@@ -896,7 +868,7 @@ class _BiMemberPageState extends State<BiMemberPage> {
                       MediaQuery.textScalerOf(context).scale(15) > 20) {
                     return OutlinedButton.icon(
                       onPressed: () async {
-                        final d = await _chooseDate(
+                        final d = await chooseBiDate(
                           context,
                           widget.period.anchor,
                           from: widget.period.from,

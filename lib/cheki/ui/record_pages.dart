@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../data/catalog_contract.dart';
 import '../data/catalog_store.dart';
 import '../data/identity_store.dart';
+import '../data/identity_contract.dart';
 import '../data/record_store.dart';
 import '../data/record_query.dart';
 import '../data/entry_store.dart';
@@ -395,6 +396,11 @@ class _RecordEditPageState extends State<RecordEditPage> {
                                 )
                                 .map((id) {
                                   final m = membersById[id]!;
+                                  final availability =
+                                      MemberAvailability.fromMember(
+                                        m,
+                                        groups[m.groupId],
+                                      );
                                   return MemberOption(
                                     id: m.id,
                                     group: groups[m.groupId]?.name ?? '未填写团体',
@@ -402,9 +408,8 @@ class _RecordEditPageState extends State<RecordEditPage> {
                                     color: m.colorRgb == null
                                         ? ChekiColors.inputBorder
                                         : Color(0xff000000 | m.colorRgb!),
-                                    available:
-                                        m.active &&
-                                        (groups[m.groupId]?.active ?? true),
+                                    available: availability.available,
+                                    unavailableReason: availability.description,
                                   );
                                 })
                                 .toList(),

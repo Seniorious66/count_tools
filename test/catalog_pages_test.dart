@@ -65,7 +65,7 @@ void main() {
       await tester.tap(find.byType(SwitchListTile));
       await tester.tap(find.text('保存'));
       await settleIo(tester);
-      expect(find.text('已停用'), findsOneWidget);
+      expect(find.text('团体已停用'), findsOneWidget);
       await tester.tap(find.text('改名团体'));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('修改历史'));
@@ -88,7 +88,7 @@ void main() {
       await tester.tap(find.text('团体'));
       await settleIo(tester);
       expect(find.text('改名团体'), findsOneWidget);
-      expect(find.text('已停用'), findsOneWidget);
+      expect(find.text('团体已停用'), findsOneWidget);
       expect(
         (await tester.runAsync(
           () => store.list(CatalogKind.group),

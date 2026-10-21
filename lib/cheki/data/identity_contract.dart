@@ -1,5 +1,31 @@
 import 'catalog_contract.dart';
 
+/// Read-only reasons, independent from the member's persisted active flag.
+class MemberAvailability {
+  const MemberAvailability({
+    required this.memberActive,
+    this.groupActive,
+    this.groupMissing = false,
+  });
+  factory MemberAvailability.fromMember(
+    IdentityEntity member,
+    CatalogEntity? group,
+  ) => MemberAvailability(
+    memberActive: member.active,
+    groupActive: group?.active,
+    groupMissing: member.groupId != null && group == null,
+  );
+  final bool memberActive, groupMissing;
+  final bool? groupActive;
+  bool get available => memberActive && groupActive != false && !groupMissing;
+  List<String> get reasons => [
+    if (!memberActive) '成员已停用',
+    if (groupActive == false) '团体已停用',
+    if (groupMissing) '团体信息不可用',
+  ];
+  String? get description => reasons.isEmpty ? null : reasons.join('、');
+}
+
 enum IdentityKind {
   person('同一人', 'cheki_persons'),
   member('成员', 'cheki_members');

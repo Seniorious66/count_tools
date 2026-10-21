@@ -12,6 +12,7 @@ class MemberOption {
     required this.name,
     required this.color,
     this.available = true,
+    this.unavailableReason,
   }) {
     if (id.trim().isEmpty || group.trim().isEmpty || name.trim().isEmpty) {
       throw ArgumentError('成员标识、团体和姓名不能为空');
@@ -22,6 +23,7 @@ class MemberOption {
   final String name;
   final Color color;
   final bool available;
+  final String? unavailableReason;
   String get label => '$group · $name';
 }
 
@@ -104,7 +106,9 @@ class MemberMultiSelectField extends StatelessWidget {
                             const Text('成员信息不可用'),
                           if (byId[id] == null || !byId[id]!.available)
                             Text(
-                              byId[id] == null ? '请核对原选择' : '已停用',
+                              byId[id] == null
+                                  ? '请核对原选择'
+                                  : byId[id]!.unavailableReason ?? '已停用',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                         ],
@@ -201,7 +205,9 @@ class _MemberSelectionDialogState extends State<_MemberSelectionDialog> {
                             name: option.name,
                             color: option.color,
                           ),
-                          subtitle: option.available ? null : const Text('已停用'),
+                          subtitle: option.available
+                              ? null
+                              : Text(option.unavailableReason ?? '已停用'),
                           onChanged:
                               option.available || _selected.contains(option.id)
                               ? (value) => setState(() {
