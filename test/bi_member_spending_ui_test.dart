@@ -136,6 +136,11 @@ void main() {
           await settleIo(t);
           expect(t.widget<ChoiceChip>(member).selected, isTrue);
           expect(find.byType(SpendingPanel), findsOneWidget);
+          final counts = find.byKey(const ValueKey('member-counts'));
+          await reach(t, counts, step: -160);
+          await t.tap(counts);
+          await settleIo(t);
+          expect(find.byType(SpendingPanel), findsNothing);
           final linked = find.byKey(ValueKey('bi-linked-person:$person'));
           await reach(t, linked);
           await t.tap(linked);

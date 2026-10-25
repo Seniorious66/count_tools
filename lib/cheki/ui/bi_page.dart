@@ -18,6 +18,16 @@ import 'member_pie.dart';
 import 'spending_panel.dart';
 import '../data/member_statistics.dart';
 import 'bi_date_picker.dart';
+import 'statistics_style.dart';
+
+enum _StatisticsView {
+  members('成员'),
+  memberExpenses('成员花费'),
+  groupExpenses('团体花费');
+
+  const _StatisticsView(this.label);
+  final String label;
+}
 
 class BiFileAccess {
   static const channel = MethodChannel('com.seniorious66.counttools/backup');
@@ -62,6 +72,7 @@ class _BiPageState extends State<BiPage> {
     unknownBack: back == 'unknown',
   );
   bool exporting = false;
+  _StatisticsView statisticsView = _StatisticsView.members;
   String? message;
   @override
   void initState() {
@@ -379,42 +390,73 @@ class _BiPageState extends State<BiPage> {
           ),
           const SizedBox(height: 16),
           if (!widget.reportsOnly) ...[
-            ChekiCard(
-              color: ChekiColors.blue,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${report.summary.quantityLabel} 张',
-                    style: Theme.of(context).textTheme.headlineLarge,
+            Wrap(
+              key: const ValueKey('bi-view-selector'),
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final view in _StatisticsView.values)
+                  ChoiceChip(
+                    key: ValueKey(switch (view) {
+                      _StatisticsView.members => 'member-counts',
+                      _StatisticsView.memberExpenses => 'member-expenses',
+                      _StatisticsView.groupExpenses => 'group-expenses',
+                    }),
+                    label: Text(view.label),
+                    selected: statisticsView == view,
+                    onSelected: (_) => setState(() => statisticsView = view),
                   ),
-                  Text(
-                    '成员参与 ${report.memberQuantityLabel} 张 · ${report.rows.length} 条记录',
-                  ),
-                  if (report.summary.unknownQuantityRecords > 0)
-                    Text('${report.summary.unknownQuantityRecords} 条张数未填写'),
-                  if (report.summary.unknownMemberRecords > 0)
-                    Text('${report.summary.unknownMemberRecords} 条成员未填写'),
-                  if (excluded > 0)
-                    Text(
-                      period.scope == BiScope.all
-                          ? '$excluded 条日期未填写，另列展示'
-                          : '$excluded 条日期未填写，未归入此期间',
-                    ),
-                  if (report.rows.isEmpty) const Text('这个范围还没有记录'),
-                ],
-              ),
+              ],
             ),
-            const SizedBox(height: 16),
-            ...expenseLinks(source),
-            const SizedBox(height: 16),
-            ChekiCard(
-              child: Column(
-                children: [
-                  if (list.isEmpty) const Text('还没有可统计的成员'),
-                  for (final m in list)
-                    _memberRow(source, report, m, denominator),
-                ],
+            const SizedBox(height: 12),
+            KeyedSubtree(
+              key: const ValueKey('bi-statistics-body'),
+              child: ChekiCard(
+                child: statisticsView != _StatisticsView.members
+                    ? SpendingPanel(
+                        key: ValueKey('bi-view-${statisticsView.name}'),
+                        source: source,
+                        period: period,
+                        records: widget.records,
+                        group: group,
+                        filter: filter,
+                        onChanged: refresh,
+                        groupMode:
+                            statisticsView == _StatisticsView.groupExpenses,
+                        framed: false,
+                      )
+                    : Column(
+                        key: const ValueKey('bi-view-members'),
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            '${report.summary.quantityLabel} 张',
+                            style: Theme.of(context).textTheme.headlineLarge,
+                          ),
+                          Text(
+                            '成员参与 ${report.memberQuantityLabel} 张 · ${report.rows.length} 条记录',
+                          ),
+                          if (report.summary.unknownQuantityRecords > 0)
+                            Text(
+                              '${report.summary.unknownQuantityRecords} 条张数未填写',
+                            ),
+                          if (report.summary.unknownMemberRecords > 0)
+                            Text(
+                              '${report.summary.unknownMemberRecords} 条成员未填写',
+                            ),
+                          if (excluded > 0)
+                            Text(
+                              period.scope == BiScope.all
+                                  ? '$excluded 条日期未填写，另列展示'
+                                  : '$excluded 条日期未填写，未归入此期间',
+                            ),
+                          if (report.rows.isEmpty) const Text('这个范围还没有记录'),
+                          const SizedBox(height: 16),
+                          if (list.isEmpty) const Text('还没有可统计的成员'),
+                          for (final m in list)
+                            _memberRow(source, report, m, denominator),
+                        ],
+                      ),
               ),
             ),
             const SizedBox(height: 16),
@@ -443,7 +485,10 @@ class _BiPageState extends State<BiPage> {
                     child: Semantics(
                       label:
                           '每日张数趋势，${report.days.keys.whereType<String>().length}个日期；下方列表可查看具体数量',
-                      child: CustomPaint(painter: _DailyLine(report.days)),
+                      child: CustomPaint(
+                        key: const ValueKey('bi-daily-paint'),
+                        painter: _DailyLine(report.days),
+                      ),
                     ),
                   ),
                 for (final entry in _sortedDays(report.days).take(5))
@@ -733,7 +778,10 @@ class _CountRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: ChekiColors.line,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: ChekiColors.inputBorder),
+              border: Border.all(
+                color: statisticsOutlineColor,
+                width: statisticsOutlineWidth,
+              ),
             ),
             child: Align(
               alignment: Alignment.centerLeft,
@@ -743,6 +791,12 @@ class _CountRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: BorderRadius.circular(4),
+                    border: quantity > 0 && denominator > 0
+                        ? Border.all(
+                            color: statisticsOutlineColor,
+                            width: statisticsOutlineWidth,
+                          )
+                        : null,
                   ),
                 ),
               ),
@@ -930,10 +984,18 @@ class _BiMemberPageState extends State<BiMemberPage> {
                                                 fontSize: 12,
                                               ),
                                             ),
-                                            if (items.isNotEmpty)
+                                            if (sum.knownQuantity > 0)
                                               Container(
                                                 height: 4,
-                                                color: color,
+                                                decoration: BoxDecoration(
+                                                  color: color,
+                                                  border: Border.all(
+                                                    color:
+                                                        statisticsOutlineColor,
+                                                    width:
+                                                        statisticsOutlineWidth,
+                                                  ),
+                                                ),
                                               ),
                                           ],
                                         ),
@@ -1211,9 +1273,26 @@ class _DailyLine extends CustomPainter {
       } else {
         path.lineTo(x, y);
       }
-      canvas.drawCircle(Offset(x, y), 3, Paint()..color = ChekiColors.blueInk);
     }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = statisticsOutlineColor
+        ..strokeWidth = 2 + statisticsOutlineWidth * 2
+        ..style = PaintingStyle.stroke,
+    );
     canvas.drawPath(path, paint);
+    for (final p in points) {
+      final x = span == 0
+          ? size.width / 2
+          : 8 +
+                (size.width - 16) *
+                    p.$1.difference(points.first.$1).inDays /
+                    span;
+      final y = size.height - 8 - (size.height - 16) * p.$2 / maximum;
+      canvas.drawCircle(Offset(x, y), 3, Paint()..color = ChekiColors.blueInk);
+      canvas.drawCircle(Offset(x, y), 3, statisticsOutlinePaint());
+    }
   }
 
   @override

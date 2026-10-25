@@ -227,7 +227,9 @@ void main() {
           );
         }
         await f.record(1, [f.a]);
-        await f.record(10, [f.b]);
+        // Both identities are active: make recency explicit instead of relying
+        // on random stable-ID ordering for two records on the same day.
+        await f.record(10, [f.b], day: '2026-10-12');
       });
       await mount(t);
       await reveal(t, pie);

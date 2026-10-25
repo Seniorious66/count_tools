@@ -7,6 +7,7 @@ import '../data/transfer_store.dart';
 import 'components.dart';
 import 'record_pages.dart';
 import 'transfer_pages.dart';
+import 'statistics_style.dart';
 
 /// An inline view of the current statistics snapshot, not a second route/query.
 class SpendingPanel extends StatefulWidget {
@@ -18,6 +19,8 @@ class SpendingPanel extends StatefulWidget {
     this.filter = const BiRecordFilter(),
     this.exportCsv,
     this.onChanged,
+    this.groupMode,
+    this.framed = true,
     super.key,
   });
   final BiSnapshot source;
@@ -27,12 +30,17 @@ class SpendingPanel extends StatefulWidget {
   final BiRecordFilter filter;
   final Future<bool> Function(String)? exportCsv;
   final VoidCallback? onChanged;
+
+  /// When supplied, the parent owns the shared count/spending view selector.
+  final bool? groupMode;
+  final bool framed;
   @override
   State<SpendingPanel> createState() => _SpendingPanelState();
 }
 
 class _SpendingPanelState extends State<SpendingPanel> {
-  bool groups = false, exporting = false;
+  bool localGroups = false, exporting = false;
+  bool get groups => widget.groupMode ?? localGroups;
   String? message;
   Future<void> open(SpendingLine line) async {
     if (line.record != null) {
@@ -105,10 +113,10 @@ class _SpendingPanelState extends State<SpendingPanel> {
       subtitle: l.amount.hasAmount ? Text(l.amount.label) : null,
       onTap: () => open(l),
     );
-    return ChekiCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.groupMode == null)
           Wrap(
             spacing: 8,
             runSpacing: 4,
@@ -117,81 +125,77 @@ class _SpendingPanelState extends State<SpendingPanel> {
                 key: const ValueKey('member-expenses'),
                 label: const Text('成员花费'),
                 selected: !groups,
-                onSelected: (_) => setState(() => groups = false),
+                onSelected: (_) => setState(() => localGroups = false),
               ),
               ChoiceChip(
                 key: const ValueKey('group-expenses'),
                 label: const Text('团体花费'),
                 selected: groups,
-                onSelected: (_) => setState(() => groups = true),
+                onSelected: (_) => setState(() => localGroups = true),
               ),
             ],
           ),
-          if (total.hasAmount)
-            Text(
-              total.label,
-              key: const ValueKey('expense-total'),
-              style: Theme.of(context).textTheme.headlineSmall,
+        if (total.hasAmount)
+          Text(
+            total.label,
+            key: const ValueKey('expense-total'),
+            style: Theme.of(context).textTheme.headlineLarge,
+          ),
+        if (keys.isEmpty && common.isEmpty) const Text('没有可统计的花费明细'),
+        for (final id in keys)
+          ExpansionTile(
+            key: ValueKey('expense-${groups ? 'group' : 'member'}-$id'),
+            tilePadding: EdgeInsets.zero,
+            title: Text(
+              groups
+                  ? widget.source.records.groups[id]?.name ?? '团体未填写'
+                  : identity.label(id),
             ),
-          if (keys.isEmpty && common.isEmpty) const Text('没有可统计的花费明细'),
-          for (final id in keys)
-            ExpansionTile(
-              key: ValueKey('expense-${groups ? 'group' : 'member'}-$id'),
-              tilePadding: EdgeInsets.zero,
-              title: Text(
-                groups
-                    ? widget.source.records.groups[id]?.name ?? '团体未填写'
-                    : identity.label(id),
-              ),
-              leading: groups
-                  ? null
-                  : Icon(
-                      Icons.circle,
-                      size: 12,
-                      color: Color(
-                        0xff000000 | (identity.color(id) ?? 0x7c8ea0),
-                      ),
-                    ),
-              subtitle: report.total(buckets[id]!).hasAmount
-                  ? Text(report.total(buckets[id]!).label)
-                  : null,
-              children: [for (final l in buckets[id]!) line(l)],
-            ),
-          if (common.isNotEmpty)
-            ExpansionTile(
-              title: const Text('共同费用（未分摊）'),
-              tilePadding: EdgeInsets.zero,
-              subtitle: report.total(common).hasAmount
-                  ? Text(report.total(common).label)
-                  : null,
-              children: [for (final l in common) line(l)],
-            ),
-          if (widget.exportCsv != null)
-            TextButton(
-              onPressed: exporting
-                  ? null
-                  : () async {
-                      setState(() => exporting = true);
-                      try {
-                        final saved = await widget.exportCsv!(
-                          report.csv({...rows, ...common}),
+            leading: groups
+                ? null
+                : StatisticsDot(
+                    color: Color(0xff000000 | (identity.color(id) ?? 0x7c8ea0)),
+                  ),
+            subtitle: report.total(buckets[id]!).hasAmount
+                ? Text(report.total(buckets[id]!).label)
+                : null,
+            children: [for (final l in buckets[id]!) line(l)],
+          ),
+        if (common.isNotEmpty)
+          ExpansionTile(
+            title: const Text('共同费用（未分摊）'),
+            tilePadding: EdgeInsets.zero,
+            subtitle: report.total(common).hasAmount
+                ? Text(report.total(common).label)
+                : null,
+            children: [for (final l in common) line(l)],
+          ),
+        if (widget.exportCsv != null)
+          TextButton(
+            onPressed: exporting
+                ? null
+                : () async {
+                    setState(() => exporting = true);
+                    try {
+                      final saved = await widget.exportCsv!(
+                        report.csv({...rows, ...common}),
+                      );
+                      if (mounted) {
+                        setState(
+                          () => message = saved ? '花费明细已保存到所选位置' : '已取消保存',
                         );
-                        if (mounted) {
-                          setState(
-                            () => message = saved ? '花费明细已保存到所选位置' : '已取消保存',
-                          );
-                        }
-                      } catch (_) {
-                        if (mounted) setState(() => message = '保存失败，请重试；账本未改变');
-                      } finally {
-                        if (mounted) setState(() => exporting = false);
                       }
-                    },
-              child: Text(exporting ? '正在保存…' : '导出花费明细'),
-            ),
-          if (message != null) Text(message!),
-        ],
-      ),
+                    } catch (_) {
+                      if (mounted) setState(() => message = '保存失败，请重试；账本未改变');
+                    } finally {
+                      if (mounted) setState(() => exporting = false);
+                    }
+                  },
+            child: Text(exporting ? '正在保存…' : '导出花费明细'),
+          ),
+        if (message != null) Text(message!),
+      ],
     );
+    return widget.framed ? ChekiCard(child: content) : content;
   }
 }

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
-import 'theme.dart';
+import 'statistics_style.dart';
 
 String biShareLabel(int quantity, int denominator, {int unknown = 0}) =>
     denominator <= 0 || quantity == 0 && unknown > 0
@@ -359,20 +359,27 @@ class MemberPiePainter extends CustomPainter {
     for (final slice in slices.where((s) => s.quantity > 0)) {
       final sweep = 2 * math.pi * slice.quantity / denominator;
       final fill = Paint()..color = slice.color;
-      final border = Paint()
-        ..color = slice.id == selected
-            ? ChekiColors.ink
-            : ChekiColors.inputBorder
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = slice.id == selected ? 3 : 1.5;
       if (slices.length == 1) {
         canvas.drawOval(rect, fill);
-        canvas.drawOval(rect, border);
       } else {
         canvas.drawArc(rect, start, sweep, true, fill);
-        canvas.drawArc(rect, start, sweep, true, border);
       }
       start += sweep;
+    }
+    // Draw shared radial edges once after all fills, without changing their
+    // angles or introducing artificial gaps between small sectors.
+    final outline = statisticsOutlinePaint();
+    canvas.drawOval(rect, outline);
+    if (slices.where((s) => s.quantity > 0).length > 1) {
+      start = -math.pi / 2;
+      for (final slice in slices.where((s) => s.quantity > 0)) {
+        canvas.drawLine(
+          rect.center,
+          rect.center + Offset.fromDirection(start, rect.width / 2),
+          outline,
+        );
+        start += 2 * math.pi * slice.quantity / denominator;
+      }
     }
     for (final label in layoutPieLabels(
       slices,

@@ -267,7 +267,7 @@ class _SpendingPageState extends State<SpendingPage> {
                               0xff000000 |
                                   (model.members[id]?.colorRgb ?? 0x7c8ea0),
                             ),
-                            border: Border.all(color: ChekiColors.ink),
+                            border: Border.all(color: Colors.black, width: .5),
                           ),
                         ),
                   title: Text(groups ? groupLabel(id) : memberLabel(id)),
