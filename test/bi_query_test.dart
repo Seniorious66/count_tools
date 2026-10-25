@@ -58,7 +58,7 @@ void main() {
       expect(group.members.keys, [f.a]);
       expect(r.sortedMembers().first.colorRgb, 0x123456);
       expect(r.memberRows({f.a}, day: '2026-10-11').length, 2);
-      expect(r.csv(), contains('"member","${f.a}","晨星-A","","5","9"'));
+      expect(r.csv(), contains('"member","${f.a}","晨星-A","","5","7"'));
     },
   );
   test(

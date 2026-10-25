@@ -15,7 +15,8 @@ import 'record_browse.dart' show recordAppBar;
 import 'theme.dart';
 import 'ticket_pages.dart';
 import 'member_pie.dart';
-import 'spending_page.dart';
+import 'spending_panel.dart';
+import '../data/member_statistics.dart';
 import 'bi_date_picker.dart';
 
 class BiFileAccess {
@@ -51,17 +52,16 @@ class _BiPageState extends State<BiPage> {
   late BiPeriod period;
   final subscriptions = <StreamSubscription<void>>[];
   String? group;
-  String? member, person, size, signature, receipt, back;
+  String? member, size, signature, receipt, back;
   BiRecordFilter get filter => BiRecordFilter(
     memberId: member,
-    personId: person,
     sizeId: size,
     signature: signature,
     receipt: receipt,
     backSigned: back == null || back == 'unknown' ? null : back == 'yes',
     unknownBack: back == 'unknown',
   );
-  bool persons = false, exporting = false;
+  bool exporting = false;
   String? message;
   @override
   void initState() {
@@ -130,29 +130,83 @@ class _BiPageState extends State<BiPage> {
         )
       : body();
 
-  List<Widget> expenseLinks() => [
-    for (final groups in [false, true])
-      TextButton(
-        key: ValueKey(groups ? 'group-expenses' : 'member-expenses'),
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute<void>(
-            builder: (_) => SpendingPage(
-              store: widget.store,
-              records: widget.records,
-              period: period,
-              group: group,
-              member: member,
-              groups: groups,
-              exportCsv: widget.reportsOnly
-                  ? (csv) => (widget.access ?? BiFileAccess()).save(csv)
-                  : null,
+  List<Widget> expenseLinks(BiSnapshot source) => [
+    SpendingPanel(
+      source: source,
+      period: period,
+      records: widget.records,
+      group: group,
+      filter: filter,
+      onChanged: refresh,
+      exportCsv: widget.reportsOnly
+          ? (csv) => (widget.access ?? BiFileAccess()).save(csv)
+          : null,
+    ),
+  ];
+
+  Widget _memberRow(
+    BiSnapshot source,
+    BiReport report,
+    BiMemberCount m,
+    int denominator,
+  ) {
+    Widget row(BiMemberCount count, {bool drill = true}) => _CountRow(
+      key: ValueKey('bi-count-${count.id}'),
+      label: count.label,
+      quantity: count.quantity,
+      denominator: denominator,
+      unknown: count.unknownRecords,
+      color: _memberColor(count.colorRgb),
+      detail: count.bySize.entries
+          .map(
+            (e) => '${source.records.sizes[e.key]?.name ?? '尺寸未填写'} ${e.value}',
+          )
+          .join(' · '),
+      onTap: !drill
+          ? null
+          : () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => BiMemberPage(
+                  store: widget.store,
+                  records: widget.records,
+                  period: period,
+                  group: group,
+                  filter: filter,
+                  memberIds: count.memberIds,
+                  label: count.label,
+                ),
+              ),
+            ),
+    );
+    if (m.memberIds.length <= 1) return row(m);
+    return ExpansionTile(
+      key: ValueKey('bi-linked-${m.id}'),
+      tilePadding: EdgeInsets.zero,
+      title: row(m, drill: false),
+      children: [
+        TextButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => BiMemberPage(
+                store: widget.store,
+                records: widget.records,
+                period: period,
+                group: group,
+                filter: filter,
+                memberIds: m.memberIds,
+                label: m.label,
+              ),
             ),
           ),
+          child: const Text('查看每日记录'),
         ),
-        child: Text(groups ? '团体花费' : '成员花费'),
-      ),
-  ];
+        for (final child in report.sortedMembers().where(
+          (c) => m.memberIds.contains(c.id),
+        ))
+          row(child),
+      ],
+    );
+  }
 
   Widget body() => FutureBuilder<BiSnapshot>(
     future: snapshot,
@@ -173,10 +227,9 @@ class _BiPageState extends State<BiPage> {
       }
       final source = state.data!,
           report = source.report(period, groupId: group, filter: filter);
-      final list = report.sortedMembers(person: persons);
-      final denominator = persons
-          ? report.personQuantity
-          : report.memberQuantity;
+      final list = report.sortedMembers(person: true);
+      final denominator = report.summary.knownQuantity;
+      final identity = MemberStatistics(source.records);
       final excluded = source.records.records
           .where(
             (r) =>
@@ -286,11 +339,11 @@ class _BiPageState extends State<BiPage> {
             children: [
               _filterField('成员', member, {
                 for (final m in source.records.members.values)
-                  m.id: source.records.memberLabel(m.id),
+                  if (member != null && identity.same(m.id, member!)
+                      ? m.id == member
+                      : identity.representative(m.id) == m.id)
+                    m.id: identity.label(m.id),
               }, (v) => setState(() => member = v)),
-              _filterField('同人关联', person, {
-                for (final p in source.persons.values) p.id: p.name,
-              }, (v) => setState(() => person = v)),
               _filterField('尺寸', size, {
                 for (final z in source.records.sizes.values) z.id: z.name,
                 '@unknown': '尺寸未填写',
@@ -315,7 +368,6 @@ class _BiPageState extends State<BiPage> {
               TextButton(
                 onPressed: () => setState(() {
                   member = null;
-                  person = null;
                   size = null;
                   signature = null;
                   receipt = null;
@@ -354,54 +406,14 @@ class _BiPageState extends State<BiPage> {
               ),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              children: [
-                ...expenseLinks(),
-                ChoiceChip(
-                  label: const Text('成员'),
-                  selected: !persons,
-                  onSelected: (_) => setState(() => persons = false),
-                ),
-                ChoiceChip(
-                  label: const Text('同人关联'),
-                  selected: persons,
-                  onSelected: (_) => setState(() => persons = true),
-                ),
-              ],
-            ),
-            if (persons) const Text('仅合并手动关联的身份；未关联成员各自保留。'),
+            ...expenseLinks(source),
+            const SizedBox(height: 16),
             ChekiCard(
               child: Column(
                 children: [
                   if (list.isEmpty) const Text('还没有可统计的成员'),
                   for (final m in list)
-                    _CountRow(
-                      label: m.label,
-                      quantity: m.quantity,
-                      denominator: denominator,
-                      unknown: m.unknownRecords,
-                      detail: m.bySize.entries
-                          .map(
-                            (e) =>
-                                '${source.records.sizes[e.key]?.name ?? '尺寸未填写'} ${e.value}',
-                          )
-                          .join(' · '),
-                      color: _memberColor(m.colorRgb),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => BiMemberPage(
-                            store: widget.store,
-                            records: widget.records,
-                            period: period,
-                            group: group,
-                            filter: filter,
-                            memberIds: m.memberIds,
-                            label: m.label,
-                          ),
-                        ),
-                      ),
-                    ),
+                    _memberRow(source, report, m, denominator),
                 ],
               ),
             ),
@@ -470,19 +482,19 @@ class _BiPageState extends State<BiPage> {
             ),
             KeyedSubtree(
               key: const ValueKey('bi-pie-section'),
-              child: _section(context, persons ? '同人占比' : '成员占比', [
+              child: _section(context, '成员占比', [
                 MemberPie(
                   slices: [
                     for (final m in list)
                       MemberPieSlice(
-                        m.id,
+                        m.id.startsWith('member:') ? m.memberIds.single : m.id,
                         m.label,
                         m.quantity,
                         m.unknownRecords,
                         _memberColor(m.colorRgb),
                       ),
                   ],
-                  denominator: denominator,
+                  denominator: report.personQuantity,
                 ),
               ]),
             ),
@@ -509,10 +521,9 @@ class _BiPageState extends State<BiPage> {
             ]),
           ],
           if (widget.reportsOnly) ...[
-            Wrap(spacing: 8, children: expenseLinks()),
+            ...expenseLinks(source),
             _section(context, '购券与成本', [
               if (member != null ||
-                  person != null ||
                   size != null ||
                   signature != null ||
                   receipt != null ||
@@ -696,6 +707,7 @@ class _CountRow extends StatelessWidget {
     this.unknown = 0,
     this.detail,
     this.onTap,
+    super.key,
   });
   final String label;
   final int quantity, denominator, unknown;
@@ -836,25 +848,22 @@ class _BiMemberPageState extends State<BiMemberPage> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(widget.period.label),
-            if (widget.memberIds.length == 1)
-              TextButton(
-                key: const ValueKey('member-daily-expenses'),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => SpendingPage(
-                      store: widget.store,
-                      records: widget.records,
-                      period: widget.period,
-                      group: widget.group,
-                      member: widget.memberIds.length == 1
-                          ? widget.memberIds.single
-                          : null,
-                    ),
-                  ),
-                ),
-                child: const Text('查看成员花费'),
+            SpendingPanel(
+              source: state.data!,
+              period: widget.period,
+              records: widget.records,
+              group: widget.group,
+              filter: BiRecordFilter(
+                memberId: widget.memberIds.first,
+                exactMember: widget.memberIds.length == 1,
+                sizeId: widget.filter.sizeId,
+                signature: widget.filter.signature,
+                receipt: widget.filter.receipt,
+                backSigned: widget.filter.backSigned,
+                unknownBack: widget.filter.unknownBack,
               ),
+              onChanged: reload,
+            ),
             Text(
               '${summary.quantityLabel} 张',
               style: Theme.of(context).textTheme.headlineLarge,
@@ -1025,7 +1034,9 @@ class _BiRecordsPageState extends State<_BiRecordsPage> {
                       widget.filter.matches(r, m) &&
                       (widget.group == null ||
                           (r.information.memberIds ?? []).any(
-                            (id) => m.members[id]?.groupId == widget.group,
+                            (id) =>
+                                MemberStatistics(m).groupOf(r, id) ==
+                                widget.group,
                           )) &&
                       (widget.memberIds == null ||
                           (r.information.memberIds ?? []).any(

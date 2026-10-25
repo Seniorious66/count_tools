@@ -14,6 +14,7 @@ import 'package:count_tools/cheki/ui/record_pages.dart';
 import 'package:count_tools/cheki/ui/ticket_pages.dart';
 import 'package:count_tools/cheki/ui/transfer_pages.dart';
 import 'package:count_tools/cheki/ui/spending_page.dart';
+import 'package:count_tools/cheki/ui/spending_panel.dart';
 import 'package:count_tools/cheki/ui/bi_page.dart';
 import 'package:count_tools/cheki/ui/theme.dart';
 import 'bi_fixture.dart';
@@ -256,15 +257,21 @@ void main() {
       await reach(t, find.byKey(const ValueKey('member-expenses')));
       await t.tap(find.byKey(const ValueKey('member-expenses')));
       await settleIo(t);
-      expect(find.byType(SpendingPage), findsOneWidget);
-      expect(find.text('未分配到成员'), findsOneWidget);
+      expect(find.byType(SpendingPage), findsNothing);
+      expect(find.byType(SpendingPanel), findsOneWidget);
+      expect(find.text('共同费用（未分摊）'), findsOneWidget);
       await capture(t, 'expenses-overview');
       await reach(t, find.byKey(ValueKey('expense-member-${f.b}')));
       await t.tap(find.byKey(ValueKey('expense-member-${f.b}')));
       await settleIo(t);
       expect(find.byKey(const ValueKey('expense-total')), findsOneWidget);
-      final title = t.widget<Text>(find.byKey(const ValueKey('expense-total')));
-      expect(title.data, '花费：¥30');
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('expense-member-${f.b}')),
+          matching: find.text('花费：¥30'),
+        ),
+        findsWidgets,
+      );
       await capture(t, 'member-expenses');
       final tile = find.byWidgetPredicate(
         (w) =>

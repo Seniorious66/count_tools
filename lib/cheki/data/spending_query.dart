@@ -1,4 +1,5 @@
 import 'bi_query.dart';
+import 'member_statistics.dart';
 import 'record_cost.dart';
 import 'record_store.dart';
 import 'ticket_store.dart';
@@ -26,7 +27,11 @@ class SpendingLine {
 }
 
 class SpendingReport {
-  SpendingReport(this.source, this.period) {
+  SpendingReport(
+    this.source,
+    this.period, {
+    this.filter = const BiRecordFilter(),
+  }) {
     final definitions = {
       for (final t in source.tickets.where((t) => t.kind == 'definition'))
         t.id: t,
@@ -36,7 +41,12 @@ class SpendingReport {
       if (!t.posted || (t.information.quantity ?? 0) >= 0) continue;
       final recordId = source.entryBindings[t.id];
       if (recordId != null) (children[recordId] ??= []).add(t);
-      if (source.transferKinds[t.id] != 'gift' ||
+      if (filter.sizeId != null ||
+          filter.signature != null ||
+          filter.receipt != null ||
+          filter.backSigned != null ||
+          filter.unknownBack ||
+          source.transferKinds[t.id] != 'gift' ||
           !period.contains(t.information.day)) {
         continue;
       }
@@ -45,6 +55,10 @@ class SpendingReport {
           ? def?.information.text('member_id')
           : null;
       final g = def?.information.text('group_id');
+      if ((filter.memberId != null || filter.personId != null) &&
+          (m == null || !filter.memberMatches(m, source.records))) {
+        continue;
+      }
       lines.add(
         SpendingLine(
           id: 'gift:${t.id}',
@@ -60,7 +74,10 @@ class SpendingReport {
       );
     }
     for (final r in source.records.records) {
-      if (!period.contains(r.information.occurredOn?.value)) continue;
+      if (!period.contains(r.information.occurredOn?.value) ||
+          !filter.matches(r, source.records)) {
+        continue;
+      }
       final ids = (r.information.memberIds ?? []).toSet();
       String? groupOf(String id) {
         final saved = r.information.memberSnapshot(id);
@@ -127,13 +144,19 @@ class SpendingReport {
       return byDay != 0 ? byDay : a.id.compareTo(b.id);
     });
   }
+  late final identity = MemberStatistics(source.records);
+  final BiRecordFilter filter;
   final BiSnapshot source;
   final BiPeriod period;
   final lines = <SpendingLine>[];
   List<SpendingLine> assigned({String? member, String? group}) => lines
       .where(
         (l) =>
-            (member == null || l.memberId == member) &&
+            ((filter.memberId == null && filter.personId == null) ||
+                l.memberId != null &&
+                    filter.memberMatches(l.memberId!, source.records)) &&
+            (member == null ||
+                l.memberId != null && identity.same(l.memberId!, member)) &&
             (group == null || l.groupId == group),
       )
       .toList();
@@ -144,10 +167,15 @@ class SpendingReport {
   }) => lines
       .where(
         (l) =>
+            ((filter.memberId == null && filter.personId == null) ||
+                l.participants.any(
+                  (id) => filter.memberMatches(id, source.records),
+                )) &&
             (byMember
                 ? l.memberId == null
                 : member != null
-                ? l.memberId == null && l.participants.contains(member)
+                ? l.memberId == null &&
+                      l.participants.any((id) => identity.same(id, member))
                 : l.groupId == null) &&
             (group == null || l.relatedGroups.contains(group)),
       )

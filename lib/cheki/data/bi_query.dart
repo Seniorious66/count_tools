@@ -11,6 +11,7 @@ import 'ticket_store.dart';
 import 'entry_store.dart';
 import 'transfer_store.dart';
 import 'record_cost.dart';
+import 'member_statistics.dart';
 
 enum BiScope {
   day('日'),
@@ -86,12 +87,19 @@ class BiRecordFilter {
     this.receipt,
     this.backSigned,
     this.unknownBack = false,
+    this.exactMember = false,
   });
   final String? memberId, personId, sizeId, signature, receipt;
   final bool? backSigned;
   final bool unknownBack;
+  final bool exactMember;
   bool memberMatches(String id, RecordReadModel model) =>
-      (memberId == null || memberId == id) &&
+      (memberId == null ||
+          memberId == id ||
+          !exactMember &&
+              model.members[memberId]?.personId != null &&
+              model.members[memberId]?.personId ==
+                  model.members[id]?.personId) &&
       (personId == null || model.members[id]?.personId == personId);
   bool matches(StoredRecord row, RecordReadModel model) {
     final i = row.information;
@@ -116,6 +124,7 @@ class BiRecordFilter {
     'receipt': receipt,
     'back_signed': backSigned,
     'unknown_back': unknownBack,
+    'exact_member': exactMember,
   };
 }
 
@@ -214,16 +223,19 @@ class BiSnapshot {
 class BiReport {
   BiReport(this.source, this.period, this.groupId, this.filter) {
     final model = source.records;
-    bool memberMatch(String id) =>
+    final identity = MemberStatistics(model);
+    bool memberMatch(String id, StoredRecord r) =>
         filter.memberMatches(id, model) &&
-        (groupId == null || model.members[id]?.groupId == groupId);
+        (groupId == null || identity.groupOf(r, id) == groupId);
     rows = model.records
         .where(
           (r) =>
               period.contains(r.information.occurredOn?.value) &&
               filter.matches(r, model) &&
               (groupId == null ||
-                  (r.information.memberIds ?? []).any(memberMatch)),
+                  (r.information.memberIds ?? []).any(
+                    (id) => memberMatch(id, r),
+                  )),
         )
         .toList();
     summary = RecordSummary(rows);
@@ -242,7 +254,9 @@ class BiReport {
         if (i.backSigned == null) backUnknown += q ?? 0;
       }
       final personSeen = <String>{};
-      for (final id in (i.memberIds ?? []).where(memberMatch)) {
+      for (final id in (i.memberIds ?? []).toSet().where(
+        (id) => memberMatch(id, r),
+      )) {
         final member = model.members[id];
         final m = members.putIfAbsent(
           id,
@@ -262,11 +276,9 @@ class BiReport {
           key,
           () => BiMemberCount(
             key,
-            pid == null
-                ? model.memberLabel(id)
-                : source.persons[pid]?.name ?? '同人名称未填写',
-            <String>{},
-            member?.colorRgb,
+            identity.label(id),
+            identity.identities(id),
+            identity.color(id),
           ),
         );
         p.memberIds.add(id);
@@ -547,7 +559,7 @@ class BiReport {
         m.label,
         null,
         m.quantity == 0 && m.unknownRecords > 0 ? null : m.quantity,
-        denominator: memberQuantity,
+        denominator: summary.knownQuantity,
         raw: jsonEncode({
           'unknown_records': m.unknownRecords,
           'color_rgb': m.colorRgb,
@@ -564,7 +576,7 @@ class BiReport {
         p.label,
         null,
         p.quantity == 0 && p.unknownRecords > 0 ? null : p.quantity,
-        denominator: personQuantity,
+        denominator: summary.knownQuantity,
         raw: jsonEncode({
           'member_ids': p.memberIds.toList(),
           'unknown_records': p.unknownRecords,

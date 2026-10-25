@@ -153,7 +153,7 @@ void main() {
         f.bi.read,
       ))!.report(BiPeriod(BiScope.month, '2026-10-14'));
       expect(report.receipts, {'unreceived': 3, 'received': 2, 'partial': 2});
-      expect(report.csv(), contains('"member","${f.a}","晨星-A","","5","9"'));
+      expect(report.csv(), contains('"member","${f.a}","晨星-A","","5","7"'));
       expect(await t.runAsync(() => contents(f.root)), before);
     },
   );
@@ -231,14 +231,12 @@ void main() {
       });
       await mount(t);
       await reveal(t, pie);
-      expect(t.widget<MemberPie>(pie).slices.first.id, f.b);
-      await tap(t, find.widgetWithText(ChoiceChip, '同人关联'), delta: -240);
-      await reveal(t, pie);
+      expect(find.widgetWithText(ChoiceChip, '同人关联'), findsNothing);
       final chart = t.widget<MemberPie>(pie);
       expect(chart.denominator, 11);
       expect(chart.slices.length, 1);
-      expect(chart.slices.single.label, '同一成员');
-      expect(find.semantics.byLabel('同一成员 · 11 张 · 100.0%'), findsOneWidget);
+      expect(chart.slices.single.label, '夜航-B');
+      expect(find.semantics.byLabel('夜航-B · 11 张 · 100.0%'), findsOneWidget);
       await capture(t, 'person-share');
     },
   );

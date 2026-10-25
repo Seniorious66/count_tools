@@ -163,8 +163,6 @@ void main() {
       await t.tap(find.byKey(const ValueKey('member-expenses')));
       await settleIo(t);
       expect(find.text('导出花费明细'), findsNothing);
-      await t.pageBack();
-      await settleIo(t);
       await reach(t, find.text('每日张数'));
       expect(find.text('每日张数'), findsWidgets);
       await reach(t, find.text('属性'));
@@ -287,8 +285,6 @@ void main() {
       await settleIo(t);
       expect(access.csv, isNotNull);
       expect(find.text('已取消保存'), findsOneWidget);
-      await t.pageBack();
-      await settleIo(t);
       await reach(t, find.text('2026-01-01 — 2026-12-31'));
       expect(find.text('2026-01-01 — 2026-12-31'), findsOneWidget);
     },

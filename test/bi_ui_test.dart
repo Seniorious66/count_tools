@@ -116,7 +116,8 @@ void main() {
       await settleIo(t);
       await t.tap(find.text('统计').last);
       await settleIo(t);
-      expect(find.text('同人关联'), findsOneWidget);
+      expect(find.text('同人关联'), findsNothing);
+      expect(find.widgetWithText(ChoiceChip, '成员花费'), findsOneWidget);
       await t.tap(find.text('所有').first);
       await settleIo(t);
       expect(find.text('所有时间'), findsOneWidget);
@@ -136,11 +137,19 @@ void main() {
       await settleIo(t);
       expect(find.text('7 张'), findsWidgets);
       await t.scrollUntilVisible(
-        find.text('晨星-A'),
+        find.descendant(
+          of: find.byKey(ValueKey('bi-count-member:${f.a}')),
+          matching: find.text('晨星-A'),
+        ),
         150,
         scrollable: find.byType(Scrollable).first,
       );
-      await t.tap(find.text('晨星-A'));
+      await t.tap(
+        find.descendant(
+          of: find.byKey(ValueKey('bi-count-member:${f.a}')),
+          matching: find.text('晨星-A'),
+        ),
+      );
       await settleIo(t);
       expect(find.byType(BiMemberPage), findsOneWidget);
       expect(find.text('5 张'), findsOneWidget);
@@ -227,12 +236,25 @@ void main() {
         await t.pumpWidget(page(scale: 2));
         await settleIo(t);
         await t.scrollUntilVisible(
-          find.text('晨星-A'),
+          find.descendant(
+            of: find.byKey(ValueKey('bi-count-member:${f.a}')),
+            matching: find.text('晨星-A'),
+          ),
           160,
           scrollable: find.byType(Scrollable).first,
         );
-        await t.tap(find.text('晨星-A'));
+        await t.tap(
+          find.descendant(
+            of: find.byKey(ValueKey('bi-count-member:${f.a}')),
+            matching: find.text('晨星-A'),
+          ),
+        );
         await settleIo(t);
+        await t.scrollUntilVisible(
+          find.text('选择日期查看'),
+          150,
+          scrollable: find.byType(Scrollable).last,
+        );
         await t.tap(find.text('选择日期查看'));
         await t.pumpAndSettle();
         expect(find.byType(CalendarDatePicker), findsOneWidget);
@@ -396,11 +418,19 @@ void main() {
       );
     });
     await t.scrollUntilVisible(
-      find.text('晨星-A'),
+      find.descendant(
+        of: find.byKey(ValueKey('bi-count-member:${f.a}')),
+        matching: find.text('晨星-A'),
+      ),
       140,
       scrollable: find.byType(Scrollable).first,
     );
-    await t.tap(find.text('晨星-A'));
+    await t.tap(
+      find.descendant(
+        of: find.byKey(ValueKey('bi-count-member:${f.a}')),
+        matching: find.text('晨星-A'),
+      ),
+    );
     await settleIo(t);
     await capture('member-month');
     await t.pageBack();
