@@ -255,38 +255,44 @@ class _BiPageState extends State<BiPage> {
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              ChoiceChip(
-                key: const ValueKey('bi-today'),
-                label: const Text('今日'),
-                selected:
-                    period.scope == BiScope.day &&
-                    period.anchor ==
-                        OccurredOn.shanghaiDay(widget.store.clock()).value,
-                onSelected: (_) => setState(
-                  () => period = BiPeriod(
-                    BiScope.day,
-                    OccurredOn.shanghaiDay(widget.store.clock()).value,
+          SingleChildScrollView(
+            key: const ValueKey('bi-period-options'),
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  key: const ValueKey('bi-today'),
+                  showCheckmark: false,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                  label: const Text('今日'),
+                  selected:
+                      period.scope == BiScope.day &&
+                      period.anchor ==
+                          OccurredOn.shanghaiDay(widget.store.clock()).value,
+                  onSelected: (_) => setState(
+                    () => period = BiPeriod(
+                      BiScope.day,
+                      OccurredOn.shanghaiDay(widget.store.clock()).value,
+                    ),
                   ),
                 ),
-              ),
-              for (final scope in BiScope.values)
-                ChoiceChip(
-                  label: Text(scope.label),
-                  selected:
-                      scope == period.scope &&
-                      (scope != BiScope.day ||
-                          period.anchor !=
-                              OccurredOn.shanghaiDay(
-                                widget.store.clock(),
-                              ).value),
-                  onSelected: (_) =>
-                      setState(() => period = BiPeriod(scope, period.anchor)),
-                ),
-            ],
+                for (final scope in BiScope.values.where(
+                  (s) => s != BiScope.day,
+                ))
+                  ChoiceChip(
+                    key: ValueKey('bi-period-${scope.name}'),
+                    showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                    label: Text(scope.label),
+                    selected: scope == period.scope,
+                    onSelected: (_) =>
+                        setState(() => period = BiPeriod(scope, period.anchor)),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -429,9 +435,22 @@ class _BiPageState extends State<BiPage> {
                         key: const ValueKey('bi-view-members'),
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            '${report.summary.quantityLabel} 张',
-                            style: Theme.of(context).textTheme.headlineLarge,
+                          Wrap(
+                            key: const ValueKey('bi-member-summary'),
+                            spacing: 12,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                '${report.summary.quantityLabel} 张',
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.headlineLarge,
+                              ),
+                              Text(
+                                '· 共 ${report.personCount} 人',
+                                key: const ValueKey('bi-person-count'),
+                              ),
+                            ],
                           ),
                           Text(
                             '成员参与 ${report.memberQuantityLabel} 张 · ${report.rows.length} 条记录',

@@ -218,7 +218,12 @@ class _SpendingPageState extends State<SpendingPage> {
                     Text(
                       report.total(rows).label,
                       key: const ValueKey('expense-total'),
-                      style: Theme.of(context).textTheme.headlineSmall,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontSize: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.fontSize,
+                          ),
                     ),
                     if (report
                         .total(rows.where((l) => l.kind == 'Cheki'))

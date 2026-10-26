@@ -248,7 +248,8 @@ void main() {
       addTearDown(t.view.reset);
       await t.runAsync(f.quantities);
       await mount(t);
-      for (final entry in {'日': 0, '周': 0, '月': 9, '年': 9, '所有': 9}.entries) {
+      expect(find.widgetWithText(ChoiceChip, '日'), findsNothing);
+      for (final entry in {'今日': 0, '周': 0, '月': 9, '年': 9, '所有': 9}.entries) {
         await tap(t, find.widgetWithText(ChoiceChip, entry.key), delta: -240);
         await reveal(t, pie);
         expect(t.widget<MemberPie>(pie).denominator, entry.value);

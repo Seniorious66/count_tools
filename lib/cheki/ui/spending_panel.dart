@@ -139,7 +139,9 @@ class _SpendingPanelState extends State<SpendingPanel> {
           Text(
             total.label,
             key: const ValueKey('expense-total'),
-            style: Theme.of(context).textTheme.headlineLarge,
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+              fontSize: Theme.of(context).textTheme.bodyMedium?.fontSize,
+            ),
           ),
         if (keys.isEmpty && common.isEmpty) const Text('没有可统计的花费明细'),
         for (final id in keys)

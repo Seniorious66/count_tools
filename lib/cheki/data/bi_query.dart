@@ -418,6 +418,14 @@ class BiReport {
     );
   }
 
+  /// Distinct known people present in this report's filtered member rows.
+  /// Quantity may be unknown; an unresolved historical member ID is not a person.
+  int get personCount => {
+    for (final id in members.keys)
+      if (source.records.members[id] case final member?)
+        member.personId == null ? 'member:$id' : 'person:${member.personId}',
+  }.length;
+
   String get memberQuantityLabel =>
       memberQuantity == 0 &&
           rows.isNotEmpty &&

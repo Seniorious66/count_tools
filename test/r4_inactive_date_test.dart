@@ -295,10 +295,7 @@ void main() {
         t.widget<ChoiceChip>(find.byKey(const ValueKey('bi-today'))).selected,
         isTrue,
       );
-      expect(
-        t.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '日')).selected,
-        isFalse,
-      );
+      expect(find.widgetWithText(ChoiceChip, '日'), findsNothing);
       await capture(t, 'today-preserves-group');
       expect(await t.runAsync(audit), before);
       await t.pumpWidget(const SizedBox());
