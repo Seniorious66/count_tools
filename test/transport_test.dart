@@ -210,7 +210,7 @@ void main() {
       }
       await store.apply(await store.prepare(pack, TransportMode.snapshot));
       final db = await f.records.database();
-      await StorageSchema.validate(db, 8);
+      await StorageSchema.validate(db, StorageSchema.version);
       expect((await db.query('unknown_future')).single['raw'], [0, 255]);
       expect(await f.records.list(), hasLength(5));
       if (before != null) expect(await state(f.root), before);
@@ -267,7 +267,7 @@ void main() {
         readOnly: true,
         singleInstance: false,
       );
-      await StorageSchema.validate(reopened, 8);
+      await StorageSchema.validate(reopened, StorageSchema.version);
       await reopened.close();
       // A second full backup and CSV snapshot still carry the imported raw state.
       final second = await store.export();

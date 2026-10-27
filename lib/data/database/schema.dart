@@ -9,7 +9,7 @@ import '../../cheki/data/transfer_store.dart';
 
 /// Storage versions are independent of product versions. Never rewrite legacy facts.
 class StorageSchema {
-  static const version = 8;
+  static const version = 9;
   static const migrations = {
     2: 'preserve_legacy_v1',
     3: 'catalog_base_v1',
@@ -18,6 +18,7 @@ class StorageSchema {
     6: 'ticket_inventory_v1',
     7: 'cheki_coupon_link_v1',
     8: 'coupon_transfer_lineage_v1',
+    9: 'record_void_direct_expense_v1',
   };
   static const migrationTable = 'count_tools_migrations';
   static const columns = <String, List<String>>{

@@ -422,7 +422,7 @@ import recovery
 source=Path(sys.argv[2]).resolve(strict=True)
 assert source.parent.name.startswith('cheki-bi-')
 before=recovery.database_audit(source)
-assert before['version']==8
+assert before['version']==9
 with tempfile.TemporaryDirectory(prefix='cheki-cost-python-') as work:
     root=Path(work)
     inputs=root/'input';inputs.mkdir()
@@ -455,7 +455,7 @@ with tempfile.TemporaryDirectory(prefix='cheki-cost-python-') as work:
         await legacyFixture(path);
         final empty = await openDatabase(
           path,
-          version: 8,
+          version: StorageSchema.version,
           onUpgrade: (db, old, next) => StorageSchema.migrate(db, old, next),
         );
         // Transaction append requires a shared bootstrap, including default
@@ -472,7 +472,7 @@ with tempfile.TemporaryDirectory(prefix='cheki-cost-python-') as work:
             whereArgs: [size['id']],
           );
         }
-        await StorageSchema.validate(empty, 8);
+        await StorageSchema.validate(empty, StorageSchema.version);
         await empty.close();
         cleanBackup = BackupStore(
           documents: clean,

@@ -278,7 +278,7 @@ void main() {
         '${live.path}/user_database.db',
         singleInstance: false,
       );
-      await StorageSchema.validate(db, 8);
+      await StorageSchema.validate(db, StorageSchema.version);
       final beforeRows = await db.query(RecordSchema.records);
       if (beforeRows.length != 342) {
         throw StateError('Snapshot changed; review required');
@@ -328,7 +328,7 @@ void main() {
                 's25-remap-${backPass ? 'dec054' : 'dec053'}:${original.id}',
           );
         }
-        await StorageSchema.validate(tx, 8);
+        await StorageSchema.validate(tx, StorageSchema.version);
       });
       if (signed != 288) {
         throw StateError('Source type changed; review required');
@@ -388,7 +388,7 @@ void main() {
         readOnly: true,
         singleInstance: false,
       );
-      await StorageSchema.validate(read, 8);
+      await StorageSchema.validate(read, StorageSchema.version);
       expect(await read.query(RecordSchema.records), afterRows);
       await read.close();
       expect(restoredSettings, settings);

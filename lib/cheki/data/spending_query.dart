@@ -89,7 +89,10 @@ class SpendingReport {
         for (final id in ids)
           if (groupOf(id) != null) groupOf(id)!,
       };
-      final legacy = legacyRecordCost(r.information.toMap());
+      final resolved = source.records.costs[r.id];
+      final legacy = resolved?.explicitSource == true
+          ? null
+          : legacyRecordCost(r.information.toMap());
       final bound = children[r.id] ?? <TicketObject>[];
       if (legacy == null && bound.isNotEmpty) {
         for (final t in bound) {

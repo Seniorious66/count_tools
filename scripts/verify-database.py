@@ -23,7 +23,7 @@ def verify(path):
         if not required <= tables:
             raise ValueError('Required tables missing')
         schema = db.execute('PRAGMA user_version').fetchone()[0]
-        if schema not in (1, 2, 3, 4, 5, 6, 7, 8):
+        if schema not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
             raise ValueError('Unsupported storage version')
         columns = {
             'users': ('id', 'username', 'user_key', 'ext'),
@@ -48,6 +48,7 @@ def verify(path):
         if schema >= 2:
             expected = [(2, 'preserve_legacy_v1')] + ([(3, 'catalog_base_v1')] if schema >= 3 else []) + ([(4, 'identity_base_v1')] if schema >= 4 else []) + ([(5, 'nullable_business_v1')] if schema >= 5 else []) + ([(6, 'ticket_inventory_v1')] if schema >= 6 else []) + ([(7, 'cheki_coupon_link_v1')] if schema >= 7 else [])
             if schema>=8: expected += [(8,'coupon_transfer_lineage_v1')]
+            if schema>=9: expected += [(9,'record_void_direct_expense_v1')]
             if 'count_tools_migrations' not in tables or db.execute(
                 'SELECT version,migration FROM count_tools_migrations ORDER BY version').fetchall() != expected:
                 raise ValueError('Storage migration ledger is invalid')

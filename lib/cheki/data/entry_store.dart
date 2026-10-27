@@ -73,7 +73,7 @@ abstract final class EntrySchema {
             info.occurredOn == null ||
             (info.memberIds ?? []).isEmpty ||
             plan.lines.isEmpty)) {
-      throw const CatalogException('实际扣券需要已知发生日期、张数、成员和券种；可选择仅记录或用券信息待补录');
+      throw const CatalogException('实际扣券需要已知发生日期、张数、成员和券种；可选择仅记录');
     }
     for (final line in plan.lines) {
       final member = line['member_id'], def = line['definition_id'];
@@ -245,6 +245,10 @@ abstract final class EntrySchema {
           records.single['revision'] != row['record_revision']) {
         throw StateError('当前记录与联动状态不同步');
       }
+      if (StoredRecord.fromRow(records.single).information.isVoided &&
+          (state.plan.mode != 'record_only' || state.children.isNotEmpty)) {
+        throw StateError('已删除记录仍有扣券');
+      }
       final children = <Map<String, Object?>>[];
       for (final id in state.children) {
         if (!currentChildren.add(id)) throw StateError('消费明细被重复引用');
@@ -263,6 +267,12 @@ abstract final class EntrySchema {
         state.plan,
         children,
       );
+    }
+    for (final r in await db.query(RecordSchema.records)) {
+      if (StoredRecord.fromRow(r).information.isVoided &&
+          !latest.containsKey(r['id'])) {
+        throw StateError('删除缺少联动审计');
+      }
     }
     final bound = await db.query(bindings);
     if (bound.length != usedChildren.length) throw StateError('消费绑定缺失');
@@ -487,6 +497,70 @@ class EntryStore {
     });
   }
 
+  /// Void a displayed bundle in one transaction. Original rows survive in audit.
+  Future<void> deleteRecords(
+    List<StoredRecord> records, {
+    required String operationId,
+  }) async {
+    if (records.isEmpty ||
+        records.map((r) => r.id).toSet().length != records.length ||
+        operationId.trim().isEmpty) {
+      throw const CatalogException('删除范围无效');
+    }
+    final sorted = [...records]..sort((a, b) => a.id.compareTo(b.id));
+    final batch = jsonEncode(sorted.map((r) => [r.id, r.revision]).toList());
+    final db = await database();
+    await db.transaction((tx) async {
+      final scoped = _TransactionDatabase(tx);
+      for (final r in sorted) {
+        final id = '$operationId:delete:${r.id}';
+        final old = await tx.query(
+          EntrySchema.operations,
+          where: 'id=?',
+          whereArgs: [id],
+        );
+        if (old.isNotEmpty) {
+          final req = jsonDecode(old.single['request_json'] as String) as Map;
+          final prior = CouponPlan.decode(req['plan_json'] as String).toMap();
+          if (req['id'] != r.id ||
+              req['revision'] != r.revision ||
+              prior['delete_batch'] != batch) {
+            throw const CatalogException('删除操作已用于其他范围');
+          }
+          continue;
+        }
+        if (r.information.isVoided) throw const CatalogException('记录已删除');
+        final stamp = actionStamp(clock());
+        await EntryStore(
+          () => Future.value(scoped),
+          clock: () => DateTime.parse(stamp),
+          afterRecord: afterRecord,
+          afterTickets: afterTickets,
+        ).save(
+          RecordInformation.fromMap({
+            ...r.information.toMap(),
+            'voided': {
+              'at': stamp,
+              'operation_id': id,
+              'previous_revision': r.revision,
+            },
+          }),
+          original: r,
+          operationId: id,
+          plan: CouponPlan({
+            'mode': 'record_only',
+            'expense_origin': 'direct',
+            'direct_amount': null,
+            'lines': [],
+            'delete_batch': batch,
+          }),
+        );
+      }
+    });
+    RecordStore.invalidateReads();
+    TicketStore.invalidateReads();
+  }
+
   Future<StoredRecord> save(
     RecordInformation info, {
     required CouponPlan plan,
@@ -555,6 +629,9 @@ class EntryStore {
           whereArgs: [original.id],
         );
         before = states.isEmpty ? null : states.single;
+      }
+      if (info.isVoided && plan.mode != 'record_only') {
+        throw const CatalogException('删除必须同时撤销用券');
       }
       await EntrySchema.validatePlan(tx, info, plan, actual: plan.consuming);
       final scoped = _TransactionDatabase(tx);

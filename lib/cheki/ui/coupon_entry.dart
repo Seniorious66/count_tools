@@ -42,16 +42,37 @@ class CouponEntryController extends ChangeNotifier {
   @override
   void dispose() {
     disposed = true;
+    amount.dispose();
     super.dispose();
   }
 
   bool get changed => loaded && jsonEncode(_planRaw) != baseline;
-  bool modeTouched = false;
-  Map<String, Object?> get _planRaw => {
-    ...raw,
-    if (modeTouched || mode != raw['mode']) 'mode': mode,
-    if (jsonEncode(lines) != jsonEncode(raw['lines'] ?? [])) 'lines': lines,
-  };
+  bool modeTouched = false, amountTouched = false;
+  final amount = TextEditingController();
+  Map<String, Object?> get _planRaw {
+    final v = <String, Object?>{
+      ...raw,
+      if (modeTouched || mode != raw['mode']) 'mode': mode,
+      if (jsonEncode(lines) != jsonEncode(raw['lines'] ?? [])) 'lines': lines,
+    };
+    if (modeTouched ||
+        amountTouched ||
+        recordId == null && mode != null ||
+        raw['expense_origin'] != null) {
+      v.remove('direct_amount');
+      v.remove('expense_origin');
+      if (mode == 'record_only') {
+        v['expense_origin'] = 'direct';
+        v['direct_amount'] = amount.text.trim().isEmpty
+            ? null
+            : amount.text.trim();
+      } else if (mode == 'consume') {
+        v['expense_origin'] = 'coupons';
+      }
+    }
+    return v;
+  }
+
   CouponPlan get plan => CouponPlan(_planRaw);
   Future<void> load(
     RecordInformation next, {
@@ -66,8 +87,34 @@ class CouponEntryController extends ChangeNotifier {
       directory =
           await (directoryFuture ?? IdentityStore(store.database).directory());
       if (!preserve) {
-        mode = state == null ? initialMode : state.plan.mode;
+        if (!modeTouched) mode = state == null ? initialMode : state.plan.mode;
         raw = state?.plan.toMap() ?? {};
+        if (!amountTouched) amount.text = raw['direct_amount'] as String? ?? '';
+        if (!amountTouched &&
+            raw['expense_origin'] == null &&
+            recordId != null) {
+          final prior = (await store.database()).query(
+            'cheki_records',
+            where: 'id=?',
+            whereArgs: [recordId],
+          );
+          final rows = await prior;
+          if (rows.isNotEmpty) {
+            final cost = legacyRecordCost(
+              RecordInformation.decode(
+                rows.single['information_json'] as String,
+              ).toMap(),
+            );
+            if (cost?.hasAmount == true) {
+              amount.text =
+                  (RecordInformation.decode(
+                            rows.single['information_json'] as String,
+                          ).toMap()['legacy_raw']
+                          as Map)['price']
+                      as String;
+            }
+          }
+        }
         lines = state?.plan.lines ?? [];
         manual = state != null;
         _historical = recordId != null;
@@ -600,31 +647,55 @@ class _CouponEntryEditorState extends State<CouponEntryEditor> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('用券'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ChoiceChip(
-              key: const ValueKey('use-consume'),
-              label: const Text('记录并扣券'),
-              selected: c.mode == 'consume',
-              onSelected: (_) => c.selectMode('consume'),
-            ),
-            ChoiceChip(
-              key: const ValueKey('use-record-only'),
-              label: const Text('仅记录'),
-              selected: c.mode == 'record_only',
-              onSelected: (_) => c.selectMode('record_only'),
-            ),
-            ChoiceChip(
-              key: const ValueKey('use-unknown'),
-              label: const Text('用券信息待补录'),
-              selected: c.mode == null,
-              onSelected: (_) => c.selectMode(null),
-            ),
-          ],
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final option in [
+                ('consume', '记录并扣券'),
+                ('record_only', '仅记录'),
+              ]) ...[
+                if (option.$1 != 'consume') const SizedBox(width: 8),
+                Expanded(
+                  child: Semantics(
+                    selected: c.mode == option.$1,
+                    child: OutlinedButton(
+                      key: ValueKey(
+                        option.$1 == 'consume'
+                            ? 'use-consume'
+                            : 'use-record-only',
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: c.mode == option.$1
+                            ? ChekiColors.blue
+                            : null,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 12,
+                        ),
+                      ),
+                      onPressed: () => c.selectMode(option.$1),
+                      child: Text(option.$2, textAlign: TextAlign.center),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-        if (c.mode == null) const Text('本次仅保存信息，不生成扣券流水。'),
+        if (c.mode == 'record_only') ...[
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('direct-amount'),
+            controller: c.amount,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: '实际总支出（元）'),
+            onChanged: (_) {
+              c.amountTouched = true;
+              c.notifyListeners();
+            },
+          ),
+        ],
         if (c.mode == 'consume') ...[
           const SizedBox(height: 12),
           const Text('扣券明细'),
@@ -634,7 +705,7 @@ class _CouponEntryEditorState extends State<CouponEntryEditor> {
             },
             child: const Text('恢复自动分配'),
           ),
-          if (c.lines.isEmpty) const Text('先选择参与成员和券种，也可以选择仅记录或待补录。'),
+          if (c.lines.isEmpty) const Text('先选择参与成员和券种，也可以选择仅记录。'),
           for (var index = 0; index < c.lines.length; index++)
             _line(index, model),
           for (final id in widget.info.memberIds ?? <String>[])
@@ -758,11 +829,13 @@ class CouponPlanView extends StatelessWidget {
     required this.plan,
     required this.store,
     this.originalId,
+    this.showAmount = true,
     super.key,
   });
   final CouponPlan plan;
   final EntryStore store;
   final String? originalId;
+  final bool showAmount;
   @override
   Widget build(BuildContext context) => FutureBuilder<TicketModel>(
     future: store.availability(recordId: originalId),
@@ -780,8 +853,12 @@ class CouponPlanView extends StatelessWidget {
                   ? '记录并扣券'
                   : plan.mode == 'record_only'
                   ? '仅记录，不扣券'
-                  : '用券信息待补录，本次不扣券',
+                  : '本次不扣券',
             ),
+            if (showAmount &&
+                plan.expenseOrigin == 'direct' &&
+                plan.directAmount != null)
+              Text('实际总支出：¥${plan.directAmount!.roundedYuan}'),
             if (plan.consuming)
               for (final l in plan.lines)
                 for (final p in CouponPlan.pools(l))
@@ -823,6 +900,7 @@ class RecordCouponView extends StatelessWidget {
         children: [
           CouponPlanView(
             plan: s.data!.plan,
+            showAmount: false,
             store: store,
             originalId: recordId,
           ),
@@ -923,7 +1001,9 @@ class _CouponCostPreviewState extends State<CouponCostPreview> {
   Widget build(BuildContext c) => FutureBuilder<List<Map<String, Object?>>>(
     future: future,
     builder: (c, s) {
-      final legacy = legacyRecordCost(widget.info.toMap());
+      final legacy = widget.plan.expenseOrigin == null
+          ? legacyRecordCost(widget.info.toMap())
+          : null;
       if (legacy != null) return Text(legacy.label);
       if (!widget.plan.consuming) return const SizedBox.shrink();
       if (s.hasError) {

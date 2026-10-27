@@ -95,7 +95,10 @@ void main() {
       expect(cleared.groupId, isNull);
       expect((await f.records.readModel()).memberLabel(f.a), 'A');
       await correct(f.a, f.groupA, 'refill');
-      await StorageSchema.validate(await f.records.database(), 8);
+      await StorageSchema.validate(
+        await f.records.database(),
+        StorageSchema.version,
+      );
       final proof = Platform.environment['COUNT_TOOLS_DAILY_ACCEPTANCE'];
       if (proof != null) {
         final root = Directory(proof);
@@ -114,7 +117,7 @@ void main() {
         );
         await f.finances();
         final db = await f.records.database();
-        await StorageSchema.validate(db, 8);
+        await StorageSchema.validate(db, StorageSchema.version);
         await db.rawQuery('PRAGMA wal_checkpoint(FULL)');
         await File(db.path).copy('${root.path}/database.sqlite');
         await File('${root.path}/preferences.json').writeAsString(
@@ -164,7 +167,7 @@ void main() {
       settings = {'changed': true};
       await File('${live.path}/attachments/raw.bin').writeAsBytes([1]);
       final preview = await store.prepare(original);
-      expect(preview.sourceSchema, 8);
+      expect(preview.sourceSchema, StorageSchema.version);
       expect(settings, {'changed': true});
       await store.apply(preview);
       expect(settings, savedSettings);
@@ -180,7 +183,7 @@ void main() {
         singleInstance: false,
       );
       try {
-        await StorageSchema.validate(restored, 8);
+        await StorageSchema.validate(restored, StorageSchema.version);
         final model = await RecordStore(
           () => Future.value(restored),
         ).readModel();
@@ -217,7 +220,10 @@ void main() {
       throwsStateError,
     );
     expect(await snapshot(), before);
-    await StorageSchema.validate(await f.records.database(), 8);
+    await StorageSchema.validate(
+      await f.records.database(),
+      StorageSchema.version,
+    );
   });
   test(
     'personal ticket conflict and group consumption dependency prevent incorrect correction',
@@ -594,7 +600,7 @@ void main() {
             }
           }
           expect(before.length, 343);
-          await StorageSchema.validate(db, 8);
+          await StorageSchema.validate(db, StorageSchema.version);
           expect(await db.query('cheki_records'), before);
           expect(await db.query('cheki_members'), members);
         } finally {

@@ -162,7 +162,9 @@ class BiStore {
   final DateTime Function() clock;
   Future<BiSnapshot> read() async => (await database()).transaction((tx) async {
     final records = RecordReadModel(
-      records: (await tx.query(RecordSchema.records)).map(StoredRecord.fromRow),
+      records: (await tx.query(
+        RecordSchema.records,
+      )).map(StoredRecord.fromRow).where((r) => !r.information.isVoided),
       groups: (await tx.query(
         CatalogKind.group.table,
       )).map(CatalogEntity.fromRow),

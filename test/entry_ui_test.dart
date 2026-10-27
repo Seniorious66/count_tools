@@ -137,7 +137,15 @@ void main() {
       await reach(t, find.byKey(const ValueKey('coupon-pool-0-1')));
       expect(
         t
-            .widget<ChoiceChip>(find.byKey(const ValueKey('use-consume')))
+            .widget<Semantics>(
+              find
+                  .ancestor(
+                    of: find.byKey(const ValueKey('use-consume')),
+                    matching: find.byType(Semantics),
+                  )
+                  .first,
+            )
+            .properties
             .selected,
         true,
       );
@@ -202,8 +210,7 @@ void main() {
     'pending blank business info preserves NULL and missing plan fields in actual review save',
     (t) async {
       await host(t, RecordEditPage(store: records, historical: true));
-      await reach(t, find.byKey(const ValueKey('use-unknown')));
-      await t.tap(find.byKey(const ValueKey('use-unknown')));
+      expect(find.byKey(const ValueKey('use-unknown')), findsNothing);
       await t.pumpAndSettle();
       await t.tap(find.text('核对'));
       await settleIo(t);
@@ -212,7 +219,7 @@ void main() {
       final r = (await t.runAsync(records.list))!.single;
       expect(r.information.toMap(), {});
       final state = (await t.runAsync(() => entries.state(r.id)))!;
-      expect(state.plan.toMap(), {'mode': null});
+      expect(state.plan.toMap(), isEmpty);
       expect(state.children, isEmpty);
       expect((await t.runAsync(tickets.readModel))!.available, 34);
       await t.pumpWidget(const SizedBox());

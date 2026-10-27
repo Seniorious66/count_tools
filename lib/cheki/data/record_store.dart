@@ -125,7 +125,8 @@ abstract final class RecordSchema {
         throw StateError('Record result mismatch');
       }
       if (before == null) {
-        if (last.containsKey(entity.id) ||
+        if (entity.information.isVoided ||
+            last.containsKey(entity.id) ||
             entity.revision != 1 ||
             entity.createdAt != entity.updatedAt ||
             request['id'] != null ||
@@ -134,6 +135,17 @@ abstract final class RecordSchema {
         }
       } else {
         final original = StoredRecord.fromRow(before);
+        if (original.information.isVoided) throw StateError('已删除记录不能再修改');
+        if (entity.information.isVoided) {
+          final v = entity.information.toMap()['voided'] as Map;
+          final preserved = entity.information.toMap()..remove('voided');
+          if (jsonEncode(preserved) != original.information.encode() ||
+              v['previous_revision'] != original.revision ||
+              v['at'] != entity.updatedAt ||
+              op['id'] != "${v['operation_id']}:record") {
+            throw StateError('删除审计与原记录不一致');
+          }
+        }
         final a = copySqlRow(before)
           ..removeWhere(
             (k, _) =>
@@ -178,6 +190,7 @@ abstract final class RecordSchema {
         db,
         r.information,
         retained: r.information,
+        validatePersons: !r.information.isVoided,
       );
     }
   }
@@ -218,7 +231,7 @@ class RecordStore {
       records: (await tx.query(
         RecordSchema.records,
         orderBy: 'created_at DESC,id',
-      )).map(StoredRecord.fromRow),
+      )).map(StoredRecord.fromRow).where((r) => !r.information.isVoided),
       groups: (await tx.query(
         CatalogKind.group.table,
       )).map(CatalogEntity.fromRow),
@@ -232,7 +245,7 @@ class RecordStore {
   Future<List<StoredRecord>> list() async => (await (await database()).query(
     RecordSchema.records,
     orderBy: 'created_at DESC,id',
-  )).map(StoredRecord.fromRow).toList();
+  )).map(StoredRecord.fromRow).where((r) => !r.information.isVoided).toList();
   Future<List<Map<String, Object?>>> history(StoredRecord r) async =>
       (await database()).query(
         RecordSchema.history,
@@ -289,6 +302,9 @@ class RecordStore {
     StoredRecord? original,
     required String operationId,
   }) async {
+    if (!managedEntry && info.isVoided) {
+      throw const CatalogException('请使用删除入口撤销记录和用券');
+    }
     if (operationId.trim().isEmpty) {
       throw const CatalogException('操作标识缺失');
     }
@@ -380,6 +396,9 @@ class RecordStore {
           throw const CatalogException('记录已修改，请重新打开');
         }
         before = r.single;
+        if (StoredRecord.fromRow(before).information.isVoided) {
+          throw const CatalogException('记录已删除，请返回列表');
+        }
       }
       await referencesIn(
         tx,

@@ -155,7 +155,10 @@ void main() {
             .colorRgb,
         isNull,
       );
-      await StorageSchema.validate(await records.database(), 8);
+      await StorageSchema.validate(
+        await records.database(),
+        StorageSchema.version,
+      );
     },
   );
   test(
@@ -175,7 +178,10 @@ void main() {
       );
       await DatabaseHelper().close();
       expect((await identities.directory()).members.single.colorRgb, isNull);
-      await StorageSchema.validate(await records.database(), 8);
+      await StorageSchema.validate(
+        await records.database(),
+        StorageSchema.version,
+      );
     },
   );
   test(
@@ -222,7 +228,7 @@ void main() {
       expect(members.singleWhere((r) => r.id == member).colorRgb, isNull);
       expect(members.singleWhere((r) => r.id == target.id).colorRgb, 0x12abef);
       final db = await records.database();
-      await StorageSchema.validate(db, 8);
+      await StorageSchema.validate(db, StorageSchema.version);
       final op = (await db.query(
         'cheki_identity_operations',
         where: 'id=?',
@@ -237,7 +243,10 @@ void main() {
         where: 'id=?',
         whereArgs: ['inherited-transfer'],
       );
-      await expectLater(StorageSchema.validate(db, 8), throwsStateError);
+      await expectLater(
+        StorageSchema.validate(db, StorageSchema.version),
+        throwsStateError,
+      );
     },
   );
   test(
@@ -405,7 +414,7 @@ void main() {
         singleInstance: false,
       );
       try {
-        await StorageSchema.validate(db, 8);
+        await StorageSchema.validate(db, StorageSchema.version);
         final read = IdentityStore(() async => db);
         final memberAfter = (await read.directory()).members.single;
         expect(memberAfter.toRow()['color_rgb'], isNull);
@@ -540,7 +549,7 @@ void main() {
           singleInstance: false,
         );
         try {
-          await StorageSchema.validate(db, 8);
+          await StorageSchema.validate(db, StorageSchema.version);
           final memberRows = await db.query('cheki_members');
           final recordRows = await db.query('cheki_records');
           final groups = await db.query('cheki_groups');

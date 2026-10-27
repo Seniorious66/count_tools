@@ -275,7 +275,7 @@ void main() {
         readOnly: true,
         singleInstance: false,
       );
-      await StorageSchema.validate(read, 8);
+      await StorageSchema.validate(read, StorageSchema.version);
       for (final row in await read.query('cheki_records')) {
         final originalRow = actual.singleWhere((r) => r.id == row['id']);
         if (jsonEncode(row) != jsonEncode(originalRow.toRow())) {
@@ -288,7 +288,7 @@ void main() {
       }
       await File('${parent.path}/summary.json').writeAsString(
         jsonEncode({
-          'schema': 8,
+          'schema': StorageSchema.version,
           'legacy_projects': 1,
           'legacy_members': 25,
           'legacy_records': 342,

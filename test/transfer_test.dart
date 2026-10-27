@@ -124,7 +124,7 @@ void main() {
     },
   });
   Future<void> valid() async =>
-      StorageSchema.validate(await tickets.database(), 8);
+      StorageSchema.validate(await tickets.database(), StorageSchema.version);
   test(
     'cross group personal exchange per source cost, gift and subsequent Cheki conserve without purchases or Cheki from exchange',
     () async {

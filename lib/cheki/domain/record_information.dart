@@ -120,6 +120,17 @@ final class RecordInformation {
         throw const FormatException('初始已领须为整笔，已知数量必须一致');
       }
     }
+    final voided = _raw['voided'];
+    if (voided != null &&
+        (voided is! Map ||
+            voided['operation_id'] is! String ||
+            (voided['operation_id'] as String).trim().isEmpty ||
+            voided['previous_revision'] is! int ||
+            (voided['previous_revision'] as int) < 1 ||
+            voided['at'] is! String ||
+            !_instant(voided['at'] as String))) {
+      throw const FormatException('删除审计无效');
+    }
     CostReference.fromJson(_raw['cost_reference']);
     receiptStatus;
   }
@@ -146,8 +157,11 @@ final class RecordInformation {
     }
   }
 
+  bool get isVoided => _raw['voided'] != null;
+
   factory RecordInformation.fromDraft(RecordDraft draft) =>
       RecordInformation.fromMap(draft.toMap());
+
   factory RecordInformation.decode(String json) {
     final data = jsonDecode(json);
     if (data is! Map<String, dynamic>) throw const FormatException('记录必须为对象');

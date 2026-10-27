@@ -260,7 +260,9 @@ seed.chekibackup 是格式/原始档案/设置附件载体，不要删除或修�
         batchId = manifest['batch_id'];
     if (manifest['format'] != _format ||
         manifest['version'] != 1 ||
-        manifest['schema'] != StorageSchema.version ||
+        (manifest['schema'] is! int ||
+            (manifest['schema'] as int) < 8 ||
+            (manifest['schema'] as int) > StorageSchema.version) ||
         manifest['mode'] != selected.name ||
         batchId is! String ||
         !RegExp(r'^[A-Za-z0-9-]{1,120}$').hasMatch(batchId)) {
@@ -469,6 +471,13 @@ seed.chekibackup 是格式/原始档案/设置附件载体，不要删除或修�
           if ((await tx.rawQuery('PRAGMA foreign_key_check')).isNotEmpty) {
             throw const FormatException('导入存在无效关联，整批未导入');
           }
+          if ((manifest['schema'] as int) < 9) {
+            await tx.insert(StorageSchema.migrationTable, {
+              'version': 9,
+              'migration': StorageSchema.migrations[9],
+            }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            await tx.execute('PRAGMA user_version=9');
+          }
           await StorageSchema.validate(tx, StorageSchema.version);
         });
         await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
@@ -524,6 +533,7 @@ seed.chekibackup 是格式/原始档案/设置附件载体，不要删除或修�
         packed[name] = base64Encode(await file.readAsBytes());
       }
       targetPayload['files'] = packed;
+      targetPayload['schema'] = StorageSchema.version;
       final candidate = await backups.prepare(
         _envelope(targetPayload),
         expectedBaseline: baseline,

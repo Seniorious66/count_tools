@@ -97,7 +97,7 @@ class _RecordEditPageState extends State<RecordEditPage> {
   late final _coupons = CouponEntryController(
     store: EntryStore(widget.store.database, clock: widget.store.clock),
     initialMode: widget.original != null || widget.historical
-        ? 'record_only'
+        ? null
         : 'consume',
     recordId: widget.original?.id,
   );
@@ -468,6 +468,9 @@ class _RecordEditPageState extends State<RecordEditPage> {
                             _signature == k,
                             (v) => setState(() {
                               _signature = v ? k : null;
+                              if (v && k == SignatureKind.homework) {
+                                _coupons.selectMode('record_only');
+                              }
                               if (_signature != SignatureKind.signed) {
                                 _back = null;
                               } else {

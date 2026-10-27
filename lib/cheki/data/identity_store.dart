@@ -404,6 +404,7 @@ class IdentityStore {
           for (final record in await tx.query('cheki_records')) {
             final info =
                 jsonDecode(record['information_json'] as String) as Map;
+            if (info['voided'] != null) continue;
             final ids = (info['member_ids'] as List?) ?? [];
             if (!ids.contains(before['id'])) continue;
             for (final id in ids.where((id) => id != before!['id'])) {

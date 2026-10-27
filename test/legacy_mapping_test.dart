@@ -25,7 +25,7 @@ class LegacyFixture {
     'zero': 0,
   };
   Future<void> open({
-    int schema = 8,
+    int schema = StorageSchema.version,
     Future<void> Function(String)? fault,
   }) async {
     root = await Directory.systemTemp.createTemp('cheki-legacy-mapping-');
@@ -393,7 +393,7 @@ void main() {
         });
         await extra.store.apply(p);
         final d = await extra.db(readOnly: true);
-        await StorageSchema.validate(d, 8);
+        await StorageSchema.validate(d, StorageSchema.version);
         expect((await d.query('item_data')).length, 2);
         await d.close();
       } finally {
@@ -541,7 +541,7 @@ void main() {
         singleInstance: false,
       );
       try {
-        await StorageSchema.validate(db, 8);
+        await StorageSchema.validate(db, StorageSchema.version);
         final rows = await RecordStore(() async => db).list();
         expect(rows.length, 342);
         expect(

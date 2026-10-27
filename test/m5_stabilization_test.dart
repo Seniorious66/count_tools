@@ -91,7 +91,10 @@ void main() {
       await transport.apply(preview);
       expect(await state(f.root), before);
       expect(settings, {'opaque': '001', 'zero': 0, 'empty': <String>[]});
-      await StorageSchema.validate(await f.records.database(), 8);
+      await StorageSchema.validate(
+        await f.records.database(),
+        StorageSchema.version,
+      );
       final after = await f.bi.read();
       expect(after.report(period).csv(), report.csv());
       for (final id in [f.a, f.b]) {

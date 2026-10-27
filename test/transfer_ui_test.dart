@@ -415,7 +415,9 @@ void main() {
             options: OpenDatabaseOptions(readOnly: true),
           ),
         ))!;
-        await t.runAsync(() => StorageSchema.validate(db, 8));
+        await t.runAsync(
+          () => StorageSchema.validate(db, StorageSchema.version),
+        );
         final s = TransferStore(() => Future.value(db));
         final rows = (await t.runAsync(s.list))!;
         expect(rows.length, 5);

@@ -1,5 +1,6 @@
 """Read-only schema7 compound record/coupon operation and immutable binding checks."""
 import json
+import re
 from collections import Counter
 from catalog_validation import action_stamp,decode_json,decode_row,table_rows
 from record_validation import information
@@ -8,6 +9,10 @@ STATES='cheki_entry_states';OPS='cheki_entry_operations';BINDINGS='cheki_entry_t
 def plan(raw):
     v=decode_json(raw)
     if v.get('mode') not in (None,'consume','record_only'):raise ValueError('Use mode invalid')
+    origin=v.get('expense_origin')
+    if origin not in (None,'direct','coupons') or (origin=='direct' and v.get('mode')!='record_only') or (origin=='coupons' and v.get('mode')!='consume') or ('direct_amount' in v and origin!='direct'):raise ValueError('Expense source invalid')
+    amount=v.get('direct_amount')
+    if amount is not None and (not isinstance(amount,str) or len(amount)>80 or not re.fullmatch(r'\d+(?:\.\d+)?',amount)):raise ValueError('Direct amount invalid')
     if v.get('lines') is not None and not isinstance(v['lines'],list):raise ValueError('Use lines invalid')
     for line in v.get('lines') or []:
         if not isinstance(line,dict):raise ValueError('Use line invalid')
@@ -105,7 +110,9 @@ def verify_entries(db):
         for id in ids:
             if id in current_children or id not in ticket_rows or ticket_rows[id]['posted']!=1:raise ValueError('Current child missing/duplicate/unposted')
             children.append(ticket_rows[id]);current_children.add(id)
+        if json.loads(r['information_json']).get('voided') is not None and (p.get('mode')!='record_only' or ids):raise ValueError('Voided record still consumes')
         consumption(json.loads(r['information_json']),p,children)
+    if any(json.loads(r['information_json']).get('voided') is not None and id not in latest for id,r in records.items()):raise ValueError('Void missing entry audit')
     if len(bindings)!=len(used):raise ValueError('Coupon bindings missing')
     for b in bindings:
         id=b['ticket_id']

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'record_contract.dart';
+import 'ticket_information.dart';
 
 /// A user's allocation choice; missing information remains missing until supplied.
 class CouponPlan {
@@ -7,6 +8,22 @@ class CouponPlan {
     : _raw = Map<String, Object?>.from(jsonDecode(jsonEncode(input)) as Map) {
     if (mode != null && !['consume', 'record_only'].contains(mode)) {
       throw const FormatException('用券方式无效');
+    }
+    if (_raw['expense_origin'] != null &&
+        !['direct', 'coupons'].contains(_raw['expense_origin'])) {
+      throw const FormatException('费用来源无效');
+    }
+    if ((_raw['expense_origin'] == 'direct' && mode != 'record_only') ||
+        (_raw['expense_origin'] == 'coupons' && mode != 'consume') ||
+        (_raw.containsKey('direct_amount') &&
+            _raw['expense_origin'] != 'direct')) {
+      throw const FormatException('费用来源与用券方式不一致');
+    }
+    if (_raw['direct_amount'] != null) {
+      if (_raw['direct_amount'] is! String) {
+        throw const FormatException('金额格式无效');
+      }
+      TicketMoney.parse(_raw['direct_amount'] as String);
     }
     if (_raw['lines'] != null && _raw['lines'] is! List) {
       throw const FormatException('用券明细格式无效');
@@ -63,6 +80,10 @@ class CouponPlan {
   final Map<String, Object?> _raw;
   String? get mode => _raw['mode'] as String?;
   bool get consuming => mode == 'consume';
+  String? get expenseOrigin => _raw['expense_origin'] as String?;
+  TicketMoney? get directAmount => _raw['direct_amount'] == null
+      ? null
+      : TicketMoney.parse(_raw['direct_amount'] as String);
   List<Map<String, Object?>> get lines => (_raw['lines'] as List? ?? [])
       .map((e) => Map<String, Object?>.from(e as Map))
       .toList();

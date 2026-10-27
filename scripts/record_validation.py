@@ -52,6 +52,8 @@ def information(raw):
         if initial and (len(initial)!=1 or len(batches)!=1 or hint not in (None,'received') or (q is not None and initial[0].get('quantity') is not None and initial[0]['quantity']!=q)):raise ValueError('Initial receipt invalid')
         if known and q is not None and hint is not None and hint!=('unreceived' if total==0 else 'received' if total==q else 'partial'):raise ValueError('Receipt hint inconsistent')
     if data.get('cost_reference') is not None:raise ValueError('M1 cost allocation unavailable')
+    v=data.get('voided')
+    if v is not None and (not isinstance(v,dict) or not isinstance(v.get('operation_id'),str) or not v['operation_id'].strip() or type(v.get('previous_revision')) is not int or v['previous_revision']<1 or not action_stamp(v.get('at'))):raise ValueError('Void metadata invalid')
     return data
 
 def record(row):
@@ -83,14 +85,17 @@ def verify_records(db):
         seen.add(op['id']);after=decode_row(h['after_json']);info=record(after);before=None if h['before_json'] is None else decode_row(h['before_json']);request=decode_json(op['request_json'])
         if after['id']!=h['record_id'] or after!=decode_row(op['result_json']) or after['updated_at']!=h['created_at'] or request.get('information_json')!=after['information_json']:raise ValueError('Record request/result mismatch')
         if before is None:
-            if after['id'] in last or after['revision']!=1 or after['created_at']!=after['updated_at'] or request.get('id') is not None or request.get('revision') is not None:raise ValueError('Record creation invalid')
+            if info.get('voided') is not None or after['id'] in last or after['revision']!=1 or after['created_at']!=after['updated_at'] or request.get('id') is not None or request.get('revision') is not None:raise ValueError('Record creation invalid')
         else:
-            record(before)
+            prior=record(before)
+            if prior.get('voided') is not None:raise ValueError('Voided record edited')
+            v=info.get('voided')
+            if v is not None and ({k:x for k,x in info.items() if k!='voided'}!=prior or v['previous_revision']!=before['revision'] or v['at']!=after['updated_at'] or op['id']!=v['operation_id']+':record'):raise ValueError('Void audit mismatch')
             preserved=set(before)-{'information_json','updated_at','revision'}
             if last.get(after['id'])!=before or set(after)-{'information_json','updated_at','revision'}!=preserved or any(after[k]!=before[k] for k in preserved) or after['revision']!=before['revision']+1 or after['updated_at']<before['updated_at'] or request.get('id')!=before['id'] or type(request.get('revision')) is not int or request['revision']!=before['revision']:raise ValueError('Record revision chain invalid')
         refs(info);last[after['id']]=after
     if len(seen)!=len(ops) or len(rows)!=len(last):raise ValueError('Record audit missing')
     for r in rows:
-        info=record(r);refs(info,current=True)
+        info=record(r);refs(info,current=info.get('voided') is None)
         if last.get(r['id'])!=r:raise ValueError('Record current/history mismatch')
     return {RECORDS:len(rows),OPS:len(ops),HISTORY:len(histories)}

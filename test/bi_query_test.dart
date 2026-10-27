@@ -220,7 +220,10 @@ void main() {
         r.csv(),
         contains('"stock","${f.source}","晨星","2026-10-14","2","","40"'),
       );
-      await StorageSchema.validate(await f.records.database(), 8);
+      await StorageSchema.validate(
+        await f.records.database(),
+        StorageSchema.version,
+      );
     },
   );
   test(

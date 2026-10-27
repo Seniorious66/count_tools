@@ -111,7 +111,10 @@ void main() {
       expect(labels.records, isEmpty);
       expect(labels.costs, isEmpty);
       expect(labels.memberLabel(f.a), '晨星-A');
-      await StorageSchema.validate(await f.records.database(), 8);
+      await StorageSchema.validate(
+        await f.records.database(),
+        StorageSchema.version,
+      );
     },
   );
   test(
@@ -209,7 +212,7 @@ void main() {
         singleInstance: false,
       );
       try {
-        await StorageSchema.validate(restored, 8);
+        await StorageSchema.validate(restored, StorageSchema.version);
         for (final row in await source.rawQuery(
           "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
         )) {
@@ -242,7 +245,10 @@ void main() {
           '$output/synthetic-attachment',
         ).writeAsBytes([0, 255, 13, 10]);
       }
-      expect((await backup.prepare(await backup.snapshot())).sourceSchema, 8);
+      expect(
+        (await backup.prepare(await backup.snapshot())).sourceSchema,
+        StorageSchema.version,
+      );
     },
   );
   test(

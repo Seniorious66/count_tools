@@ -8,7 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'storage_migration_test.dart' show legacyFixture;
 
-Future<void> fixture(Directory live, {int schema = 8}) async {
+Future<void> fixture(
+  Directory live, {
+  int schema = StorageSchema.version,
+}) async {
   await live.create(recursive: true);
   final path = '${live.path}/user_database.db';
   await legacyFixture(path);
@@ -114,7 +117,7 @@ void main() {
           readOnly: true,
           singleInstance: false,
         );
-        await StorageSchema.validate(opened, 8);
+        await StorageSchema.validate(opened, StorageSchema.version);
         await opened.close();
         final committed =
             Platform.environment['CHEKI_BACKUP_EXPECT_COMMITTED'] == '1';

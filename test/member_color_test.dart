@@ -216,7 +216,7 @@ void main() {
         '${live.path}/user_database.db',
         singleInstance: false,
       );
-      await StorageSchema.validate(db, 8);
+      await StorageSchema.validate(db, StorageSchema.version);
       final beforeRecords = await db.query('cheki_records'),
           beforeMembers = await db.query('cheki_members');
       final mapping =
@@ -260,7 +260,7 @@ void main() {
           );
           restored++;
         }
-        await StorageSchema.validate(tx, 8);
+        await StorageSchema.validate(tx, StorageSchema.version);
       });
       expect(restored + retained, 25);
       expect(await db.query('cheki_records'), beforeRecords);
@@ -301,7 +301,7 @@ void main() {
         readOnly: true,
         singleInstance: false,
       );
-      await StorageSchema.validate(read, 8);
+      await StorageSchema.validate(read, StorageSchema.version);
       expect(await read.query('cheki_members'), afterMembers);
       expect(await read.query('cheki_records'), beforeRecords);
       await read.close();

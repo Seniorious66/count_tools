@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import '../domain/ticket_information.dart';
+import '../domain/coupon_plan.dart';
+import '../domain/record_information.dart';
 
 /// Confirmed legacy amounts or actual frozen consumption allocations.
 /// Never current prices, purchase expenditure or participant multiplication.
 class RecordCost {
+  bool explicitSource = false;
   TicketMoney known = TicketMoney(BigInt.zero, BigInt.one);
   int knownQuantity = 0,
       unknownQuantity = 0,
@@ -90,10 +93,32 @@ Future<Map<String, RecordCost>> recordCostsIn(DatabaseExecutor tx) async {
       ),
     );
   }
+  final plans = {
+    for (final s in await tx.query('cheki_entry_states'))
+      s['record_id'] as String: CouponPlan.decode(s['plan_json'] as String),
+  };
   for (final row in await tx.query(
     'cheki_records',
     columns: ['id', 'information_json'],
   )) {
+    final info = RecordInformation.decode(row['information_json'] as String);
+    final id = row['id'] as String;
+    if (info.isVoided) {
+      result.remove(id);
+      continue;
+    }
+    final plan = plans[id];
+    if (plan?.expenseOrigin == 'direct') {
+      result[id] = RecordCost()
+        ..explicitSource = true
+        ..linkedRecords = 1
+        ..add(plan!.directAmount, 1);
+      continue;
+    }
+    if (plan?.expenseOrigin == 'coupons') {
+      (result[id] ??= RecordCost()).explicitSource = true;
+      continue;
+    }
     if (!(row['information_json'] as String).contains('"legacy_source"')) {
       continue;
     }

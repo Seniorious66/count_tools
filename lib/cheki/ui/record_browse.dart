@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../data/record_query.dart';
+import '../data/catalog_contract.dart';
 import '../data/record_store.dart';
 import '../data/ticket_store.dart';
 import '../data/entry_store.dart';
@@ -81,6 +82,61 @@ mixin _RecordReader<T extends StatefulWidget> on State<T> {
         ),
       ),
     );
+  }
+
+  bool deleting = false;
+  Future<void> deleteRows(List<StoredRecord> rows) async {
+    if (deleting || rows.isEmpty) return;
+    setState(() => deleting = true);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(rows.length == 1 ? '删除这条记录？' : '删除这组合并记录？'),
+        content: SingleChildScrollView(
+          child: Text(
+            '${rows.length} 条记录，${RecordSummary(rows).quantityLabel} 张。\n关联用券将退回原券池，花费和统计同时撤回。历史审计保留。',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            key: const ValueKey('confirm-delete-records'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确认删除'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (confirmed != true) {
+      setState(() => deleting = false);
+      return;
+    }
+    try {
+      await EntryStore(
+        store.database,
+        clock: store.clock,
+        afterRecord: store.afterWrite,
+      ).deleteRecords(
+        rows,
+        operationId: 'delete-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => deleting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is CatalogException ? e.message : '删除未完成，原记录和库存已保留，请重新打开后重试',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> detail(StoredRecord record) async {
@@ -469,6 +525,11 @@ class _RecordBundlePageState extends State<_RecordBundlePage>
             ),
             for (final r in rows)
               _RecordTile(record: r, model: m, onTap: () => detail(r)),
+            TextButton(
+              key: const ValueKey('delete-record-bundle'),
+              onPressed: deleting ? null : () => deleteRows(rows),
+              child: const Text('删除整组记录'),
+            ),
           ],
         );
       }),
@@ -681,6 +742,11 @@ class _RecordDetailPageState extends State<RecordDetailPage>
                 ),
               ),
               child: const Text('记录历史'),
+            ),
+            TextButton(
+              key: const ValueKey('delete-record'),
+              onPressed: deleting ? null : () => deleteRows([r]),
+              child: const Text('删除记录'),
             ),
           ],
         );
