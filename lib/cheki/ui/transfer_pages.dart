@@ -9,6 +9,7 @@ import '../domain/transfer_information.dart';
 import '../domain/record_contract.dart';
 import '../domain/ticket_information.dart';
 import 'components.dart';
+import 'expiry_date_input.dart';
 import 'theme.dart';
 
 class TransferEditPage extends StatefulWidget {
@@ -43,10 +44,10 @@ class _TransferEditPageState extends State<TransferEditPage> {
         text: initial.quantity?.toString() ?? '',
       ),
       sourceExpiry = TextEditingController(
-        text: initial.text('source_expires_on') ?? '',
+        text: expiryInputText(initial.text('source_expires_on')),
       ),
       targetExpiry = TextEditingController(
-        text: initial.text('target_expires_on') ?? '',
+        text: expiryInputText(initial.text('target_expires_on')),
       ),
       note = TextEditingController(text: initial.text('note') ?? '');
   late String? kind = initial.text('kind'),
@@ -58,6 +59,19 @@ class _TransferEditPageState extends State<TransferEditPage> {
   late Future<TicketModel> model = _load();
   int _request = 0;
   bool _sourcePoolTouched = false;
+  late String? _sourcePrefill = initial.text('source_expires_on');
+
+  String? sourceDate() => parseExpiryInput(
+    sourceExpiry.text,
+    original: _sourcePrefill,
+    label: '来源截止日',
+  );
+
+  String? targetDate() => parseExpiryInput(
+    targetExpiry.text,
+    original: initial.text('target_expires_on'),
+    label: '目标截止日',
+  );
   Future<TicketModel> _load() async {
     final request = ++_request;
     final updated =
@@ -87,7 +101,8 @@ class _TransferEditPageState extends State<TransferEditPage> {
           : choice.expiry == null
           ? 'long'
           : 'dated';
-      sourceExpiry.text = choice?.expiry ?? '';
+      _sourcePrefill = choice?.expiry;
+      sourceExpiry.text = expiryInputText(_sourcePrefill);
     }
     return updated;
   }
@@ -118,15 +133,16 @@ class _TransferEditPageState extends State<TransferEditPage> {
         updates[e.key] = e.value;
       }
     }
-    for (final e in {
-      'occurred_on': day.text,
-      'source_expires_on': sourceExpiry.text,
-      'target_expires_on': targetExpiry.text,
-      'note': note.text,
-    }.entries) {
+    for (final e in {'occurred_on': day.text, 'note': note.text}.entries) {
       if (e.value != (initial.text(e.key) ?? '')) {
         updates[e.key] = e.value.trim().isEmpty ? null : e.value.trim();
       }
+    }
+    for (final e in {
+      'source_expires_on': sourceDate(),
+      'target_expires_on': targetDate(),
+    }.entries) {
+      if (e.value != initial.text(e.key)) updates[e.key] = e.value;
     }
     if (quantity.text != (initial.quantity?.toString() ?? '')) {
       final q = int.tryParse(quantity.text);
@@ -141,8 +157,8 @@ class _TransferEditPageState extends State<TransferEditPage> {
   bool get dirty =>
       day.text != (initial.text('occurred_on') ?? '') ||
       quantity.text != (initial.quantity?.toString() ?? '') ||
-      sourceExpiry.text != (initial.text('source_expires_on') ?? '') ||
-      targetExpiry.text != (initial.text('target_expires_on') ?? '') ||
+      sourceExpiry.text != expiryInputText(initial.text('source_expires_on')) ||
+      targetExpiry.text != expiryInputText(initial.text('target_expires_on')) ||
       note.text != (initial.text('note') ?? '') ||
       kind != initial.text('kind') ||
       from != initial.text('source_definition_id') ||
@@ -254,18 +270,23 @@ class _TransferEditPageState extends State<TransferEditPage> {
     String key,
     TextEditingController c, {
     bool number = false,
+    bool expiry = false,
   }) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: TextField(
       key: ValueKey(key),
       controller: c,
       enabled: !busy,
-      keyboardType: number ? TextInputType.number : TextInputType.text,
+      keyboardType: number || expiry
+          ? TextInputType.number
+          : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
-        hintText: number
+        hintText: expiry
+            ? '例如 261231'
+            : number
             ? null
-            : label.contains('日期') || label.contains('截止')
+            : label.contains('日期')
             ? 'YYYY-MM-DD'
             : null,
       ),
@@ -365,9 +386,10 @@ class _TransferEditPageState extends State<TransferEditPage> {
                             ),
                             if (sourcePool == 'dated')
                               field(
-                                '来源截止日期',
+                                '来源截止日 YYMMDD',
                                 'transfer-source-expiry',
                                 sourceExpiry,
+                                expiry: true,
                               ),
                             if (from != null)
                               for (final p in m.pools(from!))
@@ -378,14 +400,22 @@ class _TransferEditPageState extends State<TransferEditPage> {
                                 int.tryParse(quantity.text) != null)
                               Builder(
                                 builder: (_) {
+                                  String? expiryDate;
+                                  if (sourcePool == 'dated') {
+                                    try {
+                                      expiryDate = sourceDate();
+                                    } on FormatException {
+                                      return const SizedBox.shrink();
+                                    }
+                                    if (expiryDate == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                  }
                                   final available = m
                                       .pools(from!)
                                       .where(
                                         (p) =>
-                                            p.expiry ==
-                                                (sourcePool == 'dated'
-                                                    ? sourceExpiry.text
-                                                    : null) &&
+                                            p.expiry == expiryDate &&
                                             (!p.expired(m.day) || expired),
                                       )
                                       .fold<int>(0, (q, p) => q + p.quantity);
@@ -438,9 +468,10 @@ class _TransferEditPageState extends State<TransferEditPage> {
                               ),
                               if (targetPool == 'dated')
                                 field(
-                                  '目标截止日期',
+                                  '目标截止日 YYMMDD',
                                   'transfer-target-expiry',
                                   targetExpiry,
+                                  expiry: true,
                                 ),
                             ],
                           ),

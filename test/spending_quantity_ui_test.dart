@@ -384,7 +384,7 @@ void main() {
             )
             .controller!
             .text,
-        '2026-10-15',
+        '261015',
       );
       await t.enterText(
         find.byKey(const ValueKey('transfer-day')),

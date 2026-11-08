@@ -6,6 +6,7 @@ import '../data/catalog_contract.dart';
 import '../domain/ticket_information.dart';
 import '../domain/record_contract.dart';
 import 'components.dart';
+import 'expiry_date_input.dart';
 import 'quantity_stepper.dart';
 import 'theme.dart';
 import 'record_browse.dart' show recordAppBar;
@@ -846,7 +847,9 @@ class _TicketEditPageState extends State<TicketEditPage> {
       'reminder_days',
     ]) {
       inputs[key] = TextEditingController(
-        text: baseline[key]?.toString() ?? '',
+        text: key == 'expires_on'
+            ? expiryInputText(baseline[key] as String?)
+            : baseline[key]?.toString() ?? '',
       );
     }
     if (widget.kind == 'purchase' && widget.original == null) {
@@ -883,6 +886,12 @@ class _TicketEditPageState extends State<TicketEditPage> {
             'reason',
           ];
     for (final key in fields) {
+      if (key == 'expires_on') {
+        final original = baseline[key] as String?;
+        final date = parseExpiryInput(inputs[key]!.text, original: original);
+        if (date != original) data[key] = date;
+        continue;
+      }
       final text = inputs[key]!.text.trim();
       if (text == (baseline[key]?.toString() ?? '') &&
           baseline.containsKey(key)) {
@@ -934,10 +943,15 @@ class _TicketEditPageState extends State<TicketEditPage> {
     child: TextField(
       key: ValueKey('ticket-$key'),
       controller: inputs[key],
-      keyboardType: numeric
+      keyboardType: key == 'expires_on'
+          ? TextInputType.number
+          : numeric
           ? const TextInputType.numberWithOptions(decimal: true, signed: true)
           : TextInputType.text,
-      decoration: InputDecoration(labelText: label),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: key == 'expires_on' ? '例如 261231' : null,
+      ),
     ),
   );
   Widget select(
@@ -1169,7 +1183,7 @@ class _TicketEditPageState extends State<TicketEditPage> {
                           ),
                         select('pool', '期限', {'long': '长期有效', 'dated': '限时券'}),
                         if (selections['pool'] == 'dated')
-                          field('expires_on', '截止日 YYYY-MM-DD（可空）'),
+                          field('expires_on', '截止日 YYMMDD'),
                         if (widget.kind != 'purchase')
                           field('unit_price', '原单价 ¥（未知留空）', numeric: true),
                         field('total_price', '总金额 ¥（未知留空）', numeric: true),
